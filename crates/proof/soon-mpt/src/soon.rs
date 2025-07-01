@@ -92,21 +92,23 @@ pub mod tests {
         println!("Alloy trie root: {:?}", alloy_root);
         
         // ===== KONA-MPT IMPLEMENTATION (new) =====
-        // Use kona-mpt's TrieNode to manually build the trie structure
-        use kona_mpt::TrieNode;
+        // Use kona-mpt's TrieNode::insert with custom keys to match alloy_trie exactly
+        use kona_mpt::{TrieNode, NoopTrieProvider};
         
-        // Build kona-mpt trie using TrieNode structure
+        // Build kona-mpt trie using TrieNode::insert with custom keys
         let mut kona_root_node = TrieNode::Empty;
+        let noop_provider = NoopTrieProvider;
         
-        // Use the same sorted order as alloy_trie
+        // Use the same sorted order as alloy_trie to ensure identical results
         for (key_hash, _addr, account) in sorted_data.iter() {
             let key_nibbles = Nibbles::unpack(key_hash);
             
             // Encode account using same sol_account_encoder
             let encoded_value = encoder(account);
             
-            // Insert this key-value pair into the kona trie
-            kona_root_node = insert_into_kona_trie(kona_root_node, key_nibbles, encoded_value.into());
+            // Insert using TrieNode::insert with the exact same key as alloy_trie
+            kona_root_node.insert(&key_nibbles, encoded_value.into(), &noop_provider)
+                .expect("Failed to insert into kona trie");
         }
         
         let kona_root = kona_root_node.blind();
@@ -118,181 +120,82 @@ pub mod tests {
         Ok(())
     }
 
-    /// Manually insert a key-value pair into a kona-mpt TrieNode structure
-    fn insert_into_kona_trie(node: kona_mpt::TrieNode, key: alloy_trie::Nibbles, value: alloy_primitives::Bytes) -> kona_mpt::TrieNode {
-        use kona_mpt::TrieNode;
-        use alloy_trie::Nibbles;
-        
-        match node {
-            TrieNode::Empty => {
-                // For empty node, create a leaf
-                TrieNode::Leaf { prefix: key, value }
-            }
-            TrieNode::Leaf { prefix: existing_key, value: existing_value } => {
-                // Find common prefix between existing key and new key
-                let common_len = find_common_prefix_length(&existing_key, &key);
-                
-                if common_len == existing_key.len() && common_len == key.len() {
-                    // Keys are identical, replace value
-                    TrieNode::Leaf { prefix: key, value }
-                } else if common_len == existing_key.len() {
-                    // New key extends existing key, need to create extension + branch
-                    let remaining_key = key.slice(common_len..);
-                    let mut branch_stack = vec![TrieNode::Empty; 17];
-                    if !remaining_key.is_empty() {
-                        let first_nibble = remaining_key[0] as usize;
-                        let rest_key = remaining_key.slice(1..);
-                        branch_stack[first_nibble] = if rest_key.is_empty() {
-                            TrieNode::Leaf { prefix: Nibbles::default(), value }
-                        } else {
-                            TrieNode::Leaf { prefix: rest_key, value }
-                        };
-                    }
-                    // Put existing value in branch value position (index 16)
-                    branch_stack[16] = TrieNode::Leaf { prefix: alloy_trie::Nibbles::default(), value: existing_value };
-                    
-                    if common_len > 0 {
-                        TrieNode::Extension {
-                            prefix: existing_key.slice(..common_len),
-                            node: Box::new(TrieNode::Branch { stack: branch_stack })
-                        }
-                    } else {
-                        TrieNode::Branch { stack: branch_stack }
-                    }
-                } else if common_len == key.len() {
-                    // Existing key extends new key
-                    let remaining_existing = existing_key.slice(common_len..);
-                    let mut branch_stack = vec![TrieNode::Empty; 17];
-                    let first_nibble = remaining_existing[0] as usize;
-                    let rest_existing = remaining_existing.slice(1..);
-                    branch_stack[first_nibble] = if rest_existing.is_empty() {
-                        TrieNode::Leaf { prefix: alloy_trie::Nibbles::default(), value: existing_value }
-                    } else {
-                        TrieNode::Leaf { prefix: rest_existing, value: existing_value }
-                    };
-                    // Put new value in branch value position (index 16)
-                    branch_stack[16] = TrieNode::Leaf { prefix: alloy_trie::Nibbles::default(), value };
-                    
-                    if common_len > 0 {
-                        TrieNode::Extension {
-                            prefix: key.slice(..common_len),
-                            node: Box::new(TrieNode::Branch { stack: branch_stack })
-                        }
-                    } else {
-                        TrieNode::Branch { stack: branch_stack }
-                    }
-                } else {
-                    // Neither key is prefix of the other, create branch
-                    let mut branch_stack = vec![TrieNode::Empty; 17];
-                    
-                    // Insert existing key-value
-                    let remaining_existing = existing_key.slice(common_len..);
-                    if !remaining_existing.is_empty() {
-                        let first_nibble = remaining_existing[0] as usize;
-                        let rest_existing = remaining_existing.slice(1..);
-                        branch_stack[first_nibble] = if rest_existing.is_empty() {
-                            TrieNode::Leaf { prefix: alloy_trie::Nibbles::default(), value: existing_value }
-                        } else {
-                            TrieNode::Leaf { prefix: rest_existing, value: existing_value }
-                        };
-                    }
-                    
-                    // Insert new key-value  
-                    let remaining_new = key.slice(common_len..);
-                    if !remaining_new.is_empty() {
-                        let first_nibble = remaining_new[0] as usize;
-                        let rest_new = remaining_new.slice(1..);
-                        branch_stack[first_nibble] = if rest_new.is_empty() {
-                            TrieNode::Leaf { prefix: alloy_trie::Nibbles::default(), value }
-                        } else {
-                            TrieNode::Leaf { prefix: rest_new, value }
-                        };
-                    }
-                    
-                    if common_len > 0 {
-                        TrieNode::Extension {
-                            prefix: key.slice(..common_len),
-                            node: Box::new(TrieNode::Branch { stack: branch_stack })
-                        }
-                    } else {
-                        TrieNode::Branch { stack: branch_stack }
-                    }
-                }
-            }
-            TrieNode::Extension { prefix, mut node } => {
-                let common_len = find_common_prefix_length(&prefix, &key);
-                
-                if common_len == prefix.len() {
-                    // New key extends beyond extension, recurse into child
-                    let remaining_key = key.slice(common_len..);
-                    *node = insert_into_kona_trie(*node, remaining_key, value);
-                    TrieNode::Extension { prefix, node }
-                } else {
-                    // Extension needs to be split
-                    let mut branch_stack = vec![TrieNode::Empty; 17];
-                    
-                    // Handle remaining extension
-                    let remaining_extension = prefix.slice(common_len..);
-                    if !remaining_extension.is_empty() {
-                        let first_nibble = remaining_extension[0] as usize;
-                        let rest_extension = remaining_extension.slice(1..);
-                        branch_stack[first_nibble] = if rest_extension.is_empty() {
-                            *node
-                        } else {
-                            TrieNode::Extension { prefix: rest_extension, node }
-                        };
-                    }
-                    
-                    // Handle new key
-                    let remaining_new = key.slice(common_len..);
-                    if !remaining_new.is_empty() {
-                        let first_nibble = remaining_new[0] as usize;
-                        let rest_new = remaining_new.slice(1..);
-                        branch_stack[first_nibble] = if rest_new.is_empty() {
-                            TrieNode::Leaf { prefix: alloy_trie::Nibbles::default(), value }
-                        } else {
-                            TrieNode::Leaf { prefix: rest_new, value }
-                        };
-                    }
-                    
-                    if common_len > 0 {
-                        TrieNode::Extension {
-                            prefix: prefix.slice(..common_len),
-                            node: Box::new(TrieNode::Branch { stack: branch_stack })
-                        }
-                    } else {
-                        TrieNode::Branch { stack: branch_stack }
-                    }
-                }
-            }
-            TrieNode::Branch { mut stack } => {
-                if key.is_empty() {
-                    // Insert into branch value position (index 16)
-                    stack[16] = TrieNode::Leaf { prefix: alloy_trie::Nibbles::default(), value };
-                } else {
-                    // Insert into appropriate child
-                    let first_nibble = key[0] as usize;
-                    let remaining_key = key.slice(1..);
-                    stack[first_nibble] = insert_into_kona_trie(stack[first_nibble].clone(), remaining_key, value);
-                }
-                TrieNode::Branch { stack }
-            }
-            _ => {
-                // For other node types, return as-is (this shouldn't happen in normal operation)
-                node
-            }
-        }
-    }
+    #[test]
+    fn test_trie_provider_examples() -> Result<(), Box<dyn Error>> {
+        use kona_mpt::{TrieNode, NoopTrieProvider, TrieProvider, Nibbles};
+        use std::collections::HashMap;
+        use alloy_primitives::{keccak256, B256, Bytes};
+        use alloy_rlp::{Decodable, Encodable};
 
-    /// Find the length of common prefix between two Nibbles
-    fn find_common_prefix_length(a: &alloy_trie::Nibbles, b: &alloy_trie::Nibbles) -> usize {
-        let min_len = a.len().min(b.len());
-        for i in 0..min_len {
-            if a[i] != b[i] {
-                return i;
+        println!("\n=== TrieProvider Usage Examples ===");
+
+        // Example 1: NoopTrieProvider - suitable for building new trie from scratch
+        println!("\n1. NoopTrieProvider Example:");
+        let mut new_trie = TrieNode::Empty;
+        let noop_provider = NoopTrieProvider;
+        
+        // When inserting into a fresh trie, no hash references are encountered,
+        // so NoopTrieProvider is sufficient
+        let key1 = Nibbles::unpack(&keccak256("key1"));
+        let value1: Bytes = b"value1".to_vec().into();
+        new_trie.insert(&key1, value1, &noop_provider)?;
+        
+        println!("  ✅ NoopTrieProvider works for fresh trie construction");
+        
+        // Example 2: Real TrieProvider - suitable for existing trie operations
+        println!("\n2. Real TrieProvider Example:");
+        
+        // Simulate a simple in-memory database TrieProvider
+        struct MemoryTrieProvider {
+            preimages: HashMap<B256, Bytes>,
+        }
+        
+        impl TrieProvider for MemoryTrieProvider {
+            type Error = String;
+            
+            fn trie_node_by_hash(&self, key: B256) -> Result<TrieNode, Self::Error> {
+                match self.preimages.get(&key) {
+                    Some(rlp_encoded) => {
+                        TrieNode::decode(&mut rlp_encoded.as_ref())
+                            .map_err(|e| format!("Decode failed: {}", e))
+                    }
+                    None => Err(format!("Node not found for hash: {:?}", key))
+                }
             }
         }
-        min_len
+        
+        // Build a provider with pre-stored node data
+        let mut preimages = HashMap::new();
+        
+        // Create a leaf node and store its preimage
+        let leaf_node = TrieNode::Leaf {
+            prefix: Nibbles::unpack(&keccak256("existing_key")),
+            value: b"existing_value".to_vec().into(),
+        };
+        
+        let mut encoded = Vec::new();
+        leaf_node.encode(&mut encoded);
+        let leaf_hash = keccak256(&encoded);
+        preimages.insert(leaf_hash, encoded.into());
+        
+        let memory_provider = MemoryTrieProvider { preimages };
+        
+        println!("  ✅ MemoryTrieProvider contains {} preimages", memory_provider.preimages.len());
+        
+        // Example 3: Why TrieProvider is needed for insert operations
+        println!("\n3. Why insert operations need TrieProvider:");
+        println!("  - MPT nodes may be stored as hashes to save memory");
+        println!("  - When traversing to a hash reference, TrieProvider resolves the actual node");
+        println!("  - In fresh trie construction, all nodes are in memory, no external resolution needed");
+        println!("  - In existing large tries, real TrieProvider is needed to access stored nodes");
+        
+        // Example 4: When NoopTrieProvider fails
+        println!("\n4. NoopTrieProvider limitations:");
+        println!("  ⚠️  If hash node resolution is needed, NoopTrieProvider returns Empty");
+        println!("  ⚠️  This may cause data loss or logic errors");
+        println!("  ✅ Only use when certain no hash references will be encountered (fresh trie)");
+        
+        Ok(())
     }
 
     fn read_test_data() -> Vec<(Address, TrieSolanaAccount)> {

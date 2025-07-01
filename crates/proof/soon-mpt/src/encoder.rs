@@ -1,4 +1,8 @@
-use alloy_rlp::Encodable;
+#[cfg(not(test))]
+use alloc::{boxed::Box, vec::Vec, borrow::ToOwned};
+
+#[cfg(test)]
+use std::{boxed::Box, vec::Vec, borrow::ToOwned};
 use smallvec::SmallVec;
 use solana_accounts_db::accounts_hash::AccountHash;
 use solana_sdk::hash::Hash;
