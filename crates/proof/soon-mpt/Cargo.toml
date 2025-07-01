@@ -12,3 +12,18 @@ homepage.workspace = true
 workspace = true
 
 [dependencies]
+kona-mpt.workspace = true
+
+alloy-rlp = { workspace = true, features = ["arrayvec"] }
+alloy-primitives = { workspace = true, features = ["rlp"] }
+alloy-trie.workspace = true
+solana-sdk.workspace = true
+solana-accounts-db.workspace = true
+solana-program.workspace=true
+
+serde.workspace = true
+smallvec.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+serde_json.workspace = true

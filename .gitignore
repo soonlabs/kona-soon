@@ -23,3 +23,5 @@ data/
 
 # Prestate artifacts
 prestate-artifacts-*
+
+.idea
