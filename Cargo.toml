@@ -102,6 +102,10 @@ kona-preimage = { path = "crates/proof/preimage", version = "0.3.0", default-fea
 kona-std-fpvm-proc = { path = "crates/proof/std-fpvm-proc", version = "0.2.0", default-features = false }
 kona-proof-interop = { path = "crates/proof/proof-interop", version = "0.2.0", default-features = false }
 
+# Executor
+fraud-executor = { path = "crates/executor/fraud", version = "0.1.0", default-features = false }
+litesvm = { path = "crates/executor/svm", version = "0.1.0", default-features = false }
+
 # Utilities
 kona-cli = { path = "crates/utilities/cli", version = "0.2.0", default-features = false }
 kona-serde = { path = "crates/utilities/serde", version = "0.2.0", default-features = false }
@@ -249,6 +253,11 @@ solana-svm = { git = "https://github.com/soonlabs/agave", branch = "upgrade_curv
 solana-system-program = { git = "https://github.com/soonlabs/agave", branch = "upgrade_curve25519" }
 solana-vote-program = { git = "https://github.com/soonlabs/agave", branch = "upgrade_curve25519" }
 spl-token = "6.0.0"
+hex = "0.4.3"
+
+soon-mpt-primitives = { path = "../soon/node/mpt/primitives" }
+soon-mpt-trie = { path = "../soon/node/mpt/trie/trie" }
+soon-primitives = { path = "../soon/node/primitives" }
 
 [patch.crates-io]
 solana-program = { git = "https://github.com/soonlabs/agave", branch = "upgrade_curve25519" }
