@@ -1,5 +1,8 @@
 {
     "cSpell.words": [
         "superchain"
+    ],
+    "rust-analyzer.cargo.features": [
+        "dev"
     ]
 }

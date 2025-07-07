@@ -1,5 +1,15 @@
 #![allow(missing_docs)]
 
+use crate::{
+    accounts_db::AccountsDb,
+    builtin::BUILTINS,
+    error::LiteSVMError,
+    history::TransactionHistory,
+    precompiles::load_precompiles,
+    spl::load_spl_programs,
+    types::{ExecutionResult, FailedTransactionMetadata, TransactionMetadata, TransactionResult},
+    utils::{create_blockhash, rent::RentState},
+};
 use itertools::Itertools;
 use solana_bpf_loader_program::syscalls::create_program_runtime_environment_v1;
 use solana_compute_budget::{
@@ -37,7 +47,7 @@ use solana_sdk::{
     nonce_account,
     pubkey::Pubkey,
     rent::Rent,
-    rent_collector::RENT_EXEMPT_RENT_EPOCH,
+    rent_collector::{RENT_EXEMPT_RENT_EPOCH, RentCollector},
     reserved_account_keys::ReservedAccountKeys,
     signature::{Keypair, Signature},
     signer::Signer,
@@ -50,23 +60,13 @@ use solana_sdk::{
 };
 use solana_svm::{account_loader::collect_rent_from_account, message_processor::MessageProcessor};
 use solana_system_program::{SystemAccountKind, get_system_account_kind};
+use std::fmt::Debug;
 use std::{cell::RefCell, path::Path, rc::Rc, sync::Arc};
 use tracing::{error, info, warn};
 use types::SimulatedTransactionInfo;
 use utils::{
     construct_instructions_account,
     inner_instructions::inner_instructions_list_from_instruction_trace,
-};
-
-use crate::{
-    accounts_db::AccountsDb,
-    builtin::BUILTINS,
-    error::LiteSVMError,
-    history::TransactionHistory,
-    precompiles::load_precompiles,
-    spl::load_spl_programs,
-    types::{ExecutionResult, FailedTransactionMetadata, TransactionMetadata, TransactionResult},
-    utils::{create_blockhash, rent::RentState},
 };
 
 pub mod error;
@@ -98,6 +98,7 @@ pub struct LiteSVM {
     blockhash_check: bool,
     fee_structure: Option<FeeStructure>,
     log_bytes_limit: Option<usize>,
+    rent_collector: Option<RentCollector>,
 }
 
 impl Default for LiteSVM {
@@ -114,7 +115,21 @@ impl Default for LiteSVM {
             blockhash_check: false,
             fee_structure: None,
             log_bytes_limit: Some(10_000),
+            rent_collector: None,
         }
+    }
+}
+
+impl Debug for LiteSVM {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "LiteSVM")?;
+        write!(f, "latest_blockhash: {}", self.latest_blockhash)?;
+        write!(f, "compute_budget: {:?}", self.compute_budget)?;
+        write!(f, "sigverify: {}", self.sigverify)?;
+        write!(f, "blockhash_check: {}", self.blockhash_check)?;
+        write!(f, "fee_structure: {:?}", self.fee_structure)?;
+        write!(f, "log_bytes_limit: {:?}", self.log_bytes_limit)?;
+        Ok(())
     }
 }
 
@@ -148,9 +163,8 @@ impl LiteSVM {
         self
     }
 
-    pub fn with_fee_structure(mut self, fee_structure: FeeStructure) -> Self {
-        self.fee_structure = Some(fee_structure);
-        self
+    pub fn set_fee_structure(&mut self, fee_structure: Option<FeeStructure>) {
+        self.fee_structure = fee_structure;
     }
 
     /// Includes the default sysvars.
@@ -247,7 +261,7 @@ impl LiteSVM {
         self
     }
 
-    pub fn with_log_bytes_limit(mut self, limit: Option<usize>) -> Self {
+    pub const fn with_log_bytes_limit(mut self, limit: Option<usize>) -> Self {
         self.log_bytes_limit = limit;
         self
     }
@@ -267,8 +281,12 @@ impl LiteSVM {
         self.accounts.add_account(pubkey, data.into())
     }
 
+    pub fn set_rent_collector(&mut self, rent_collector: Option<RentCollector>) {
+        self.rent_collector = rent_collector;
+    }
+
     /// Check if the error should be added to missing_accounts for retry
-    fn should_retry_on_error(error: &LiteSVMError) -> bool {
+    const fn should_retry_on_error(error: &LiteSVMError) -> bool {
         matches!(
             error,
             LiteSVMError::Instruction(InstructionError::MissingAccount)
@@ -579,7 +597,7 @@ impl LiteSVM {
                     {
                         fee_payer_rent_debit = collect_rent_from_account(
                             &self.feature_set,
-                            &Default::default(), // TODO: pass rent collector later
+                            self.rent_collector.as_ref().unwrap_or(&Default::default()),
                             key,
                             &mut account,
                         )
@@ -597,7 +615,7 @@ impl LiteSVM {
                     } else if message.is_writable(i) {
                         fee_payer_rent_debit = collect_rent_from_account(
                             &self.feature_set,
-                            &Default::default(), // TODO: pass rent collector later
+                            self.rent_collector.as_ref().unwrap_or(&Default::default()),
                             key,
                             &mut account,
                         )
