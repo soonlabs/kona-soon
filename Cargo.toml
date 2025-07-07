@@ -19,14 +19,10 @@ members = [
   "crates/protocol/*",
   "crates/providers/*",
   "crates/utilities/*",
+  "crates/executor/*",
   "examples/*",
 ]
-default-members = [
-  "bin/host",
-  "bin/client",
-  "bin/node",
-  "bin/supervisor",
-]
+default-members = ["bin/host", "bin/client", "bin/node", "bin/supervisor"]
 
 [workspace.metadata.cargo-udeps.ignore]
 normal = ["rustls-platform-verifier"]
@@ -229,3 +225,31 @@ c-kzg = { version = "2.0.0", default-features = false }
 ark-ff = { version = "0.5.0", default-features = false }
 secp256k1 = { version = "0.31.0", default-features = false }
 ark-bls12-381 = { version = "0.5.0", default-features = false }
+
+
+# executor
+bincode = "1.3"
+indexmap = "2.6"
+itertools = "0.12"
+test-log = "0.2"
+
+solana-address-lookup-table-program = { git = "https://github.com/soonlabs/agave", branch = "upgrade_curve25519" }
+solana-bpf-loader-program = { git = "https://github.com/soonlabs/agave", branch = "upgrade_curve25519" }
+solana-compute-budget = { git = "https://github.com/soonlabs/agave", branch = "upgrade_curve25519" }
+solana-compute-budget-program = { git = "https://github.com/soonlabs/agave", branch = "upgrade_curve25519" }
+solana-config-program = { git = "https://github.com/soonlabs/agave", branch = "upgrade_curve25519" }
+solana-loader-v4-program = { git = "https://github.com/soonlabs/agave", branch = "upgrade_curve25519" }
+solana-program = { git = "https://github.com/soonlabs/agave", branch = "upgrade_curve25519" }
+solana-program-runtime = { git = "https://github.com/soonlabs/agave", branch = "upgrade_curve25519" }
+solana-program-test = { git = "https://github.com/soonlabs/agave", branch = "upgrade_curve25519" }
+solana-runtime-transaction = { git = "https://github.com/soonlabs/agave", branch = "upgrade_curve25519" }
+solana-sdk = { git = "https://github.com/soonlabs/agave", branch = "upgrade_curve25519" }
+solana-stake-program = { git = "https://github.com/soonlabs/agave", branch = "upgrade_curve25519" }
+solana-svm = { git = "https://github.com/soonlabs/agave", branch = "upgrade_curve25519" }
+solana-system-program = { git = "https://github.com/soonlabs/agave", branch = "upgrade_curve25519" }
+solana-vote-program = { git = "https://github.com/soonlabs/agave", branch = "upgrade_curve25519" }
+spl-token = "6.0.0"
+
+[patch.crates-io]
+solana-program = { git = "https://github.com/soonlabs/agave", branch = "upgrade_curve25519" }
+solana-zk-token-sdk = { git = "https://github.com/soonlabs/agave", branch = "upgrade_curve25519" }
