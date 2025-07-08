@@ -5,10 +5,10 @@ use alloy_consensus::{Header, Sealed};
 use alloy_primitives::B256;
 use async_trait::async_trait;
 use kona_driver::Executor;
-use soon_primitives::rollup_config::SoonRollupConfig;
+use kona_executor::{StatelessL2Builder, TrieDBProvider};
 use kona_mpt::TrieHinter;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
-use kona_executor::{StatelessL2Builder, TrieDBProvider};
+use soon_primitives::rollup_config::SoonRollupConfig;
 
 /// An executor wrapper type.
 #[derive(Debug)]
@@ -73,13 +73,12 @@ where
     /// Execute the given payload attributes.
     async fn execute_payload(
         &mut self,
-        _attributes: OpPayloadAttributes,
+        attributes: OpPayloadAttributes,
     ) -> Result<(), Self::Error> {
-        // self.inner.as_mut().map_or_else(
-        //     || Err(kona_executor::ExecutorError::MissingExecutor),
-        //     |e| e.build_block(attributes),
-        // )
-        Ok(())
+        self.inner.as_mut().map_or_else(
+            || Err(kona_executor::ExecutorError::MissingExecutor),
+            |e| e.build_block(attributes),
+        )
     }
 
     /// Computes the output root.

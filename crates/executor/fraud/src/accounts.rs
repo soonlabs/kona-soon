@@ -6,7 +6,7 @@ use soon_mpt_trie::{encoder::sol_account_encoder, test_utils::state_root_prehash
 
 pub type AccountPairs = Vec<(Pubkey, AccountSharedData)>;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct SoonAccounts {
     pub accounts: AccountPairs,
 }

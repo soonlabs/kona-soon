@@ -136,7 +136,7 @@ impl Debug for LiteSVM {
 impl LiteSVM {
     /// Creates the basic test environment.
     pub fn new() -> Self {
-        LiteSVM::default()
+        Self::default()
             .with_builtins(None)
             .with_lamports(1_000_000u64.wrapping_mul(LAMPORTS_PER_SOL))
             .with_sysvars()
@@ -146,19 +146,19 @@ impl LiteSVM {
     }
 
     /// Sets the compute budget.
-    pub fn with_compute_budget(mut self, compute_budget: ComputeBudget) -> Self {
+    pub const fn with_compute_budget(mut self, compute_budget: ComputeBudget) -> Self {
         self.compute_budget = Some(compute_budget);
         self
     }
 
     /// Enables or disables sigverify.
-    pub fn with_sigverify(mut self, sigverify: bool) -> Self {
+    pub const fn with_sigverify(mut self, sigverify: bool) -> Self {
         self.sigverify = sigverify;
         self
     }
 
     /// Enables or disables the blockhash check.
-    pub fn with_blockhash_check(mut self, check: bool) -> Self {
+    pub const fn with_blockhash_check(mut self, check: bool) -> Self {
         self.blockhash_check = check;
         self
     }

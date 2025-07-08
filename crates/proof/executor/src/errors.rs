@@ -47,6 +47,9 @@ pub enum ExecutorError {
     /// Missing the executor.
     #[error("Missing the executor")]
     MissingExecutor,
+    /// Fraud executor error.
+    #[error("Fraud executor error: {0}")]
+    FraudExecutorError(#[from] fraud_executor::error::Error),
 }
 
 /// A [`Result`] type for the [`ExecutorError`] enum.

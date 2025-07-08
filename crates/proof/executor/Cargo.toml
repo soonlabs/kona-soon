@@ -14,6 +14,8 @@ workspace = true
 [dependencies]
 # Workspace
 kona-mpt.workspace = true
+fraud-executor.workspace = true
+litesvm.workspace = true
 
 # Soon
 soon-primitives.workspace = true
