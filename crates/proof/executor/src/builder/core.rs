@@ -7,7 +7,7 @@ use fraud_executor::{accounts::SoonAccounts, block::SimpleBlock, executor::Fraud
 use kona_mpt::TrieHinter;
 use op_alloy_consensus::OpReceiptEnvelope;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
-use soon_primitives::rollup_config::SoonRollupConfig;
+use soon_primitives::{blocks::L2BlockInfo, rollup_config::SoonRollupConfig};
 
 /// The [`StatelessL2Builder`] is an OP Stack block builder that traverses a merkle patricia trie
 /// via the [`TrieDB`] during execution.
@@ -27,6 +27,8 @@ where
     /// routines.
     #[allow(dead_code)]
     pub(crate) factory: Option<bool>,
+
+    pub(crate) accounts: SoonAccounts,
 }
 
 impl<'a, P, H> StatelessL2Builder<'a, P, H>
@@ -42,11 +44,11 @@ where
         parent_header: Sealed<Header>,
     ) -> Self {
         let trie_db = TrieDB::new(parent_header, provider, hinter);
-        Self { config, trie_db, factory: None }
+        Self { config, trie_db, factory: None, accounts: Default::default() }
     }
 
     /// Builds a new block on top of the parent state, using the given [`OpPayloadAttributes`].
-    pub fn build_block(&mut self, attrs: OpPayloadAttributes) -> ExecutorResult<()> {
+    pub fn build_block(&mut self, attrs: OpPayloadAttributes) -> ExecutorResult<L2BlockInfo> {
         // Step 1. Set up the execution environment using genesis
 
         // Step 2. Create the executor, using the trie database.
@@ -55,13 +57,13 @@ where
 
         // Step 3. Execute the block containing the transactions within the payload attributes.
         let block = self.convert_block(attrs)?;
-        executor.execute_block(block)?;
+        let l2_info = executor.execute_block(block)?;
 
-        // Step 4. Return the outcome
+        // Step 4. Store data to calculate output root
         let accounts = executor.export_accounts();
-        let state_root = SoonAccounts::from(accounts).state_root();
+        self.accounts = SoonAccounts::from(accounts);
 
-        Ok(())
+        Ok(l2_info)
     }
 
     fn convert_block(&self, _attrs: OpPayloadAttributes) -> ExecutorResult<SimpleBlock> {

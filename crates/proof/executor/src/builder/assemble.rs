@@ -1,9 +1,7 @@
 //! [Header] assembly logic for the [StatelessL2Builder].
 
 use super::StatelessL2Builder;
-use crate::{
-    ExecutorResult, TrieDBError, TrieDBProvider,
-};
+use crate::{ExecutorResult, TrieDBError, TrieDBProvider};
 use alloy_consensus::{Header, Sealed};
 use alloy_evm::block::BlockExecutionResult;
 use alloy_primitives::{B256, Sealable};
@@ -44,9 +42,7 @@ where
     /// payload = state_root .. withdrawal_storage_root .. latest_block_hash
     /// ```
     pub fn compute_output_root(&mut self) -> ExecutorResult<B256> {
-
-        // Hash the output and return
-        Ok(B256::ZERO)
+        Ok(self.accounts.state_root())
     }
 
     /// Fetches the L2 to L1 message passer account from the cache or underlying trie.

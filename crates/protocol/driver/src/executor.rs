@@ -6,6 +6,7 @@ use alloy_primitives::B256;
 use async_trait::async_trait;
 use core::error::Error;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
+use soon_primitives::blocks::L2BlockInfo;
 
 /// Executor
 ///
@@ -25,7 +26,7 @@ pub trait Executor {
     async fn execute_payload(
         &mut self,
         attributes: OpPayloadAttributes,
-    ) -> Result<(), Self::Error>;
+    ) -> Result<L2BlockInfo, Self::Error>;
 
     /// Computes the output root.
     /// Expected to be called after the payload has been executed.

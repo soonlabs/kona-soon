@@ -8,7 +8,7 @@ use kona_driver::Executor;
 use kona_executor::{StatelessL2Builder, TrieDBProvider};
 use kona_mpt::TrieHinter;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
-use soon_primitives::rollup_config::SoonRollupConfig;
+use soon_primitives::{blocks::L2BlockInfo, rollup_config::SoonRollupConfig};
 
 /// An executor wrapper type.
 #[derive(Debug)]
@@ -74,7 +74,7 @@ where
     async fn execute_payload(
         &mut self,
         attributes: OpPayloadAttributes,
-    ) -> Result<(), Self::Error> {
+    ) -> Result<L2BlockInfo, Self::Error> {
         self.inner.as_mut().map_or_else(
             || Err(kona_executor::ExecutorError::MissingExecutor),
             |e| e.build_block(attributes),
@@ -83,10 +83,9 @@ where
 
     /// Computes the output root.
     fn compute_output_root(&mut self) -> Result<B256, Self::Error> {
-        // self.inner.as_mut().map_or_else(
-        //     || Err(kona_executor::ExecutorError::MissingExecutor),
-        //     |e| e.compute_output_root(),
-        // )
-        Ok(B256::ZERO)
+        self.inner.as_mut().map_or_else(
+            || Err(kona_executor::ExecutorError::MissingExecutor),
+            |e| e.compute_output_root(),
+        )
     }
 }

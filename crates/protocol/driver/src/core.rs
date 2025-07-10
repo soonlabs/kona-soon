@@ -2,19 +2,17 @@
 
 use crate::{DriverError, DriverPipeline, DriverResult, Executor, PipelineCursor, TipCursor};
 use alloc::{sync::Arc, vec::Vec};
-use alloy_consensus::{BlockBody, Header};
+use alloy_consensus::Header;
 use alloy_primitives::{B256, Bytes, Sealable};
-use alloy_rlp::Decodable;
-use core::fmt::Debug;
 use core::default::Default;
+use core::fmt::Debug;
 use soon_derive::{
     errors::{PipelineError, PipelineErrorKind},
     traits::{Pipeline, SignalReceiver},
 };
-use soon_primitives::rollup_config::SoonRollupConfig;
-use soon_primitives::derive::OpAttributesWithParent;
 use soon_primitives::blocks::L2BlockInfo;
-use op_alloy_consensus::{OpBlock, OpTxEnvelope};
+use soon_primitives::derive::OpAttributesWithParent;
+use soon_primitives::rollup_config::SoonRollupConfig;
 use spin::RwLock;
 
 /// The Rollup Driver entrypoint.
@@ -34,7 +32,7 @@ where
     /// A pipeline abstraction.
     pub pipeline: DP,
     /// The safe head's execution artifacts + Transactions
-    pub safe_head_artifacts: Option<((), Vec<Bytes>)>,
+    pub safe_head_artifacts: Option<(L2BlockInfo, Vec<Bytes>)>,
 }
 
 impl<E, DP, P> Driver<E, DP, P>
@@ -117,26 +115,9 @@ where
                 }
             };
 
-            // Construct the block.
-            let _block = OpBlock {
-                header: Default::default(),//outcome.header.inner().clone(),
-                body: BlockBody {
-                    transactions: attributes
-                        .transactions
-                        .as_ref()
-                        .unwrap_or(&Vec::new())
-                        .iter()
-                        .map(|tx| OpTxEnvelope::decode(&mut tx.as_ref()).map_err(DriverError::Rlp))
-                        .collect::<DriverResult<Vec<OpTxEnvelope>, E::Error>>()?,
-                    ommers: Vec::new(),
-                    withdrawals: None,
-                },
-            };
-
             // Get the pipeline origin and update the tip cursor.
             let origin = self.pipeline.origin().ok_or(PipelineError::MissingOrigin.crit())?;
-            //TODO construct L2BlockInfo
-            let l2_info = L2BlockInfo::default();
+            let l2_info = outcome;
             let tip_cursor = TipCursor::new(
                 l2_info,
                 Header::default().seal_slow(),

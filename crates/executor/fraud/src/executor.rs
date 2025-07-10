@@ -6,6 +6,9 @@ use litesvm::LiteSVM;
 use solana_sdk::fee::FeeStructure;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::rent_collector::RentCollector;
+use soon_mpt_primitives::B256;
+use soon_mpt_primitives::alloy::eips::BlockNumHash;
+use soon_primitives::blocks::{BlockInfo, L2BlockInfo};
 
 #[derive(Debug)]
 pub struct FraudExecutor {
@@ -36,13 +39,13 @@ impl FraudExecutor {
         Ok(executor)
     }
 
-    pub fn execute_block(&mut self, block: SimpleBlock) -> Result<()> {
+    pub fn execute_block(&mut self, block: SimpleBlock) -> Result<L2BlockInfo> {
         self.prepare_block(&block)?;
         let _results =
             self.litesvm.execute_block_transactions(block.transactions, self.fee_collector)?;
         self.litesvm.import_accounts(block.extra_accounts)?;
         self.clear_block();
-        Ok(())
+        self.get_l2_block_info(block.slot)
     }
 
     pub fn export_accounts(&self) -> AccountPairs {
@@ -60,6 +63,15 @@ impl FraudExecutor {
 
     fn clear_block(&mut self) {
         self.litesvm.set_rent_collector(None);
+    }
+
+    fn get_l2_block_info(&self, slot: u64) -> Result<L2BlockInfo> {
+        Ok(L2BlockInfo {
+            // TODO: set zero hash here, calculate is needed later
+            block_info: BlockInfo::new(B256::ZERO, slot, B256::ZERO, 0),
+            l1_origin: BlockNumHash::default(),
+            seq_num: 0,
+        })
     }
 }
 
