@@ -1,15 +1,16 @@
 //! Contains the concrete implementation of the [ChainProvider] trait for the proof.
 
 use crate::{HintType, errors::OracleProviderError};
-use alloc::{boxed::Box, sync::Arc, vec, vec::Vec};
-use alloy_consensus::Header;
-use alloy_eips::BlockNumberOrTag;
+use alloc::{boxed::Box, sync::Arc, vec::Vec};
+use alloy_consensus::{Header, Receipt, ReceiptEnvelope, TxEnvelope};
+use alloy_consensus::TxEip4844Variant::{TxEip4844, TxEip4844WithSidecar};
+use alloy_eips::{BlockNumberOrTag, Decodable2718};
 use alloy_primitives::B256;
 use alloy_rlp::Decodable;
 use async_trait::async_trait;
 use soon_derive::traits::ChainProvider;
-use soon_primitives::blocks::{BlockInfo, L1BlockReceipt, L1Transaction};
-use kona_mpt::{TrieNode, TrieProvider};
+use soon_primitives::blocks::{BlockInfo, L1Header, L1Transaction};
+use kona_mpt::{OrderedListWalker, TrieNode, TrieProvider};
 use kona_preimage::{CommsClient, PreimageKey, PreimageKeyType};
 
 /// The oracle-backed L1 chain provider for the client program.
@@ -32,35 +33,117 @@ impl<T: CommsClient> OracleL1ChainProvider<T> {
 impl<T: CommsClient + Sync + Send> ChainProvider for OracleL1ChainProvider<T> {
     type Error = OracleProviderError;
 
-    async fn block_info_by_hash(&mut self, hash: B256) -> Result<BlockInfo, Self::Error> {
+    async fn header_by_hash(&self, hash: B256) -> Result<L1Header, Self::Error> {
         // Fetch the header RLP from the oracle.
         HintType::L1BlockHeader.with_data(&[hash.as_ref()]).send(self.oracle.as_ref()).await?;
         let header_rlp = self.oracle.get(PreimageKey::new_keccak256(*hash)).await?;
 
         // Decode the header RLP into a Header.
         let header = Header::decode(&mut header_rlp.as_slice()).map_err(OracleProviderError::Rlp)?;
+        Ok(header.into())
+    }
+
+    async fn block_info_by_hash(&self, hash: B256) -> Result<BlockInfo, Self::Error> {
+        let header = self.header_by_hash(hash).await?;
         Ok(BlockInfo {
-            hash: header.hash_slow(),
+            hash: header.hash,
             number: header.number,
             parent_hash: header.parent_hash,
             timestamp: header.timestamp,
         })
-
     }
 
-    async fn block_info_by_number(&self, _block_number: BlockNumberOrTag) -> Result<BlockInfo, Self::Error> {
-        Ok(BlockInfo::default())
+    async fn block_info_by_number(&self, block_number: BlockNumberOrTag) -> Result<BlockInfo, Self::Error> {
+        // Fetch the starting block header.
+        let mut header = self.header_by_hash(self.l1_head).await?;
+
+        // Check if the block number is in range. If not, we can fail early.
+        let block_number= block_number.as_number().unwrap();
+        if block_number > header.number {
+            return Err(OracleProviderError::BlockNumberPastHead(block_number, header.number));
+        }
+
+        // Walk back the block headers to the desired block number.
+        while header.number > block_number {
+            header = self.header_by_hash(header.parent_hash).await?;
+        }
+
+        Ok(header.into())
     }
 
-    async fn receipts_by_hash(&self, _hash: B256) -> Result<(Vec<L1BlockReceipt>, bool), Self::Error> {
-        Ok((vec![], true))
+    async fn receipts_by_hash(&self, hash: B256) -> Result<(Vec<Receipt>, bool), Self::Error> {
+        // Fetch the block header to find the receipts root.
+        let header = self.header_by_hash(hash).await?;
+
+        // Send a hint for the block's receipts, and walk through the receipts trie in the header to
+        // verify them.
+        HintType::L1Receipts.with_data(&[hash.as_ref()]).send(self.oracle.as_ref()).await?;
+        let trie_walker = OrderedListWalker::try_new_hydrated(header.receipts_root, self)
+            .map_err(OracleProviderError::TrieWalker)?;
+
+        // Decode the receipts within the receipts trie.
+        let receipts = trie_walker
+            .into_iter()
+            .map(|(_, rlp)| {
+                let envelope = ReceiptEnvelope::decode_2718(&mut rlp.as_ref())?;
+                Ok(envelope.as_receipt().expect("Infallible").clone())
+            })
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(OracleProviderError::Rlp)?;
+
+        Ok((receipts, true))
     }
 
     async fn get_block_transactions_by_hash(
         &self,
-        _hash: B256,
+        hash: B256,
     ) -> Result<Vec<L1Transaction>, Self::Error> {
-        Ok(vec![])
+        // Fetch the block header to construct the block info.
+        let header = self.header_by_hash(hash).await?;
+
+        // Send a hint for the block's transactions, and walk through the transactions trie in the
+        // header to verify them.
+        HintType::L1Transactions.with_data(&[hash.as_ref()]).send(self.oracle.as_ref()).await?;
+        let trie_walker = OrderedListWalker::try_new_hydrated(header.transactions_root, self)
+            .map_err(OracleProviderError::TrieWalker)?;
+
+        // Decode the transactions within the transactions trie.
+        let transactions = trie_walker
+            .into_iter()
+            .map(|(_, rlp)| {
+                // note: not short-handed for error type coersion w/ `?`.
+                let rlp = TxEnvelope::decode_2718(&mut rlp.as_ref())?;
+                Ok(rlp)
+            })
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(OracleProviderError::Rlp)?;
+
+        let l1_transactions = transactions.iter().map(|tx| {
+            let (to, data) = match tx {
+                TxEnvelope::Legacy(tx) => (tx.tx().to.into_to(), &tx.tx().input),
+                TxEnvelope::Eip2930(tx) => (tx.tx().to.into_to(), &tx.tx().input),
+                TxEnvelope::Eip1559(tx) => (tx.tx().to.into_to(), &tx.tx().input),
+                TxEnvelope::Eip4844(tx) => match tx.tx() {
+                    TxEip4844(tx) => {
+                        (Some(tx.to), &tx.input)
+                    },
+                    TxEip4844WithSidecar(tx) => {
+                        (Some(tx.tx().to), &tx.tx().input)
+                    },
+                }
+                TxEnvelope::Eip7702(tx) => (Some(tx.tx().to), &tx.tx().input),
+            };
+            Ok(L1Transaction {
+                hash: *tx.hash(),
+                from: tx.recover_signer().unwrap(),
+                to,
+                input: data.to_vec(),
+            })
+        })
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(OracleProviderError::Rlp)?;
+
+        Ok(l1_transactions)
     }
 }
 

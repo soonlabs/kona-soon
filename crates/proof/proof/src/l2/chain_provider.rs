@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use soon_derive::traits::L2ChainProvider;
 use kona_driver::PipelineCursor;
 use kona_executor::TrieDBProvider;
-use soon_primitives::system_config::SystemConfig;
+use soon_primitives::system::SystemConfig;
 use soon_primitives::rollup_config::SoonRollupConfig;
 use kona_mpt::{TrieHinter, TrieNode, TrieProvider};
 use kona_preimage::{CommsClient, PreimageKey, PreimageKeyType};

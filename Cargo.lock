@@ -9393,8 +9393,10 @@ name = "soon-primitives"
 version = "0.7.4"
 dependencies = [
  "alloy",
+ "alloy-consensus 0.15.11",
  "alloy-eips 0.15.11",
  "alloy-primitives",
+ "alloy-sol-types",
  "bincode",
  "bridge",
  "derive_more 0.99.20",

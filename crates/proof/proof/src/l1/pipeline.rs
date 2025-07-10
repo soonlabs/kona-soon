@@ -15,7 +15,7 @@ use soon_derive::{
     types::{PipelineResult, ResetSignal, Signal, StepResult},
 };
 use kona_driver::{DriverPipeline, PipelineCursor};
-use soon_primitives::system_config::SystemConfig;
+use soon_primitives::system::SystemConfig;
 use soon_primitives::rollup_config::SoonRollupConfig;
 use kona_preimage::CommsClient;
 use soon_primitives::blocks::{BlockInfo, L2BlockInfo};
