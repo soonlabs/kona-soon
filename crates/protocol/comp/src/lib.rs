@@ -9,7 +9,10 @@
 
 extern crate alloc;
 
+// TODO: remove feature if channel_out compiles
+#[cfg(feature = "channel")]
 mod channel_out;
+#[cfg(feature = "channel")]
 pub use channel_out::{ChannelOut, ChannelOutError};
 
 mod traits;

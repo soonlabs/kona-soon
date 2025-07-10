@@ -73,7 +73,7 @@ std = [
   "alloy-rlp/std",
   "alloy-serde?/std",
   "thiserror/std",
-  "unsigned-varint/std"
+  "unsigned-varint/std",
 ]
 test-utils = []
 serde = [
@@ -83,8 +83,9 @@ serde = [
   "alloy-consensus/serde",
   "alloy-eips/serde",
   "alloy-primitives/serde",
-  "tracing-subscriber?/serde"
+  "tracing-subscriber?/serde",
 ]
+channel = []
 
 
 [package.metadata.cargo-udeps.ignore]

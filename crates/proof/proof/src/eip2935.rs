@@ -64,11 +64,10 @@ where
 mod tests {
     use super::*;
     use alloc::{vec, vec::Vec};
-    use alloy_primitives::Bytes;
+    use alloy_primitives::{Bytes, map::HashMap};
     use alloy_rlp::Encodable;
     use alloy_trie::{HashBuilder, proof::ProofRetainer};
     use kona_mpt::NoopTrieHinter;
-    use kona_registry::HashMap;
     use rstest::rstest;
 
     // Mock TrieProvider implementation for testing EIP-2935 history lookup

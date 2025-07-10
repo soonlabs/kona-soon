@@ -2,8 +2,6 @@
 
 use crate::{ChannelCompressor, CompressorError};
 use alloc::{vec, vec::Vec};
-use soon_primitives::rollup_config::SoonRollupConfig;
-use kona_protocol::{Batch, ChannelId, Frame};
 use rand::{RngCore, SeedableRng, rngs::SmallRng};
 
 /// The frame overhead.
