@@ -1,8 +1,9 @@
 //! The [StatelessL2Builder] is a block builder that pulls state from a [TrieDB] during execution.
 
-use crate::{ExecutorResult, TrieDB, TrieDBProvider};
+use crate::{ExecutorError, ExecutorResult, TrieDB, TrieDBProvider, builder::L2BlockBuilder};
 use alloy_consensus::{Header, Sealed};
 use alloy_evm::block::BlockExecutionResult;
+use alloy_primitives::B256;
 use fraud_executor::{accounts::SoonAccounts, block::SimpleBlock, executor::FraudExecutor};
 use kona_mpt::TrieHinter;
 use op_alloy_consensus::OpReceiptEnvelope;
@@ -12,14 +13,14 @@ use soon_primitives::{blocks::L2BlockInfo, rollup_config::SoonRollupConfig};
 /// The [`StatelessL2Builder`] is an OP Stack block builder that traverses a merkle patricia trie
 /// via the [`TrieDB`] during execution.
 #[derive(Debug)]
-pub struct StatelessL2Builder<'a, P, H>
+pub struct StatelessL2Builder<P, H>
 where
     P: TrieDBProvider,
     H: TrieHinter,
 {
     /// The [SoonRollupConfig].
     #[allow(dead_code)]
-    pub(crate) config: &'a SoonRollupConfig,
+    pub(crate) config: SoonRollupConfig,
     /// The inner trie database.
     #[allow(dead_code)]
     pub(crate) trie_db: TrieDB<P, H>,
@@ -31,14 +32,28 @@ where
     pub(crate) accounts: SoonAccounts,
 }
 
-impl<'a, P, H> StatelessL2Builder<'a, P, H>
+impl<P, H> StatelessL2Builder<P, H>
+where
+    P: TrieDBProvider,
+    H: TrieHinter,
+{
+    fn convert_block(&self, _attrs: OpPayloadAttributes) -> ExecutorResult<SimpleBlock> {
+        Ok(SimpleBlock {
+            slot: 0,                            // TODO: get current slot
+            transactions: Default::default(),   // TODO: get transactions from attrs.transactions
+            extra_accounts: Default::default(), // TODO: get extra accounts from somewhere
+        })
+    }
+}
+
+impl<P, H> L2BlockBuilder<P, H> for StatelessL2Builder<P, H>
 where
     P: TrieDBProvider,
     H: TrieHinter,
 {
     /// Creates a new [StatelessL2Builder] instance.
-    pub fn new(
-        config: &'a SoonRollupConfig,
+    fn new(
+        config: SoonRollupConfig,
         provider: P,
         hinter: H,
         parent_header: Sealed<Header>,
@@ -47,8 +62,13 @@ where
         Self { config, trie_db, factory: None, accounts: Default::default() }
     }
 
+    /// Initializes the block builder.
+    fn init(&mut self) -> ExecutorResult<()> {
+        Ok(())
+    }
+
     /// Builds a new block on top of the parent state, using the given [`OpPayloadAttributes`].
-    pub fn build_block(&mut self, attrs: OpPayloadAttributes) -> ExecutorResult<L2BlockInfo> {
+    fn build_block(&mut self, attrs: OpPayloadAttributes) -> ExecutorResult<L2BlockInfo> {
         // Step 1. Set up the execution environment using genesis
 
         // Step 2. Create the executor, using the trie database.
@@ -66,29 +86,9 @@ where
         Ok(l2_info)
     }
 
-    fn convert_block(&self, _attrs: OpPayloadAttributes) -> ExecutorResult<SimpleBlock> {
-        Ok(SimpleBlock {
-            slot: 0,                            // TODO: get current slot
-            transactions: Default::default(),   // TODO: get transactions from attrs.transactions
-            extra_accounts: Default::default(), // TODO: get extra accounts from somewhere
-        })
-    }
-}
-
-/// The outcome of a block building operation, returning the sealed block [`Header`] and the
-/// [`BlockExecutionResult`].
-#[derive(Debug, Clone)]
-pub struct BlockBuildingOutcome {
-    /// The block header.
-    pub header: Sealed<Header>,
-    /// The block execution result.
-    pub execution_result: BlockExecutionResult<OpReceiptEnvelope>,
-}
-
-impl From<(Sealed<Header>, BlockExecutionResult<OpReceiptEnvelope>)> for BlockBuildingOutcome {
-    fn from(
-        (header, execution_result): (Sealed<Header>, BlockExecutionResult<OpReceiptEnvelope>),
-    ) -> Self {
-        Self { header, execution_result }
+    /// Computes the current output root of the latest executed block, based on the parent header
+    /// and the underlying state trie.
+    fn compute_output_root(&mut self) -> ExecutorResult<B256> {
+        Ok(self.accounts.state_root())
     }
 }

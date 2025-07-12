@@ -19,7 +19,7 @@ impl TrieProvider for NoopTrieProvider {
 }
 
 /// The default, no-op implementation of the [TrieHinter] trait, used for testing.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct NoopTrieHinter;
 
 impl TrieHinter for NoopTrieHinter {

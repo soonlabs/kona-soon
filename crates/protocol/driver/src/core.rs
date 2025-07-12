@@ -106,7 +106,9 @@ where
                 }
             };
 
-            self.executor.update_safe_head(tip_cursor.l2_safe_head_header.clone());
+            self.executor
+                .update_safe_head(tip_cursor.l2_safe_head_header.clone())
+                .map_err(DriverError::Executor)?;
             let outcome = match self.executor.execute_payload(attributes.clone()).await {
                 Ok(outcome) => outcome,
                 Err(e) => {
