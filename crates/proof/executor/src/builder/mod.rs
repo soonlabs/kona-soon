@@ -1,4 +1,5 @@
 //! Stateless OP Stack block builder implementation.
+use alloc::sync::Arc;
 use alloy_consensus::{Header, Sealed};
 use alloy_evm::block::BlockExecutionResult;
 use alloy_primitives::B256;
@@ -22,8 +23,12 @@ where
     H: TrieHinter,
 {
     /// Creates a new block builder.
-    fn new(config: SoonRollupConfig, provider: P, hinter: H, parent_header: Sealed<Header>)
-    -> Self;
+    fn new(
+        config: Arc<SoonRollupConfig>,
+        provider: P,
+        hinter: H,
+        parent_header: Sealed<Header>,
+    ) -> Self;
 
     /// Initializes the block builder.
     fn init(&mut self) -> ExecutorResult<()>;

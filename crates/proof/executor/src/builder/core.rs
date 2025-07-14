@@ -1,6 +1,7 @@
 //! The [StatelessL2Builder] is a block builder that pulls state from a [TrieDB] during execution.
 
 use crate::{ExecutorError, ExecutorResult, TrieDB, TrieDBProvider, builder::L2BlockBuilder};
+use alloc::sync::Arc;
 use alloy_consensus::{Header, Sealed};
 use alloy_evm::block::BlockExecutionResult;
 use alloy_primitives::B256;
@@ -20,7 +21,7 @@ where
 {
     /// The [SoonRollupConfig].
     #[allow(dead_code)]
-    pub(crate) config: SoonRollupConfig,
+    pub(crate) config: Arc<SoonRollupConfig>,
     /// The inner trie database.
     #[allow(dead_code)]
     pub(crate) trie_db: TrieDB<P, H>,
@@ -53,7 +54,7 @@ where
 {
     /// Creates a new [StatelessL2Builder] instance.
     fn new(
-        config: SoonRollupConfig,
+        config: Arc<SoonRollupConfig>,
         provider: P,
         hinter: H,
         parent_header: Sealed<Header>,

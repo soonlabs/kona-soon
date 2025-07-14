@@ -1,4 +1,5 @@
 use crate::{ExecutorError, ExecutorResult, L2BlockBuilder, TrieDBProvider};
+use alloc::sync::Arc;
 use alloy_consensus::{Header, Sealed};
 use alloy_primitives::B256;
 use kona_mpt::TrieHinter;
@@ -10,7 +11,7 @@ where
     P: TrieDBProvider,
     H: TrieHinter,
 {
-    pub(crate) config: SoonRollupConfig,
+    pub(crate) config: Arc<SoonRollupConfig>,
     pub(crate) provider: P,
     pub(crate) hinter: H,
     pub(crate) parent_header: Sealed<Header>,
@@ -22,7 +23,7 @@ where
     H: TrieHinter,
 {
     fn new(
-        config: SoonRollupConfig,
+        config: Arc<SoonRollupConfig>,
         provider: P,
         hinter: H,
         parent_header: Sealed<Header>,

@@ -1,6 +1,6 @@
 //! An executor constructor.
 
-use alloc::boxed::Box;
+use alloc::{boxed::Box, sync::Arc};
 use alloy_consensus::{Header, Sealed};
 use alloy_primitives::B256;
 use async_trait::async_trait;
@@ -21,7 +21,7 @@ where
     E: L2BlockBuilder<P, H> + Send + Sync,
 {
     /// The rollup config for the executor.
-    rollup_config: SoonRollupConfig,
+    rollup_config: Arc<SoonRollupConfig>,
     /// The trie provider for the executor.
     trie_provider: P,
     /// The trie hinter for the executor.
@@ -38,7 +38,7 @@ where
 {
     /// Creates a new executor.
     pub const fn new(
-        rollup_config: SoonRollupConfig,
+        rollup_config: Arc<SoonRollupConfig>,
         trie_provider: P,
         trie_hinter: H,
         inner: Option<E>,
