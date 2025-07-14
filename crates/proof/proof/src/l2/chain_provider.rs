@@ -1,22 +1,21 @@
 //! Contains the concrete implementation of the [L2ChainProvider] trait for the client program.
 
 use crate::{HintType, errors::OracleProviderError};
-use alloc::{boxed::Box, sync::Arc, vec, vec::Vec};
-use alloc::string::ToString;
+use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use alloy_consensus::Header;
 use alloy_primitives::{Address, B256, Bytes};
 use alloy_rlp::Decodable;
 use async_trait::async_trait;
-use soon_derive::traits::L2ChainProvider;
 use kona_driver::PipelineCursor;
 use kona_executor::TrieDBProvider;
-use soon_primitives::system::SystemConfig;
-use soon_primitives::rollup_config::SoonRollupConfig;
 use kona_mpt::{TrieHinter, TrieNode, TrieProvider};
 use kona_preimage::{CommsClient, PreimageKey, PreimageKeyType};
+use soon_derive::traits::L2ChainProvider;
 use soon_primitives::blocks::L2BlockInfo;
+use soon_primitives::l2blocks::L2Block;
+use soon_primitives::rollup_config::SoonRollupConfig;
+use soon_primitives::system::SystemConfig;
 use spin::RwLock;
-use solana_transaction_status::VersionedConfirmedBlock;
 
 /// The oracle-backed L2 chain provider for the client program.
 #[derive(Debug, Clone)]
@@ -89,17 +88,8 @@ impl<T: CommsClient + Send + Sync> L2ChainProvider for OracleL2ChainProvider<T> 
         Ok(L2BlockInfo::default())
     }
 
-    async fn block_by_number(&mut self, _number: u64) -> Result<VersionedConfirmedBlock, Self::Error> {
-        Ok(VersionedConfirmedBlock {
-            previous_blockhash: "".to_string(),
-            blockhash: "".to_string(),
-            parent_slot: 0,
-            transactions: vec![],
-            rewards: vec![],
-            num_partitions: None,
-            block_time: None,
-            block_height: None,
-        })
+    async fn block_by_number(&mut self, _number: u64) -> Result<L2Block, Self::Error> {
+        Ok(L2Block::default())
     }
 
     async fn system_config_by_number(
