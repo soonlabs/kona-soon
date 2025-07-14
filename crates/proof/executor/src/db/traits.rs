@@ -35,7 +35,7 @@ pub trait TrieDBProvider: TrieProvider {
 }
 
 /// The default, no-op implementation of the [TrieDBProvider] trait, used for testing.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct NoopTrieDBProvider;
 
 impl TrieProvider for NoopTrieDBProvider {
