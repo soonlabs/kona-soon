@@ -226,12 +226,12 @@ impl LiteSVM {
             &feature_set,
             &ComputeBudget::default(),
             false,
-            true,
+            false,
         )
         .unwrap();
 
         let program_runtime_v2 =
-            create_program_runtime_environment_v2(&ComputeBudget::default(), true);
+            create_program_runtime_environment_v2(&ComputeBudget::default(), false);
 
         self.accounts.programs_cache.environments.program_runtime_v1 = Arc::new(program_runtime_v1);
         self.accounts.programs_cache.environments.program_runtime_v2 = Arc::new(program_runtime_v2);
