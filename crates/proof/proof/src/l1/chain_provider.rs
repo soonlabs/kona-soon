@@ -71,7 +71,7 @@ impl<T: CommsClient + Sync + Send> ChainProvider for OracleL1ChainProvider<T> {
         Ok(header.into())
     }
 
-    async fn receipts_by_hash(&self, hash: B256) -> Result<Vec<Receipt>, Self::Error> {
+    async fn receipts_by_hash(&self, hash: B256) -> Result<(Vec<Receipt>, bool), Self::Error> {
         // Fetch the block header to find the receipts root.
         let header = self.header_by_hash(hash).await?;
 
@@ -91,7 +91,7 @@ impl<T: CommsClient + Sync + Send> ChainProvider for OracleL1ChainProvider<T> {
             .collect::<Result<Vec<_>, _>>()
             .map_err(OracleProviderError::Rlp)?;
 
-        Ok(receipts)
+        Ok((receipts, false))
     }
 
     async fn get_block_transactions_by_hash(
