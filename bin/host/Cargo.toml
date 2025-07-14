@@ -48,7 +48,13 @@ op-alloy-network.workspace = true
 alloy-op-evm = { workspace = true, features = ["std"] }
 
 # Revm
-revm = { workspace = true, features = ["std", "c-kzg", "secp256k1", "portable", "blst"] }
+revm = { workspace = true, features = [
+	"std",
+	"c-kzg",
+	"secp256k1",
+	"portable",
+	"blst",
+] }
 
 # General
 anyhow.workspace = true
@@ -56,7 +62,7 @@ tracing.workspace = true
 reqwest.workspace = true
 serde_json.workspace = true
 async-trait.workspace = true
-rocksdb = { workspace = true, features = ["snappy", "bindgen-runtime"] }
+rocksdb = { workspace = true, features = ["snappy"] }
 tokio = { workspace = true, features = ["full"] }
 serde = { workspace = true, features = ["derive"] }
 clap = { workspace = true, features = ["derive", "env"] }
