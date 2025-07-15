@@ -1,5 +1,7 @@
+use crate::alloc::string::ToString;
 use crate::{ExecutorError, ExecutorResult, L2BlockBuilder, TrieDBProvider};
 use alloc::sync::Arc;
+use alloc::vec::Vec;
 use alloy_primitives::{B256, Keccak256, b256};
 use fraud_executor::accounts::{AccountPairs, SoonAccounts};
 use fraud_executor::block::SimpleBlock;
