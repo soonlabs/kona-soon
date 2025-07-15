@@ -58,6 +58,19 @@ impl TryFrom<u8> for PreimageKeyType {
     }
 }
 
+impl core::fmt::Display for PreimageKeyType {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            PreimageKeyType::Local => write!(f, "local"),
+            PreimageKeyType::Keccak256 => write!(f, "keccak256"),
+            PreimageKeyType::GlobalGeneric => write!(f, "global_generic"),
+            PreimageKeyType::Sha256 => write!(f, "sha256"),
+            PreimageKeyType::Blob => write!(f, "blob"),
+            PreimageKeyType::Precompile => write!(f, "precompile"),
+        }
+    }
+}
+
 /// A preimage key is a 32-byte value that identifies a preimage that may be fetched from the
 /// oracle.
 ///
@@ -154,7 +167,7 @@ impl TryFrom<[u8; 32]> for PreimageKey {
 impl core::fmt::Display for PreimageKey {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let raw: [u8; 32] = (*self).into();
-        write!(f, "{}", B256::from(raw))
+        write!(f, "{}:{}", self.key_type, B256::from(raw))
     }
 }
 
