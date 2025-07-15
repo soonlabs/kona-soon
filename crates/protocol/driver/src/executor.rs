@@ -20,7 +20,7 @@ pub trait Executor {
     async fn wait_until_ready(&mut self);
 
     /// Updates the safe header.
-    fn update_safe_head(&mut self, safe_head: Sealed<Header>) -> Result<(), Self::Error>;
+    fn update_safe_head(&mut self, safe_head: L2BlockInfo) -> Result<(), Self::Error>;
 
     /// Execute the gicen [OpPayloadAttributes].
     async fn execute_payload(

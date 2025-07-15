@@ -66,7 +66,7 @@ where
     ///
     /// Since the L2 block executor is stateless, on an update to the safe head,
     /// a new executor is created with the updated header.
-    fn update_safe_head(&mut self, header: Sealed<Header>) -> Result<(), Self::Error> {
+    fn update_safe_head(&mut self, header: L2BlockInfo) -> Result<(), Self::Error> {
         let mut executor = E::new(
             self.rollup_config.clone(),
             self.trie_provider.clone(),

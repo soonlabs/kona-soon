@@ -62,17 +62,17 @@ impl<T: CommsClient> OracleL2ChainProvider<T> {
     /// Returns a [Header] corresponding to the given L2 block number, by walking back from the
     /// L2 safe head.
     #[allow(dead_code)]
-    async fn header_by_number(&mut self, block_number: u64) -> Result<Header, OracleProviderError> {
+    async fn header_by_number(&mut self, block_number: u64) -> Result<L2BlockInfo, OracleProviderError> {
         // Fetch the starting block header.
         let mut header = self.header_by_hash(self.l2_safe_head().await?)?;
 
         // Check if the block number is in range. If not, we can fail early.
-        if block_number > header.number {
-            return Err(OracleProviderError::BlockNumberPastHead(block_number, header.number));
+        if block_number > header.block_info.number {
+            return Err(OracleProviderError::BlockNumberPastHead(block_number, header.block_info.number));
         }
 
-        while header.number > block_number {
-            header = self.header_by_hash(header.parent_hash)?;
+        while header.block_info.number > block_number {
+            header = self.header_by_hash(header.block_info.parent_hash)?;
         }
 
         Ok(header)
@@ -144,7 +144,7 @@ impl<T: CommsClient> TrieDBProvider for OracleL2ChainProvider<T> {
         })
     }
 
-    fn header_by_hash(&self, hash: B256) -> Result<Header, OracleProviderError> {
+    fn header_by_hash(&self, hash: B256) -> Result<L2BlockInfo, OracleProviderError> {
         // Fetch the header from the caching oracle.
         crate::block_on(async move {
             HintType::L2BlockHeader
@@ -154,7 +154,8 @@ impl<T: CommsClient> TrieDBProvider for OracleL2ChainProvider<T> {
                 .await?;
             let header_bytes = self.oracle.get(PreimageKey::new_keccak256(*hash)).await?;
 
-            Header::decode(&mut header_bytes.as_slice()).map_err(OracleProviderError::Rlp)
+            bincode::deserialize(&header_bytes)
+               .map_err(OracleProviderError::Bincode)
         })
     }
 }

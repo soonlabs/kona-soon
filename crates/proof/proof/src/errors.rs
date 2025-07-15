@@ -30,6 +30,9 @@ pub enum OracleProviderError {
     /// Serde error.
     #[error("Serde error: {0}")]
     Serde(serde_json::Error),
+
+    #[error("Bincode error: {0}")]
+    Bincode(bincode::Error),
     /// Unknown Chain ID
     #[error("Unknown chain ID: {0}")]
     UnknownChainId(u64),

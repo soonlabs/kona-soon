@@ -2,6 +2,7 @@ use crate::{ExecutorError, ExecutorResult, L2BlockBuilder, TrieDBProvider};
 use alloc::sync::Arc;
 use alloy_consensus::{Header, Sealed};
 use alloy_primitives::B256;
+use soon_primitives::blocks::L2BlockInfo;
 use kona_mpt::TrieHinter;
 use soon_primitives::rollup_config::SoonRollupConfig;
 
@@ -14,7 +15,7 @@ where
     pub(crate) config: Arc<SoonRollupConfig>,
     pub(crate) provider: P,
     pub(crate) hinter: H,
-    pub(crate) parent_header: Sealed<Header>,
+    pub(crate) parent_header: L2BlockInfo,
 }
 
 impl<P, H> L2BlockBuilder<P, H> for OffchainL2Builder<P, H>
@@ -26,7 +27,7 @@ where
         config: Arc<SoonRollupConfig>,
         provider: P,
         hinter: H,
-        parent_header: Sealed<Header>,
+        parent_header: L2BlockInfo,
     ) -> Self {
         Self { config, provider, hinter, parent_header }
     }

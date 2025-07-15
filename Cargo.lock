@@ -4730,6 +4730,7 @@ dependencies = [
  "ark-bls12-381",
  "ark-ff 0.5.0",
  "async-trait",
+ "bincode",
  "c-kzg",
  "kona-driver",
  "kona-executor",

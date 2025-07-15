@@ -9,13 +9,14 @@ use alloy_eips::BlockNumberOrTag;
 use soon_derive::traits::ChainProvider;
 use kona_driver::{PipelineCursor, TipCursor};
 use soon_derive::traits::L2ChainProvider;
+use soon_primitives::blocks::L2BlockInfo;
 use soon_primitives::rollup_config::SoonRollupConfig;
 use spin::RwLock;
 
 /// Constructs a [`PipelineCursor`] from the caching oracle, boot info, and providers.
 pub async fn new_oracle_pipeline_cursor<L1, L2>(
     rollup_config: &SoonRollupConfig,
-    safe_header: Sealed<Header>,
+    safe_header: L2BlockInfo,
     chain_provider: &mut L1,
     l2_chain_provider: &mut L2,
 ) -> Result<Arc<RwLock<PipelineCursor>>, OracleProviderError>
@@ -25,7 +26,7 @@ where
     OracleProviderError:
         From<<L1 as ChainProvider>::Error> + From<<L2 as L2ChainProvider>::Error>,
 {
-    let safe_head_info = l2_chain_provider.l2_block_info_by_number(safe_header.number).await?;
+    let safe_head_info = l2_chain_provider.l2_block_info_by_number(safe_header.block_info.number).await?;
     let l1_origin = chain_provider.block_info_by_number(BlockNumberOrTag::from(safe_head_info.l1_origin.number)).await?;
 
     // Walk back the starting L1 block by `channel_timeout` to ensure that the full channel is

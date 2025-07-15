@@ -122,7 +122,7 @@ where
             let l2_info = outcome;
             let tip_cursor = TipCursor::new(
                 l2_info,
-                Header::default().seal_slow(),
+                Default::default(),
                 self.executor.compute_output_root().map_err(DriverError::Executor)?,
             );
 

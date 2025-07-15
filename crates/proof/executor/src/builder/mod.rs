@@ -27,7 +27,7 @@ where
         config: Arc<SoonRollupConfig>,
         provider: P,
         hinter: H,
-        parent_header: Sealed<Header>,
+        parent_header: L2BlockInfo,
     ) -> Self;
 
     /// Initializes the block builder.
@@ -46,14 +46,14 @@ where
 #[derive(Debug, Clone)]
 pub struct BlockBuildingOutcome {
     /// The block header.
-    pub header: Sealed<Header>,
+    pub header: L2BlockInfo,
     /// The block execution result.
     pub execution_result: BlockExecutionResult<OpReceiptEnvelope>,
 }
 
-impl From<(Sealed<Header>, BlockExecutionResult<OpReceiptEnvelope>)> for BlockBuildingOutcome {
+impl From<(L2BlockInfo, BlockExecutionResult<OpReceiptEnvelope>)> for BlockBuildingOutcome {
     fn from(
-        (header, execution_result): (Sealed<Header>, BlockExecutionResult<OpReceiptEnvelope>),
+        (header, execution_result): (L2BlockInfo, BlockExecutionResult<OpReceiptEnvelope>),
     ) -> Self {
         Self { header, execution_result }
     }

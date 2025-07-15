@@ -61,16 +61,15 @@ where
 
     // Fetch the safe head's block header.
     let safe_head = l2_provider
-        .header_by_hash(safe_head_hash)
-        .map(|header| Sealed::new_unchecked(header, safe_head_hash))?;
+        .header_by_hash(safe_head_hash)?;
 
     // If the claimed L2 block number is less than the safe head of the L2 chain, the claim is
     // invalid.
-    if boot.claimed_l2_block_number < safe_head.number {
+    if boot.claimed_l2_block_number < safe_head.block_info.number {
         error!(
             target: "client",
             claimed = boot.claimed_l2_block_number,
-            safe = safe_head.number,
+            safe = safe_head.block_info.number,
             "Claimed L2 block number is less than the safe head",
         );
         return Err(FaultProofProgramError::InvalidClaim(
