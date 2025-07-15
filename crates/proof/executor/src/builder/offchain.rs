@@ -1,19 +1,18 @@
 use crate::alloc::string::ToString;
+use crate::ExecutorError::ExecutionError;
 use crate::{ExecutorError, ExecutorResult, L2BlockBuilder, TrieDBProvider};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
-use alloy_primitives::{B256, Keccak256, b256};
+use alloy_primitives::{b256, Keccak256, B256};
 use fraud_executor::accounts::{AccountPairs, SoonAccounts};
 use fraud_executor::block::SimpleBlock;
 use fraud_executor::executor::FraudExecutor;
+use fraud_executor::utils::analyze_account_sets;
 use kona_mpt::TrieHinter;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use solana_sdk::transaction::VersionedTransaction;
 use soon_primitives::blocks::L2BlockInfo;
 use soon_primitives::rollup_config::SoonRollupConfig;
-
-pub const INIT_ACCOUNTS_HASH: B256 =
-    b256!("8b4b5e2a2b0a0d3c1f8e7d4a9c6b5a2d8e1f0c9b6a3d7e0f8b4a5c2d9e6f1b8a");
 
 #[derive(Debug)]
 pub struct OffchainL2Builder<P, H>
@@ -51,13 +50,37 @@ where
 
         // Step 2. Create the executor, using the trie database.
         let init_accounts_code =
-            self.provider.bytecode_by_hash(INIT_ACCOUNTS_HASH).map_err(|_| {
-                ExecutorError::FraudInitError("Failed to get init accounts code".to_string())
-            })?;
+            self.provider.bytecode_by_hash(cal_init_accounts_hash(self.init_slot())).map_err(
+                |_| ExecutorError::FraudInitError("Failed to get init accounts code".to_string()),
+            )?;
         let soon_accounts: SoonAccounts = bincode::deserialize(&init_accounts_code)
             .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
 
         let mut executor = FraudExecutor::new(&soon_accounts)?;
+
+        // check state root
+        {
+            let init_state_root = self
+                .provider
+                .bytecode_by_hash(cal_init_state_root_hash(self.init_slot()))
+                .map_err(|_| {
+                    ExecutorError::FraudInitError("Failed to get init state root".to_string())
+                })?;
+            let init_state_root = B256::try_from(init_state_root.to_vec().as_slice()).unwrap();
+            let accounts = executor.export_accounts();
+            let actual_state_root = SoonAccounts::from(accounts).state_root();
+            if init_state_root != actual_state_root {
+                error!(
+                    "init state root mismatch, expected: {}, actual: {}",
+                    init_state_root, actual_state_root
+                );
+            } else {
+                info!(
+                    "init state root match, expected: {}, actual: {}",
+                    init_state_root, actual_state_root
+                );
+            }
+        }
 
         // Step 3. Execute the block containing the transactions within the payload attributes.
         let block = self.convert_block(attrs)?;
@@ -65,7 +88,32 @@ where
 
         // Step 4. Store data to calculate output root
         let accounts = executor.export_accounts();
+        info!("exported {} accounts", accounts.len());
         self.accounts = SoonAccounts::from(accounts);
+
+        // check execution account states
+        {
+            let new_accounts_data = self
+                .provider
+                .bytecode_by_hash(cal_init_accounts_hash(self.current_slot()))
+                .map_err(|_| {
+                    ExecutorError::FraudInitError("Failed to get init state root".to_string())
+                })?;
+            let new_block_accounts: SoonAccounts = bincode::deserialize(&new_accounts_data)
+                .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
+            let soon_state_root = new_block_accounts.state_root();
+            let litesvm_state_root = self.accounts.state_root();
+            if soon_state_root == litesvm_state_root {
+                info!("state root match, both are: {}", soon_state_root);
+            } else {
+                info!(
+                    "state root mismatch, expected: {}, actual: {}",
+                    soon_state_root, litesvm_state_root
+                );
+                let (_, _, _, analyze) = analyze_account_sets(&new_block_accounts, &self.accounts);
+                info!("check execution account states, analyze: {}", analyze);
+            }
+        }
 
         Ok(l2_info)
     }
@@ -80,8 +128,16 @@ where
     P: TrieDBProvider,
     H: TrieHinter,
 {
+    const fn current_slot(&self) -> u64 {
+        self.parent_header.block_info.number + 1
+    }
+
+    const fn init_slot(&self) -> u64 {
+        self.parent_header.block_info.number
+    }
+
     fn convert_block(&self, attrs: OpPayloadAttributes) -> ExecutorResult<SimpleBlock> {
-        let slot = self.parent_header.block_info.number + 1;
+        let slot = self.current_slot();
 
         Ok(SimpleBlock {
             slot,
@@ -106,14 +162,27 @@ where
             .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
         let soon_accounts: AccountPairs = bincode::deserialize(&data)
             .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
+        info!("fetched {} extra accounts", soon_accounts.len());
         Ok(soon_accounts)
     }
 }
 
 /// Calculate the hash of the extra accounts for the given slot.
 pub fn cal_extra_accounts_hash(slot: u64) -> B256 {
+    slot_spec_hash(slot, b"extra_accounts")
+}
+
+pub fn cal_init_accounts_hash(slot: u64) -> B256 {
+    slot_spec_hash(slot, b"init_accounts")
+}
+
+pub fn cal_init_state_root_hash(slot: u64) -> B256 {
+    slot_spec_hash(slot, b"init_state_root")
+}
+
+fn slot_spec_hash(slot: u64, suffix: &[u8]) -> B256 {
     let mut hasher = Keccak256::new();
     hasher.update(slot.to_be_bytes());
-    hasher.update(b"extra_accounts");
+    hasher.update(suffix);
     hasher.finalize()
 }
