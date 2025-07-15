@@ -1,6 +1,6 @@
 use crate::{ExecutorError, ExecutorResult, L2BlockBuilder, TrieDBProvider};
-use alloc::{string::ToString, sync::Arc, vec::Vec};
-use alloy_primitives::{B256, Bytes, Keccak256, b256};
+use alloc::sync::Arc;
+use alloy_primitives::{B256, Keccak256, b256};
 use fraud_executor::accounts::{AccountPairs, SoonAccounts};
 use fraud_executor::block::SimpleBlock;
 use fraud_executor::executor::FraudExecutor;
@@ -69,7 +69,7 @@ where
     }
 
     fn compute_output_root(&mut self) -> ExecutorResult<B256> {
-        todo!()
+        Ok(self.accounts.state_root())
     }
 }
 
@@ -88,11 +88,8 @@ where
                 .unwrap_or_default()
                 .into_iter()
                 .map(|tx| {
-                    let tx: VersionedTransaction = bincode::deserialize(&tx).map_err(|_| {
-                        ExecutorError::FraudInitError(
-                            "Failed to deserialize transaction".to_string(),
-                        )
-                    })?;
+                    let tx: VersionedTransaction = bincode::deserialize(&tx)
+                        .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
                     Ok(tx)
                 })
                 .collect::<ExecutorResult<Vec<VersionedTransaction>>>()?,
@@ -101,12 +98,12 @@ where
     }
 
     fn fetch_extra_accounts(&self, slot: u64) -> ExecutorResult<AccountPairs> {
-        let data = self.provider.bytecode_by_hash(cal_extra_accounts_hash(slot)).map_err(|_| {
-            ExecutorError::FraudInitError("Failed to get extra accounts".to_string())
-        })?;
-        let soon_accounts: AccountPairs = bincode::deserialize(&data).map_err(|_| {
-            ExecutorError::FraudInitError("Failed to deserialize extra accounts".to_string())
-        })?;
+        let data = self
+            .provider
+            .bytecode_by_hash(cal_extra_accounts_hash(slot))
+            .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
+        let soon_accounts: AccountPairs = bincode::deserialize(&data)
+            .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
         Ok(soon_accounts)
     }
 }
