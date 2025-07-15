@@ -14,7 +14,7 @@ use itertools::Itertools;
 use solana_bpf_loader_program::syscalls::create_program_runtime_environment_v1;
 use solana_compute_budget::{
     compute_budget::ComputeBudget,
-    compute_budget_processor::{ComputeBudgetLimits, process_compute_budget_instructions},
+    compute_budget_processor::{process_compute_budget_instructions, ComputeBudgetLimits},
 };
 use solana_loader_v4_program::create_program_runtime_environment_v2;
 #[allow(deprecated)]
@@ -33,8 +33,8 @@ use solana_sdk::{
     clock::Clock,
     epoch_schedule::EpochSchedule,
     feature_set::{
-        FeatureSet, include_loaded_accounts_data_size_in_fee_calculation,
-        remove_rounding_in_fee_calculation,
+        include_loaded_accounts_data_size_in_fee_calculation, remove_rounding_in_fee_calculation,
+        FeatureSet,
     },
     fee::FeeStructure,
     hash::Hash,
@@ -43,11 +43,11 @@ use solana_sdk::{
     message::{Message, SanitizedMessage, VersionedMessage},
     native_loader,
     native_token::LAMPORTS_PER_SOL,
-    nonce::{NONCED_TX_MARKER_IX_INDEX, state::DurableNonce},
+    nonce::{state::DurableNonce, NONCED_TX_MARKER_IX_INDEX},
     nonce_account,
     pubkey::Pubkey,
     rent::Rent,
-    rent_collector::{RENT_EXEMPT_RENT_EPOCH, RentCollector},
+    rent_collector::{RentCollector, RENT_EXEMPT_RENT_EPOCH},
     reserved_account_keys::ReservedAccountKeys,
     signature::{Keypair, Signature},
     signer::Signer,
@@ -59,7 +59,7 @@ use solana_sdk::{
     transaction_context::{ExecutionRecord, IndexOfAccount, TransactionContext},
 };
 use solana_svm::{account_loader::collect_rent_from_account, message_processor::MessageProcessor};
-use solana_system_program::{SystemAccountKind, get_system_account_kind};
+use solana_system_program::{get_system_account_kind, SystemAccountKind};
 use std::fmt::Debug;
 use std::{cell::RefCell, path::Path, rc::Rc, sync::Arc};
 use tracing::{error, info, warn};
@@ -923,6 +923,8 @@ impl LiteSVM {
         if fees > 0 {
             self.add_or_update_user_account(fee_collector, fees)?;
         }
+
+        self.accounts.clean_zero_accounts();
         Ok(())
     }
 
