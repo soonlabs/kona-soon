@@ -1,14 +1,16 @@
 use crate::{ExecutorError, ExecutorResult, L2BlockBuilder, TrieDBProvider};
 use alloc::sync::Arc;
-use alloy_consensus::{Header, Sealed};
-use alloy_primitives::B256;
-use op_alloy_rpc_types_engine::OpPayloadAttributes;
-use soon_primitives::blocks::L2BlockInfo;
-use kona_mpt::TrieHinter;
-use soon_primitives::rollup_config::SoonRollupConfig;
+use alloy_primitives::{B256, b256};
 use fraud_executor::accounts::SoonAccounts;
 use fraud_executor::block::SimpleBlock;
 use fraud_executor::executor::FraudExecutor;
+use kona_mpt::TrieHinter;
+use op_alloy_rpc_types_engine::OpPayloadAttributes;
+use soon_primitives::blocks::L2BlockInfo;
+use soon_primitives::rollup_config::SoonRollupConfig;
+
+pub const INIT_ACCOUNTS_HASH: B256 =
+    b256!("8b4b5e2a2b0a0d3c1f8e7d4a9c6b5a2d8e1f0c9b6a3d7e0f8b4a5c2d9e6f1b8a");
 
 #[derive(Debug)]
 pub struct OffchainL2Builder<P, H>
@@ -41,15 +43,18 @@ where
         Ok(())
     }
 
-    fn build_block(
-        &mut self,
-        attrs: OpPayloadAttributes,
-    ) -> ExecutorResult<L2BlockInfo> {
+    fn build_block(&mut self, attrs: OpPayloadAttributes) -> ExecutorResult<L2BlockInfo> {
         // Step 1. Set up the execution environment using genesis
 
         // Step 2. Create the executor, using the trie database.
-        // TODO: import using trie db later
-        let mut executor = FraudExecutor::new(&Default::default())?;
+        let init_accounts_code = self
+            .provider
+            .bytecode_by_hash(INIT_ACCOUNTS_HASH)
+            .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
+        let soon_accounts: SoonAccounts = bincode::deserialize(&init_accounts_code)
+            .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
+
+        let mut executor = FraudExecutor::new(&soon_accounts)?;
 
         // Step 3. Execute the block containing the transactions within the payload attributes.
         let block = self.convert_block(attrs)?;
@@ -67,7 +72,8 @@ where
     }
 }
 
-impl<P, H> OffchainL2Builder<P, H> where
+impl<P, H> OffchainL2Builder<P, H>
+where
     P: TrieDBProvider,
     H: TrieHinter,
 {

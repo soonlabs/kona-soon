@@ -1,12 +1,13 @@
 use crate::utils::add_trie_account;
 use litesvm::LiteSVM;
+use serde::{Deserialize, Serialize};
 use solana_sdk::{account::AccountSharedData, pubkey::Pubkey};
 use soon_mpt_primitives::{Account as MptAccount, B256};
 use soon_mpt_trie::{encoder::sol_account_encoder, test_utils::state_root_prehashed};
 
 pub type AccountPairs = Vec<(Pubkey, AccountSharedData)>;
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct SoonAccounts {
     pub accounts: AccountPairs,
 }

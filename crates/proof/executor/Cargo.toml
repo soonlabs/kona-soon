@@ -16,6 +16,7 @@ workspace = true
 kona-mpt.workspace = true
 fraud-executor.workspace = true
 litesvm.workspace = true
+bincode.workspace = true
 
 # Soon
 soon-primitives.workspace = true
