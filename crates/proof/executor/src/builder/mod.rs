@@ -12,7 +12,7 @@ mod core;
 pub use core::StatelessL2Builder;
 
 mod offchain;
-pub use offchain::{INIT_ACCOUNTS_HASH, OffchainL2Builder};
+pub use offchain::{INIT_ACCOUNTS_HASH, OffchainL2Builder, cal_extra_accounts_hash};
 
 use crate::{ExecutorResult, TrieDBProvider};
 

@@ -4632,6 +4632,7 @@ dependencies = [
  "rstest",
  "serde",
  "serde_json",
+ "solana-sdk",
  "soon-primitives",
  "tempfile",
  "thiserror 2.0.12",

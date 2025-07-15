@@ -1,11 +1,12 @@
 use crate::{ExecutorError, ExecutorResult, L2BlockBuilder, TrieDBProvider};
-use alloc::sync::Arc;
-use alloy_primitives::{B256, b256};
-use fraud_executor::accounts::SoonAccounts;
+use alloc::{string::ToString, sync::Arc, vec::Vec};
+use alloy_primitives::{B256, Bytes, Keccak256, b256};
+use fraud_executor::accounts::{AccountPairs, SoonAccounts};
 use fraud_executor::block::SimpleBlock;
 use fraud_executor::executor::FraudExecutor;
 use kona_mpt::TrieHinter;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
+use solana_sdk::transaction::VersionedTransaction;
 use soon_primitives::blocks::L2BlockInfo;
 use soon_primitives::rollup_config::SoonRollupConfig;
 
@@ -47,10 +48,10 @@ where
         // Step 1. Set up the execution environment using genesis
 
         // Step 2. Create the executor, using the trie database.
-        let init_accounts_code = self
-            .provider
-            .bytecode_by_hash(INIT_ACCOUNTS_HASH)
-            .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
+        let init_accounts_code =
+            self.provider.bytecode_by_hash(INIT_ACCOUNTS_HASH).map_err(|_| {
+                ExecutorError::FraudInitError("Failed to get init accounts code".to_string())
+            })?;
         let soon_accounts: SoonAccounts = bincode::deserialize(&init_accounts_code)
             .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
 
@@ -78,10 +79,42 @@ where
     H: TrieHinter,
 {
     fn convert_block(&self, attrs: OpPayloadAttributes) -> ExecutorResult<SimpleBlock> {
+        let slot = self.parent_header.block_info.number + 1;
+
         Ok(SimpleBlock {
-            slot: 0,                            // TODO: get current slot
-            transactions: Default::default(),   // TODO: get transactions from attrs.transactions
-            extra_accounts: Default::default(), // TODO: get extra accounts from somewhere
+            slot,
+            transactions: attrs
+                .transactions
+                .unwrap_or_default()
+                .into_iter()
+                .map(|tx| {
+                    let tx: VersionedTransaction = bincode::deserialize(&tx).map_err(|_| {
+                        ExecutorError::FraudInitError(
+                            "Failed to deserialize transaction".to_string(),
+                        )
+                    })?;
+                    Ok(tx)
+                })
+                .collect::<ExecutorResult<Vec<VersionedTransaction>>>()?,
+            extra_accounts: self.fetch_extra_accounts(slot)?,
         })
     }
+
+    fn fetch_extra_accounts(&self, slot: u64) -> ExecutorResult<AccountPairs> {
+        let data = self.provider.bytecode_by_hash(cal_extra_accounts_hash(slot)).map_err(|_| {
+            ExecutorError::FraudInitError("Failed to get extra accounts".to_string())
+        })?;
+        let soon_accounts: AccountPairs = bincode::deserialize(&data).map_err(|_| {
+            ExecutorError::FraudInitError("Failed to deserialize extra accounts".to_string())
+        })?;
+        Ok(soon_accounts)
+    }
+}
+
+/// Calculate the hash of the extra accounts for the given slot.
+pub fn cal_extra_accounts_hash(slot: u64) -> B256 {
+    let mut hasher = Keccak256::new();
+    hasher.update(slot.to_be_bytes());
+    hasher.update(b"extra_accounts");
+    hasher.finalize()
 }
