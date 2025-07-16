@@ -16,9 +16,11 @@ workspace = true
 kona-mpt.workspace = true
 fraud-executor.workspace = true
 litesvm.workspace = true
+bincode.workspace = true
 
 # Soon
 soon-primitives.workspace = true
+solana-sdk.workspace = true
 
 # Alloy
 alloy-consensus = { workspace = true, features = ["k256"] }

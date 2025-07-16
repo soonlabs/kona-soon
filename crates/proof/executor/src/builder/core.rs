@@ -57,7 +57,7 @@ where
         config: Arc<SoonRollupConfig>,
         provider: P,
         hinter: H,
-        parent_header: Sealed<Header>,
+        parent_header: L2BlockInfo,
     ) -> Self {
         let trie_db = TrieDB::new(parent_header, provider, hinter);
         Self { config, trie_db, factory: None, accounts: Default::default() }

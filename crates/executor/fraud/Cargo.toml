@@ -19,6 +19,7 @@ soon-primitives.workspace = true
 
 thiserror.workspace = true
 hex.workspace = true
+serde.workspace = true
 
 solana-sdk.workspace = true
 

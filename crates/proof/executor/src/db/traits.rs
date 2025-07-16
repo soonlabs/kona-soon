@@ -5,6 +5,7 @@ use alloc::string::String;
 use alloy_consensus::Header;
 use alloy_primitives::{B256, Bytes};
 use kona_mpt::{TrieNode, TrieProvider};
+use soon_primitives::blocks::L2BlockInfo;
 
 /// The [TrieDBProvider] trait defines the synchronous interface for fetching EVM bytecode hash
 /// preimages as well as [Header] preimages.
@@ -31,7 +32,7 @@ pub trait TrieDBProvider: TrieProvider {
     /// - Err(Self::Error): If the [Header] could not be fetched.
     ///
     /// [TrieDB]: crate::TrieDB
-    fn header_by_hash(&self, hash: B256) -> Result<Header, Self::Error>;
+    fn header_by_hash(&self, hash: B256) -> Result<L2BlockInfo, Self::Error>;
 }
 
 /// The default, no-op implementation of the [TrieDBProvider] trait, used for testing.
@@ -51,7 +52,7 @@ impl TrieDBProvider for NoopTrieDBProvider {
         Ok(Bytes::default())
     }
 
-    fn header_by_hash(&self, _hash: B256) -> Result<Header, Self::Error> {
-        Ok(Header::default())
+    fn header_by_hash(&self, _hash: B256) -> Result<L2BlockInfo, Self::Error> {
+        Ok(Default::default())
     }
 }

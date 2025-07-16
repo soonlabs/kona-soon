@@ -228,7 +228,7 @@ impl<CB: AccountsCallback> AccountsDb<CB> {
         }
     }
 
-    pub(crate) fn load_lookup_table_addresses(
+    fn load_lookup_table_addresses(
         &self,
         address_table_lookup: &MessageAddressTableLookup,
     ) -> Result<LoadedAddresses, AddressLookupError> {

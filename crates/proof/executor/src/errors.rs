@@ -50,6 +50,9 @@ pub enum ExecutorError {
     /// Fraud executor error.
     #[error("Fraud executor error: {0}")]
     FraudExecutorError(#[from] fraud_executor::error::Error),
+    /// Fraud init error.
+    #[error("Fraud init error: {0}")]
+    FraudInitError(String),
 }
 
 /// A [`Result`] type for the [`ExecutorError`] enum.
