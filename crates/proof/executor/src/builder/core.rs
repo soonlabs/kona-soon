@@ -1,16 +1,17 @@
 //! The [StatelessL2Builder] is a block builder that pulls state from a [TrieDB] during execution.
 
-use crate::{
-    builder::L2BlockBuilder, ExecutorResult, TrieDB,
-    TrieDBProvider,
-};
+use crate::ExecutorError;
+use crate::{ExecutorResult, TrieDB, TrieDBProvider, builder::L2BlockBuilder};
+use alloc::string::ToString;
 use alloc::sync::Arc;
+use alloc::vec::Vec;
 use alloy_primitives::B256;
+use fraud_executor::outcome::BlockBuildingOutcome;
 use fraud_executor::{accounts::SoonAccounts, block::SimpleBlock, executor::FraudExecutor};
 use kona_mpt::TrieHinter;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
+use solana_sdk::transaction::VersionedTransaction;
 use soon_primitives::{blocks::L2BlockInfo, rollup_config::SoonRollupConfig};
-use fraud_executor::outcome::BlockBuildingOutcome;
 
 /// The [`StatelessL2Builder`] is an OP Stack block builder that traverses a merkle patricia trie
 /// via the [`TrieDB`] during execution.
@@ -39,10 +40,21 @@ where
     P: TrieDBProvider,
     H: TrieHinter,
 {
-    fn convert_block(&self, _attrs: OpPayloadAttributes) -> ExecutorResult<SimpleBlock> {
+    fn convert_block(&self, attrs: OpPayloadAttributes) -> ExecutorResult<SimpleBlock> {
         Ok(SimpleBlock {
-            slot: 0,                            // TODO: get current slot
-            transactions: Default::default(),   // TODO: get transactions from attrs.transactions
+            hash: B256::ZERO,        // TODO: get hash from oracle
+            parent_hash: B256::ZERO, // TODO: get parent hash from oracle
+            slot: 0,                 // TODO: get current slot
+            transactions: attrs
+                .transactions
+                .unwrap_or_default()
+                .into_iter()
+                .map(|tx| {
+                    let tx: VersionedTransaction = bincode::deserialize(&tx)
+                        .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
+                    Ok(tx)
+                })
+                .collect::<ExecutorResult<Vec<VersionedTransaction>>>()?,
             extra_accounts: Default::default(), // TODO: get extra accounts from somewhere
         })
     }

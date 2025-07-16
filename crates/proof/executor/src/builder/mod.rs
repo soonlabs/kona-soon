@@ -1,10 +1,7 @@
 //! Stateless OP Stack block builder implementation.
 use alloc::sync::Arc;
-use alloy_consensus::{Header, Sealed};
-use alloy_evm::block::BlockExecutionResult;
 use alloy_primitives::B256;
 use kona_mpt::TrieHinter;
-use op_alloy_consensus::OpReceiptEnvelope;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use soon_primitives::{blocks::L2BlockInfo, rollup_config::SoonRollupConfig};
 
@@ -13,7 +10,10 @@ pub use core::StatelessL2Builder;
 use fraud_executor::outcome::BlockBuildingOutcome;
 
 mod offchain;
-pub use offchain::{cal_init_state_root_hash, cal_init_accounts_hash, OffchainL2Builder, cal_extra_accounts_hash};
+pub use offchain::{
+    OffchainL2Builder, cal_extra_accounts_hash, cal_init_accounts_hash, cal_init_state_root_hash,
+    slot_hash_pair_hash,
+};
 
 use crate::{ExecutorResult, TrieDBProvider};
 
@@ -41,5 +41,3 @@ where
     /// and the underlying state trie.
     fn compute_output_root(&mut self) -> ExecutorResult<B256>;
 }
-
-

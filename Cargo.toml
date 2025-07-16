@@ -209,6 +209,9 @@ soon-l1-chain-provider = { path = '../soon/node/l1provider' }
 soon-primitives = { path = '../soon/node/primitives' }
 soon-mpt-primitives = { path = "../soon/node/mpt/primitives" }
 soon-mpt-trie = { path = "../soon/node/mpt/trie/trie" }
+l1-block-info = { path = "../soon/node/programs/l1-block-info-program", features = [
+  "no-entrypoint",
+] }
 
 # executor
 bincode = "1.3"

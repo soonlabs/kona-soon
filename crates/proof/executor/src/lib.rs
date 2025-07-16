@@ -17,8 +17,8 @@ pub use db::{NoopTrieDBProvider, TrieDB, TrieDBProvider};
 
 mod builder;
 pub use builder::{
-    L2BlockBuilder, OffchainL2Builder,
-    StatelessL2Builder, cal_extra_accounts_hash, cal_init_state_root_hash, cal_init_accounts_hash
+    L2BlockBuilder, OffchainL2Builder, StatelessL2Builder, cal_extra_accounts_hash,
+    cal_init_accounts_hash, cal_init_state_root_hash, slot_hash_pair_hash,
 };
 
 mod errors;

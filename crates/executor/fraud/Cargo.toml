@@ -16,6 +16,7 @@ litesvm.workspace = true
 soon-mpt-primitives.workspace = true
 soon-mpt-trie.workspace = true
 soon-primitives.workspace = true
+l1-block-info.workspace = true
 
 thiserror.workspace = true
 hex.workspace = true
