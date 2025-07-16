@@ -1,6 +1,5 @@
 //! Contains the tip for the derivation driver.
 
-use alloy_consensus::{Header, Sealed};
 use alloy_primitives::B256;
 use soon_primitives::blocks::L2BlockInfo;
 

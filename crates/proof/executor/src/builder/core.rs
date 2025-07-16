@@ -1,15 +1,16 @@
 //! The [StatelessL2Builder] is a block builder that pulls state from a [TrieDB] during execution.
 
-use crate::{ExecutorError, ExecutorResult, TrieDB, TrieDBProvider, builder::L2BlockBuilder};
+use crate::{
+    builder::L2BlockBuilder, ExecutorResult, TrieDB,
+    TrieDBProvider,
+};
 use alloc::sync::Arc;
-use alloy_consensus::{Header, Sealed};
-use alloy_evm::block::BlockExecutionResult;
 use alloy_primitives::B256;
 use fraud_executor::{accounts::SoonAccounts, block::SimpleBlock, executor::FraudExecutor};
 use kona_mpt::TrieHinter;
-use op_alloy_consensus::OpReceiptEnvelope;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use soon_primitives::{blocks::L2BlockInfo, rollup_config::SoonRollupConfig};
+use fraud_executor::outcome::BlockBuildingOutcome;
 
 /// The [`StatelessL2Builder`] is an OP Stack block builder that traverses a merkle patricia trie
 /// via the [`TrieDB`] during execution.
@@ -69,7 +70,7 @@ where
     }
 
     /// Builds a new block on top of the parent state, using the given [`OpPayloadAttributes`].
-    fn build_block(&mut self, attrs: OpPayloadAttributes) -> ExecutorResult<L2BlockInfo> {
+    fn build_block(&mut self, attrs: OpPayloadAttributes) -> ExecutorResult<BlockBuildingOutcome> {
         // Step 1. Set up the execution environment using genesis
 
         // Step 2. Create the executor, using the trie database.

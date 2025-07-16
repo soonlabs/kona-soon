@@ -16,7 +16,7 @@ bincode.workspace = true
 indexmap.workspace = true
 itertools.workspace = true
 tracing.workspace = true
-serde = { workspace = true, optional = true }
+serde.workspace = true
 solana-address-lookup-table-program.workspace = true
 solana-bpf-loader-program.workspace = true
 solana-compute-budget.workspace = true
@@ -35,7 +35,6 @@ thiserror.workspace = true
 
 [dev-dependencies]
 criterion.workspace = true
-serde.workspace = true
 solana-program-test.workspace = true
 spl-token.workspace = true
 test-log.workspace = true

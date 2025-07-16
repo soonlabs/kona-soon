@@ -10,6 +10,7 @@ use soon_primitives::{blocks::L2BlockInfo, rollup_config::SoonRollupConfig};
 
 mod core;
 pub use core::StatelessL2Builder;
+use fraud_executor::outcome::BlockBuildingOutcome;
 
 mod offchain;
 pub use offchain::{cal_init_state_root_hash, cal_init_accounts_hash, OffchainL2Builder, cal_extra_accounts_hash};
@@ -34,27 +35,11 @@ where
     fn init(&mut self) -> ExecutorResult<()>;
 
     /// Builds a new block on top of the parent state, using the given [`OpPayloadAttributes`].
-    fn build_block(&mut self, attrs: OpPayloadAttributes) -> ExecutorResult<L2BlockInfo>;
+    fn build_block(&mut self, attrs: OpPayloadAttributes) -> ExecutorResult<BlockBuildingOutcome>;
 
     /// Computes the current output root of the latest executed block, based on the parent header
     /// and the underlying state trie.
     fn compute_output_root(&mut self) -> ExecutorResult<B256>;
 }
 
-/// The outcome of a block building operation, returning the sealed block [`Header`] and the
-/// [`BlockExecutionResult`].
-#[derive(Debug, Clone)]
-pub struct BlockBuildingOutcome {
-    /// The block header.
-    pub header: L2BlockInfo,
-    /// The block execution result.
-    pub execution_result: BlockExecutionResult<OpReceiptEnvelope>,
-}
 
-impl From<(L2BlockInfo, BlockExecutionResult<OpReceiptEnvelope>)> for BlockBuildingOutcome {
-    fn from(
-        (header, execution_result): (L2BlockInfo, BlockExecutionResult<OpReceiptEnvelope>),
-    ) -> Self {
-        Self { header, execution_result }
-    }
-}

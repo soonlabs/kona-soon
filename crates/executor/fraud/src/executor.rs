@@ -9,6 +9,7 @@ use solana_sdk::rent_collector::RentCollector;
 use soon_mpt_primitives::B256;
 use soon_mpt_primitives::alloy::eips::BlockNumHash;
 use soon_primitives::blocks::{BlockInfo, L2BlockInfo};
+use crate::outcome::BlockBuildingOutcome;
 
 #[derive(Debug)]
 pub struct FraudExecutor {
@@ -39,13 +40,17 @@ impl FraudExecutor {
         Ok(executor)
     }
 
-    pub fn execute_block(&mut self, block: SimpleBlock) -> Result<L2BlockInfo> {
+    pub fn execute_block(&mut self, block: SimpleBlock) -> Result<BlockBuildingOutcome> {
         self.prepare_block(&block)?;
-        let _results =
+        let execution_result =
             self.litesvm.execute_block_transactions(block.transactions, self.fee_collector)?;
         self.litesvm.import_accounts(block.extra_accounts)?;
         self.clear_block();
-        self.get_l2_block_info(block.slot)
+        
+        Ok(BlockBuildingOutcome {
+            header: self.get_l2_block_info(block.slot)?,
+            execution_result,
+        })
     }
 
     pub fn export_accounts(&self) -> AccountPairs {

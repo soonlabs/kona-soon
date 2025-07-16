@@ -1,12 +1,12 @@
 //! An abstraction for the driver's block executor.
 
-use alloc::boxed::Box;
-use alloy_consensus::{Header, Sealed};
 use alloy_primitives::B256;
 use async_trait::async_trait;
 use core::error::Error;
+use alloc::boxed::Box;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use soon_primitives::blocks::L2BlockInfo;
+use fraud_executor::outcome::BlockBuildingOutcome;
 
 /// Executor
 ///
@@ -26,7 +26,7 @@ pub trait Executor {
     async fn execute_payload(
         &mut self,
         attributes: OpPayloadAttributes,
-    ) -> Result<L2BlockInfo, Self::Error>;
+    ) -> Result<BlockBuildingOutcome, Self::Error>;
 
     /// Computes the output root.
     /// Expected to be called after the payload has been executed.

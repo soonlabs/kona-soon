@@ -7,6 +7,7 @@ use alloy_primitives::{b256, Keccak256, B256};
 use fraud_executor::accounts::{AccountPairs, SoonAccounts};
 use fraud_executor::block::SimpleBlock;
 use fraud_executor::executor::FraudExecutor;
+use fraud_executor::outcome::BlockBuildingOutcome;
 use fraud_executor::utils::analyze_account_sets;
 use kona_mpt::TrieHinter;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
@@ -45,7 +46,7 @@ where
         Ok(())
     }
 
-    fn build_block(&mut self, attrs: OpPayloadAttributes) -> ExecutorResult<L2BlockInfo> {
+    fn build_block(&mut self, attrs: OpPayloadAttributes) -> ExecutorResult<BlockBuildingOutcome> {
         // Step 1. Set up the execution environment using genesis
 
         // Step 2. Create the executor, using the trie database.
