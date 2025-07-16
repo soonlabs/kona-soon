@@ -75,4 +75,10 @@ pub(crate) static BUILTINS: &[BuiltinPrototype] = &[
     //     name: "loader_v4",
     //     entrypoint: solana_loader_v4_program::Entrypoint::vm,
     // },
+    // BuiltinPrototype {
+    //     feature_id: Some(feature_set::zk_elgamal_proof_program_enabled::id()),
+    //     program_id: solana_zk_sdk::zk_elgamal_proof_program::id(),
+    //     name: "zk_elgamal_proof_program",
+    //     entrypoint: solana_zk_elgamal_proof_program::Entrypoint::vm,
+    // }
 ];

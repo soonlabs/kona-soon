@@ -2,18 +2,11 @@ use solana_program::{
     address_lookup_table::{self, error::AddressLookupError, state::AddressLookupTable},
     bpf_loader, bpf_loader_deprecated,
     bpf_loader_upgradeable::{self, UpgradeableLoaderState},
-    clock::Clock,
     instruction::InstructionError,
     loader_v4::{self, LoaderV4State},
     message::{
         AddressLoader, AddressLoaderError,
         v0::{LoadedAddresses, MessageAddressTableLookup},
-    },
-    sysvar::{
-        Sysvar, clock::ID as CLOCK_ID, epoch_rewards::ID as EPOCH_REWARDS_ID,
-        epoch_schedule::ID as EPOCH_SCHEDULE_ID, last_restart_slot::ID as LAST_RESTART_SLOT_ID,
-        rent::ID as RENT_ID, slot_hashes::ID as SLOT_HASHES_ID,
-        stake_history::ID as STAKE_HISTORY_ID,
     },
 };
 use solana_program_runtime::{
@@ -29,51 +22,89 @@ use solana_sdk::{
 };
 use solana_system_program::{SystemAccountKind, get_system_account_kind};
 use std::{collections::HashMap, sync::Arc};
+use solana_program::clock::{Epoch, Slot};
+use solana_program_runtime::loaded_programs::ProgramRuntimeEnvironments;
 use tracing::error;
-
+use crate::accounts_callback::AccountsCallback;
 use crate::error::{InvalidSysvarDataError, LiteSVMError};
 
 const FEES_ID: Pubkey = solana_program::pubkey!("SysvarFees111111111111111111111111111111111");
 const RECENT_BLOCKHASHES_ID: Pubkey =
     solana_program::pubkey!("SysvarRecentB1ockHashes11111111111111111111");
 
-fn handle_sysvar<T>(
-    cache: &mut SysvarCache,
-    err_variant: InvalidSysvarDataError,
-    account: &AccountSharedData,
-    mut accounts_clone: HashMap<Pubkey, AccountSharedData>,
-    address: Pubkey,
-) -> Result<(), InvalidSysvarDataError>
-where
-    T: Sysvar,
-{
-    accounts_clone.insert(address, account.clone());
-    cache.reset();
-    cache.fill_missing_entries(|pubkey, set_sysvar| {
-        if let Some(acc) = accounts_clone.get(pubkey) {
-            set_sysvar(acc.data())
-        }
-    });
-    let _parsed: T = bincode::deserialize(account.data()).map_err(|_| err_variant)?;
-    Ok(())
-}
-
 #[derive(Default)]
-pub(crate) struct AccountsDb {
-    inner: HashMap<Pubkey, AccountSharedData>,
+pub(crate) struct AccountsDb<CB: AccountsCallback> {
+    callback: CB,
+    accounts_cache: HashMap<Pubkey, AccountSharedData>,
+    pub(crate) slot: Slot,
     pub(crate) programs_cache: ProgramCacheForTxBatch,
     pub(crate) sysvar_cache: SysvarCache,
 }
 
-impl AccountsDb {
-    pub(crate) fn get_account(&self, pubkey: &Pubkey) -> Option<AccountSharedData> {
-        self.inner.get(pubkey).map(|acc| acc.to_owned())
+impl<CB: AccountsCallback> AccountsDb<CB> {
+    pub fn set_callback(&mut self, callback: CB) -> &mut Self {
+        self.callback = callback;
+        self
+    }
+
+    pub fn set_slot(&mut self, slot: Slot) -> &mut Self {
+        self.slot = slot;
+        self.programs_cache.set_slot_for_tests(slot);
+        self
+    }
+
+    pub fn set_last_root_epoch(&mut self, epoch: Epoch) -> &mut Self {
+        self.programs_cache.latest_root_epoch = epoch;
+        self
+    }
+
+    pub fn set_environments(&mut self, environments: ProgramRuntimeEnvironments) -> &mut Self {
+        self.programs_cache.environments = environments;
+        self
+    }
+
+    pub(crate) fn fill_sysvar_cache(&mut self) {
+        self.sysvar_cache.fill_missing_entries(|pubkey, set_sysvar| {
+            if let Some(data) = self.accounts_cache.get(pubkey) {
+                set_sysvar(data.data());
+                return
+            }
+            if let Some(data) = self.callback.get_account_data(self.slot, pubkey) {
+                set_sysvar(data.data());
+                self.accounts_cache.insert(*pubkey, data);
+            } else {
+                error!("Sysvar account {pubkey} not found in callback.");
+            }
+        });
+    }
+
+    pub(crate) fn get_account(
+        &self,
+        pubkey: &Pubkey,
+    ) -> Option<AccountSharedData> {
+        self.accounts_cache.get(pubkey).cloned().or_else(|| self.callback.get_account_data(self.slot, pubkey))
+    }
+
+    pub(crate) fn get_and_add_account(
+        &mut self,
+        pubkey: &Pubkey,
+    ) -> Result<AccountSharedData, LiteSVMError> {
+        if let Some(account) = self.accounts_cache.get(pubkey) {
+            return Ok(account.clone());
+        }
+
+        if let Some(account) = self.callback.get_account_data(self.slot, pubkey) {
+            self.add_account(*pubkey, account.clone())?;
+            Ok(account)
+        } else {
+            Err(LiteSVMError::AccountNotFound(*pubkey))
+        }
     }
 
     /// We should only use this when we know we're not touching any executable or sysvar accounts,
     /// or have already handled such cases.
     pub(crate) fn add_account_no_checks(&mut self, pubkey: Pubkey, account: AccountSharedData) {
-        self.inner.insert(pubkey, account);
+        self.accounts_cache.insert(pubkey, account);
     }
 
     pub(crate) fn add_account(
@@ -81,133 +112,17 @@ impl AccountsDb {
         pubkey: Pubkey,
         account: AccountSharedData,
     ) -> Result<(), LiteSVMError> {
-        if account.executable()
-            && pubkey != Pubkey::default()
-            && account.owner() != &native_loader::ID
-        {
+        if account.executable() && native_loader::check_id(account.owner()) {
             let loaded_program = self.load_program(&account)?;
             self.programs_cache.replenish(pubkey, Arc::new(loaded_program));
-        } else {
-            self.maybe_handle_sysvar_account(pubkey, &account)?;
         }
         self.add_account_no_checks(pubkey, account);
         Ok(())
     }
 
     /// Get all accounts in the database.
-    pub(crate) fn all_accounts(&self) -> Vec<(Pubkey, AccountSharedData)> {
-        self.inner.iter().map(|(pubkey, account)| (*pubkey, account.clone())).collect()
-    }
-
-    pub(crate) fn all_accounts_len(&self) -> usize {
-        self.inner.len()
-    }
-
-    fn maybe_handle_sysvar_account(
-        &mut self,
-        pubkey: Pubkey,
-        account: &AccountSharedData,
-    ) -> Result<(), InvalidSysvarDataError> {
-        use InvalidSysvarDataError::{
-            EpochRewards, EpochSchedule, Fees, LastRestartSlot, RecentBlockhashes, Rent,
-            SlotHashes, StakeHistory,
-        };
-        let cache = &mut self.sysvar_cache;
-        #[allow(deprecated)]
-        match pubkey {
-            CLOCK_ID => {
-                let parsed: Clock = bincode::deserialize(account.data())
-                    .map_err(|_| InvalidSysvarDataError::Clock)?;
-                self.programs_cache.set_slot_for_tests(parsed.slot);
-                let mut accounts_clone = self.inner.clone();
-                accounts_clone.insert(pubkey, account.clone());
-                cache.reset();
-                cache.fill_missing_entries(|pubkey, set_sysvar| {
-                    if let Some(acc) = accounts_clone.get(pubkey) {
-                        set_sysvar(acc.data())
-                    }
-                });
-            }
-            EPOCH_REWARDS_ID => {
-                handle_sysvar::<solana_sdk::epoch_rewards::EpochRewards>(
-                    cache,
-                    EpochRewards,
-                    account,
-                    self.inner.clone(),
-                    pubkey,
-                )?;
-            }
-            EPOCH_SCHEDULE_ID => {
-                handle_sysvar::<solana_sdk::epoch_schedule::EpochSchedule>(
-                    cache,
-                    EpochSchedule,
-                    account,
-                    self.inner.clone(),
-                    pubkey,
-                )?;
-            }
-            FEES_ID => {
-                handle_sysvar::<solana_sdk::sysvar::fees::Fees>(
-                    cache,
-                    Fees,
-                    account,
-                    self.inner.clone(),
-                    pubkey,
-                )?;
-            }
-            LAST_RESTART_SLOT_ID => {
-                handle_sysvar::<solana_sdk::sysvar::last_restart_slot::LastRestartSlot>(
-                    cache,
-                    LastRestartSlot,
-                    account,
-                    self.inner.clone(),
-                    pubkey,
-                )?;
-            }
-            RECENT_BLOCKHASHES_ID => {
-                handle_sysvar::<solana_sdk::sysvar::recent_blockhashes::RecentBlockhashes>(
-                    cache,
-                    RecentBlockhashes,
-                    account,
-                    self.inner.clone(),
-                    pubkey,
-                )?;
-            }
-            RENT_ID => {
-                handle_sysvar::<solana_sdk::rent::Rent>(
-                    cache,
-                    Rent,
-                    account,
-                    self.inner.clone(),
-                    pubkey,
-                )?;
-            }
-            SLOT_HASHES_ID => {
-                handle_sysvar::<solana_sdk::slot_hashes::SlotHashes>(
-                    cache,
-                    SlotHashes,
-                    account,
-                    self.inner.clone(),
-                    pubkey,
-                )?;
-            }
-            STAKE_HISTORY_ID => {
-                handle_sysvar::<solana_sdk::stake_history::StakeHistory>(
-                    cache,
-                    StakeHistory,
-                    account,
-                    self.inner.clone(),
-                    pubkey,
-                )?;
-            }
-            _ => {}
-        };
-        Ok(())
-    }
-
-    /// Skip the executable() checks for builtin accounts
-    pub(crate) fn add_builtin_account(&mut self, pubkey: Pubkey, data: AccountSharedData) {
-        self.inner.insert(pubkey, data);
+    pub(crate) fn all_cached_accounts(&self) -> Vec<(Pubkey, AccountSharedData)> {
+        self.accounts_cache.iter().map(|(pubkey, account)| (*pubkey, account.clone())).collect()
     }
 
     pub(crate) fn sync_accounts(
@@ -233,14 +148,13 @@ impl AccountsDb {
 
         let owner = program_account.owner();
         let program_runtime_v1 = self.programs_cache.environments.program_runtime_v1.clone();
-        let slot = self.sysvar_cache.get_clock().unwrap().slot;
 
         if bpf_loader::check_id(owner) | bpf_loader_deprecated::check_id(owner) {
             ProgramCacheEntry::new(
                 owner,
                 self.programs_cache.environments.program_runtime_v1.clone(),
-                slot,
-                slot,
+                self.slot,
+                self.slot,
                 program_account.data(),
                 program_account.data().len(),
                 &mut LoadProgramMetrics::default(),
@@ -269,8 +183,8 @@ impl AccountsDb {
                 ProgramCacheEntry::new(
                     owner,
                     program_runtime_v1,
-                    slot,
-                    slot,
+                    self.slot,
+                    self.slot,
                     programdata,
                     program_account
                         .data()
@@ -291,8 +205,8 @@ impl AccountsDb {
                 ProgramCacheEntry::new(
                     &loader_v4::id(),
                     program_runtime_v1,
-                    slot,
-                    slot,
+                    self.slot,
+                    self.slot,
                     elf_bytes,
                     program_account.data().len(),
                     metrics,
@@ -314,10 +228,10 @@ impl AccountsDb {
         }
     }
 
-    fn load_lookup_table_addresses(
+    pub(crate) fn load_lookup_table_addresses(
         &self,
         address_table_lookup: &MessageAddressTableLookup,
-    ) -> std::result::Result<LoadedAddresses, AddressLookupError> {
+    ) -> Result<LoadedAddresses, AddressLookupError> {
         let table_account = self
             .get_account(&address_table_lookup.account_key)
             .ok_or(AddressLookupError::LookupTableAccountNotFound)?;
@@ -353,29 +267,47 @@ impl AccountsDb {
         pubkey: &Pubkey,
         lamports: u64,
     ) -> solana_sdk::transaction::Result<()> {
-        match self.inner.get_mut(pubkey) {
-            Some(account) => {
-                let min_balance = match get_system_account_kind(account) {
-                    Some(SystemAccountKind::Nonce) => {
-                        self.sysvar_cache.get_rent().unwrap().minimum_balance(nonce::State::size())
-                    }
-                    _ => 0,
-                };
+        if let Some(account) = self.accounts_cache.get_mut(pubkey) {
+            let min_balance = match get_system_account_kind(account) {
+                Some(SystemAccountKind::Nonce) => {
+                    self.sysvar_cache.get_rent().unwrap().minimum_balance(nonce::State::size())
+                }
+                _ => 0,
+            };
 
-                lamports
-                    .checked_add(min_balance)
-                    .filter(|required_balance| *required_balance <= account.lamports())
-                    .ok_or(TransactionError::InsufficientFundsForFee)?;
-                account
-                    .checked_sub_lamports(lamports)
-                    .map_err(|_| TransactionError::InsufficientFundsForFee)?;
+            lamports
+                .checked_add(min_balance)
+                .filter(|required_balance| *required_balance <= account.lamports())
+                .ok_or(TransactionError::InsufficientFundsForFee)?;
+            account
+                .checked_sub_lamports(lamports)
+                .map_err(|_| TransactionError::InsufficientFundsForFee)?;
 
-                Ok(())
-            }
-            None => {
-                error!("Account {pubkey} not found when trying to withdraw fee.");
-                Err(TransactionError::AccountNotFound)
-            }
+            return Ok(())
+        }
+
+        if let Some(mut account) = self.callback.get_account_data(self.slot, pubkey) {
+            let min_balance = match get_system_account_kind(&account) {
+                Some(SystemAccountKind::Nonce) => {
+                    self.sysvar_cache.get_rent().unwrap().minimum_balance(nonce::State::size())
+                }
+                _ => 0,
+            };
+
+            lamports
+                .checked_add(min_balance)
+                .filter(|required_balance| *required_balance <= account.lamports())
+                .ok_or(TransactionError::InsufficientFundsForFee)?;
+            account
+                .checked_sub_lamports(lamports)
+                .map_err(|_| TransactionError::InsufficientFundsForFee)?;
+
+            // add the account back to cache
+            self.add_account_no_checks(*pubkey, account);
+            Ok(())
+        } else {
+            error!("Account {pubkey} not found when trying to withdraw.");
+            Err(TransactionError::AccountNotFound)
         }
     }
 }
@@ -391,7 +323,7 @@ fn into_address_loader_error(err: AddressLookupError) -> AddressLoaderError {
     }
 }
 
-impl AddressLoader for &AccountsDb {
+impl<CB: AccountsCallback> AddressLoader for &AccountsDb<CB> {
     fn load_addresses(
         self,
         lookups: &[MessageAddressTableLookup],

@@ -9,10 +9,11 @@ use solana_sdk::rent_collector::RentCollector;
 use soon_mpt_primitives::B256;
 use soon_mpt_primitives::alloy::eips::BlockNumHash;
 use soon_primitives::blocks::{BlockInfo, L2BlockInfo};
+use litesvm::accounts_callback::AccountsCallback;
 
 #[derive(Debug)]
-pub struct FraudExecutor {
-    pub litesvm: LiteSVM,
+pub struct FraudExecutor<CB: AccountsCallback> {
+    pub litesvm: LiteSVM<CB>,
     // TODO: init fee collector from genesis
     fee_collector: Pubkey,
     // TODO: init rent collector from genesis
@@ -21,10 +22,10 @@ pub struct FraudExecutor {
     fee_structure: Option<FeeStructure>,
 }
 
-impl Default for FraudExecutor {
+impl<CB: AccountsCallback> Default for FraudExecutor<CB> {
     fn default() -> Self {
         Self {
-            litesvm: LiteSVM::default().with_builtins(None).with_sysvars().with_precompiles(None),
+            litesvm: LiteSVM::default().with_builtins(None).with_precompiles(None),
             fee_collector: Pubkey::default(),
             rent_collector: RentCollector::default(),
             fee_structure: None,
@@ -32,7 +33,7 @@ impl Default for FraudExecutor {
     }
 }
 
-impl FraudExecutor {
+impl<CB: AccountsCallback> FraudExecutor<CB> {
     pub fn new(accounts: &SoonAccounts) -> Result<Self> {
         let mut executor = Self::default();
         litesvm_import_accounts(&mut executor.litesvm, accounts)?;

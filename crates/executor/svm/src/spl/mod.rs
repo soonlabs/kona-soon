@@ -1,8 +1,8 @@
 use solana_sdk::pubkey;
-
+use crate::accounts_callback::AccountsCallback;
 use crate::LiteSVM;
 
-pub fn load_spl_programs(svm: &mut LiteSVM) {
+pub(crate) fn load_spl_programs(svm: &mut LiteSVM<impl AccountsCallback>) {
     svm.add_program(
         pubkey!("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
         include_bytes!("programs/spl_token-3.5.0.so"),

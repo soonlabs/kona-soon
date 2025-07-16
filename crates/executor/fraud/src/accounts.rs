@@ -3,6 +3,7 @@ use litesvm::LiteSVM;
 use solana_sdk::{account::AccountSharedData, pubkey::Pubkey};
 use soon_mpt_primitives::{Account as MptAccount, B256};
 use soon_mpt_trie::{encoder::sol_account_encoder, test_utils::state_root_prehashed};
+use litesvm::accounts_callback::AccountsCallback;
 
 pub type AccountPairs = Vec<(Pubkey, AccountSharedData)>;
 
@@ -34,8 +35,8 @@ impl From<SoonAccounts> for Vec<(B256, MptAccount)> {
     }
 }
 
-impl From<&LiteSVM> for SoonAccounts {
-    fn from(litesvm: &LiteSVM) -> Self {
+impl<CB: AccountsCallback> From<&LiteSVM<CB>> for SoonAccounts {
+    fn from(litesvm: &LiteSVM<CB>) -> Self {
         Self { accounts: litesvm.export_accounts() }
     }
 }

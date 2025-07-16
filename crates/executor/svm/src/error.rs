@@ -1,4 +1,6 @@
+use solana_program::pubkey::Pubkey;
 use solana_sdk::instruction::InstructionError;
+use solana_sdk::transaction::TransactionError;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -25,13 +27,21 @@ pub enum InvalidSysvarDataError {
 
 #[derive(Error, Debug)]
 pub enum LiteSVMError {
-    #[error("{0}")]
+    #[error(transparent)]
     InvalidSysvarData(#[from] InvalidSysvarDataError),
-    #[error("{0}")]
+    #[error(transparent)]
     Instruction(#[from] InstructionError),
+    #[error(transparent)]
+    Bincode(#[from] bincode::Error),
+    #[error(transparent)]
+    Transaction(#[from] TransactionError),
 
     #[error("Add overflow")]
     AddOverflow,
     #[error("Sub overflow")]
     SubOverflow,
+
+    #[error("Account {0} not found in callback")]
+    AccountNotFound(Pubkey),
+
 }

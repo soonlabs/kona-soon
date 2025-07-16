@@ -10,27 +10,26 @@ use solana_sdk::pubkey::Pubkey;
 use soon_mpt_primitives::{Account as MptAccount, B256, keccak256};
 use soon_primitives::blocks::RawBlock;
 use soon_primitives::mpt::account_from_solana_native;
+use litesvm::accounts_callback::AccountsCallback;
 
-pub fn init_litesvm_with_accounts(accounts: &SoonAccounts) -> Result<LiteSVM> {
-    let mut litesvm: LiteSVM =
-        LiteSVM::default().with_builtins(None).with_sysvars().with_precompiles(None);
+pub fn init_litesvm_with_accounts<CB: AccountsCallback>(accounts: &SoonAccounts) -> Result<LiteSVM<CB>> {
+    let mut litesvm = LiteSVM::default().with_builtins(None).with_precompiles(None);
     litesvm_import_accounts(&mut litesvm, accounts)?;
     Ok(litesvm)
 }
 
-pub fn litesvm_import_accounts(litesvm: &mut LiteSVM, accounts: &SoonAccounts) -> Result<()> {
+pub fn litesvm_import_accounts(litesvm: &mut LiteSVM<impl AccountsCallback>, accounts: &SoonAccounts) -> Result<()> {
     litesvm.import_accounts(accounts.accounts.clone())?;
     Ok(())
 }
 
 pub fn litesvm_import_accounts_one_by_one(
-    litesvm: &mut LiteSVM,
+    litesvm: &mut LiteSVM<impl AccountsCallback>,
     accounts: &SoonAccounts,
 ) -> Result<String> {
     let mut output = String::new();
 
     output.push_str("=== LiteSVM Account Analysis ===\n");
-    output.push_str(&format!("Initial accounts: {}\n", litesvm.all_accounts_len()));
     output.push_str(&format!("Accounts to import: {}\n", accounts.accounts.len()));
 
     output.push_str("\n--- Importing Soon Storage Accounts One by One ---\n");
@@ -96,12 +95,10 @@ pub fn litesvm_import_accounts_one_by_one(
         }
     }
 
-    let final_count = litesvm.all_accounts_len();
     output.push_str("\n--- Import Summary ---\n");
     output.push_str(&format!("Successfully imported new: {}\n", successfully_imported));
     output.push_str(&format!("Conflicts resolved (overwritten): {}\n", conflicts_resolved));
     output.push_str(&format!("Skipped (unsupported): {}\n", skipped_accounts.len()));
-    output.push_str(&format!("Final accounts: {}\n", final_count));
 
     if !skipped_accounts.is_empty() {
         output.push_str("\nSkipped accounts:\n");
@@ -131,7 +128,6 @@ pub fn litesvm_import_accounts_one_by_one(
     output.push_str(&format!("  Sysvars: {}\n", sysvars));
     output.push_str(&format!("  Builtins: {}\n", builtins));
     output.push_str(&format!("  User accounts: {}\n", user_accounts));
-    output.push_str(&format!("  Total: {}\n", final_count));
 
     Ok(output)
 }
@@ -461,7 +457,7 @@ pub fn assert_accounts_equal(soon_accounts: &SoonAccounts, litesvm_accounts: &So
 }
 
 pub fn litesvm_new_block(
-    litesvm: &mut LiteSVM,
+    litesvm: &mut LiteSVM<impl AccountsCallback>,
     block: &RawBlock,
 ) -> Result<Vec<TransactionMetadata>> {
     let mut tx_results = Vec::new();
