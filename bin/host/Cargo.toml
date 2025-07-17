@@ -21,6 +21,7 @@ kona-preimage = { workspace = true, features = ["std"] }
 
 #Soon
 soon-primitives.workspace = true
+soon-l2-chain-provider.workspace = true
 
 # Protocol
 kona-driver.workspace = true

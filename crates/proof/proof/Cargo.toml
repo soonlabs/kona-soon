@@ -23,6 +23,7 @@ fraud-executor.workspace = true
 solana-transaction-status = { workspace = true }
 soon-derive.workspace = true
 soon-primitives.workspace = true
+l1-block-info = { workspace = true }
 
 # Alloy
 alloy-rlp.workspace = true

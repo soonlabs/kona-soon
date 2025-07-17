@@ -15,15 +15,14 @@ use kona_preimage::{
     BidirectionalChannel, Channel, HintReader, HintWriter, OracleReader, OracleServer,
 };
 use kona_proof::HintType;
-//use kona_providers_alloy::{OnlineBeaconClient, OnlineBlobProvider, OnlineDaProvider};
 use kona_std_fpvm::{FileChannel, FileDescriptor};
-use op_alloy_network::Optimism;
 use serde::Serialize;
 use std::{path::PathBuf, sync::Arc};
 use tokio::{
     sync::RwLock,
     task::{self, JoinHandle},
 };
+use soon_l2_chain_provider::chain_provider::L2BlockFetcher;
 
 /// The host binary CLI application arguments.
 #[derive(Default, Parser, Serialize, Clone, Debug)]
@@ -32,9 +31,9 @@ pub struct SingleChainHost {
     /// Hash of the L1 head block. Derivation stops after this block is processed.
     #[arg(long, env)]
     pub l1_head: B256,
-    /// Hash of the agreed upon safe L2 block committed to by `--agreed-l2-output-root`.
+    /// Block number of the agreed upon safe L2 block committed to by `--agreed-l2-output-root`.
     #[arg(long, visible_alias = "l2-head", env)]
-    pub agreed_l2_head_hash: B256,
+    pub agreed_l2_block_number: u64,
     /// Agreed safe L2 Output Root to start derivation from.
     #[arg(long, visible_alias = "l2-output-root", env)]
     pub agreed_l2_output_root: B256,
@@ -182,8 +181,7 @@ impl SingleChainHost {
                 kv_store.clone(),
                 providers,
                 SingleChainHintHandler,
-            )
-            .with_proactive_hint(HintType::L2PayloadWitness);
+            );
 
             task::spawn(async {
                 PreimageServer::new(
@@ -271,7 +269,8 @@ impl SingleChainHost {
         //         .ok_or(SingleChainHostError::Other("Beacon API URL must be set"))?,
         // ))
         // .await;
-        let l2_provider = http_provider::<Optimism>(
+
+        let l2_provider = L2BlockFetcher::new_with_url(
             self.l2_node_address
                 .as_ref()
                 .ok_or(SingleChainHostError::Other("L2 node address must be set"))?,
@@ -298,7 +297,7 @@ pub struct SingleChainProviders {
     // /// The DA proxy provider.
     // pub da: OnlineDaProvider,
     /// The L2 EL provider.
-    pub l2: RootProvider<Optimism>,
+    pub l2: L2BlockFetcher,
 }
 
 #[cfg(test)]

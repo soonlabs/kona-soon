@@ -36,6 +36,10 @@ pub enum OracleProviderError {
     /// Unknown Chain ID
     #[error("Unknown chain ID: {0}")]
     UnknownChainId(u64),
+    #[error("fetch l2 block info failed: {0}")]
+    FetchBlockInfoFailed(String),
+    #[error("fetch l2 system config failed: {0}")]
+    FetchSystemConfigFailed(String),
 }
 
 impl From<OracleProviderError> for PipelineErrorKind {

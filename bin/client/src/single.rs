@@ -60,8 +60,7 @@ where
     let _beacon = OracleBlobProvider::new(oracle.clone());
 
     // Fetch the safe head's block header.
-    let safe_head = l2_provider
-        .header_by_hash(safe_head_hash)?;
+    let safe_head = l2_provider.get_l2_block_info_by_number(boot.agreed_l2_block_number).await?;
 
     // If the claimed L2 block number is less than the safe head of the L2 chain, the claim is
     // invalid.
