@@ -3,7 +3,7 @@
 use crate::{DriverError, DriverPipeline, DriverResult, Executor, PipelineCursor, TipCursor};
 use alloc::{sync::Arc, vec::Vec};
 use alloy_consensus::Header;
-use alloy_primitives::{Bytes, Sealable, B256};
+use alloy_primitives::{B256, Bytes, Sealable};
 use core::default::Default;
 use core::fmt::Debug;
 use fraud_executor::outcome::BlockBuildingOutcome;
@@ -108,7 +108,7 @@ where
             };
 
             self.executor
-                .update_safe_head(tip_cursor.l2_safe_head_header.clone())
+                .update_safe_head(tip_cursor.l2_safe_head_header)
                 .map_err(DriverError::Executor)?;
             let outcome = match self.executor.execute_payload(attributes.clone()).await {
                 Ok(outcome) => outcome,

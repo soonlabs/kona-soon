@@ -2,7 +2,6 @@
 //! preimages.
 
 use alloc::string::String;
-use alloy_consensus::Header;
 use alloy_primitives::{B256, Bytes};
 use kona_mpt::{TrieNode, TrieProvider};
 use soon_primitives::blocks::L2BlockInfo;
