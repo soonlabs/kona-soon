@@ -205,6 +205,7 @@ ark-bls12-381 = { version = "0.5.0", default-features = false }
 
 # Soon
 soon-derive = { path = '../soon/node/derive' }
+soon-da-provider = { path = '../soon/node/da-provider' }
 soon-l1-chain-provider = { path = '../soon/node/l1provider' }
 soon-l2-chain-provider = { path = '../soon/node/l2provider' }
 soon-primitives = { path = '../soon/node/primitives' }

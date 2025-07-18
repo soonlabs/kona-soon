@@ -23,6 +23,7 @@ use tokio::{
     task::{self, JoinHandle},
 };
 use soon_l2_chain_provider::chain_provider::L2BlockFetcher;
+use soon_da_provider::da_proxy::DAProxyImpl;
 
 /// The host binary CLI application arguments.
 #[derive(Default, Parser, Serialize, Clone, Debug)]
@@ -263,12 +264,8 @@ impl SingleChainHost {
                 .as_ref()
                 .ok_or(SingleChainHostError::Other("Provider must be set"))?,
         );
-        // let blob_provider = OnlineBlobProvider::init(OnlineBeaconClient::new_http(
-        //     self.l1_beacon_address
-        //         .clone()
-        //         .ok_or(SingleChainHostError::Other("Beacon API URL must be set"))?,
-        // ))
-        // .await;
+
+        let da_provider = DAProxyImpl::new_with_url(&self.da_proxy_url.clone().ok_or(SingleChainHostError::Other("DA proxy URL must be set"))?);
 
         let l2_provider = L2BlockFetcher::new_with_url(
             self.l2_node_address
@@ -276,9 +273,7 @@ impl SingleChainHost {
                 .ok_or(SingleChainHostError::Other("L2 node address must be set"))?,
         );
 
-       // let da_provider = OnlineDaProvider::new(self.da_proxy_url.clone().ok_or(SingleChainHostError::Other("DA proxy URL must be set"))?);
-
-        Ok(SingleChainProviders { l1: l1_provider, l2: l2_provider })
+        Ok(SingleChainProviders { l1: l1_provider, da: da_provider, l2: l2_provider })
     }
 }
 
@@ -292,10 +287,8 @@ impl OnlineHostBackendCfg for SingleChainHost {
 pub struct SingleChainProviders {
     /// The L1 EL provider.
     pub l1: RootProvider,
-    // /// The L1 beacon node provider.
-    // pub blobs: OnlineBlobProvider<OnlineBeaconClient>,
-    // /// The DA proxy provider.
-    // pub da: OnlineDaProvider,
+    /// The DA proxy provider.
+    pub da: DAProxyImpl,
     /// The L2 EL provider.
     pub l2: L2BlockFetcher,
 }

@@ -9,7 +9,7 @@ use alloy_eips::{
 };
 use alloy_primitives::{Address, B256, Bytes, keccak256};
 use alloy_provider::Provider;
-use alloy_rpc_types::{Block, debug::ExecutionWitness};
+use alloy_rpc_types::Block;
 use anyhow::{Result, anyhow, ensure};
 use async_trait::async_trait;
 use kona_preimage::{PreimageKey, PreimageKeyType};
@@ -72,6 +72,11 @@ impl HintHandler for SingleChainHintHandler {
             HintType::L1Blob => {
             }
             HintType::DAProxyBlob => {
+                ensure!(hint.data.len() == 513, "Invalid hint data length");
+                let key_hash = keccak256(hint.data.as_ref());
+                let data = providers.da.download_preimage(hint.data.as_ref().to_vec()).await?;
+                let mut kv_lock = kv.write().await;
+                kv_lock.set(PreimageKey::new_keccak256(*key_hash).into(), data.into())?;
             }
             HintType::L1Precompile => {
                 ensure!(hint.data.len() >= 28, "Invalid hint data length");

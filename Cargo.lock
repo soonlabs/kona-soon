@@ -5730,6 +5730,7 @@ dependencies = [
  "rocksdb",
  "serde",
  "serde_json",
+ "soon-da-provider",
  "soon-derive",
  "soon-l2-chain-provider",
  "soon-primitives",
@@ -5808,6 +5809,7 @@ dependencies = [
  "serde",
  "serde_json",
  "solana-transaction-status",
+ "soon-da-provider",
  "soon-derive",
  "soon-primitives",
  "spin 0.10.0",
@@ -11229,13 +11231,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "soon-da-client"
+name = "soon-da-provider"
 version = "0.7.4"
 dependencies = [
  "async-trait",
  "hex",
  "log",
  "reqwest 0.11.27",
+ "soon-derive",
  "thiserror 1.0.69",
  "tokio",
 ]
@@ -11257,7 +11260,6 @@ dependencies = [
  "op-alloy-rpc-types-engine",
  "solana-sdk",
  "solana-transaction-status",
- "soon-da-client",
  "soon-miniz-oxide",
  "soon-primitives",
  "thiserror 1.0.64",

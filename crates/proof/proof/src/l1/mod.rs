@@ -8,3 +8,6 @@ pub use blob_provider::{OracleBlobProvider, ROOTS_OF_UNITY};
 
 mod chain_provider;
 pub use chain_provider::OracleL1ChainProvider;
+
+mod da_provider;
+pub use da_provider::OracleDaProvider;
