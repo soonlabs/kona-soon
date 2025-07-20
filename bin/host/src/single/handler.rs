@@ -16,7 +16,7 @@ use kona_preimage::{PreimageKey, PreimageKeyType};
 use kona_proof::{Hint, HintType};
 use tracing::warn;
 use soon_primitives::output_root::OutputRoot;
-use alloy_rlp::Encodable;
+use alloy_rlp::{BytesMut, Encodable};
 
 /// The [HintHandler] for the [SingleChainHost].
 #[derive(Debug, Clone, Copy)]
@@ -184,10 +184,10 @@ impl HintHandler for SingleChainHintHandler {
                 let number_hash = keccak256(hint.data.as_ref());
 
                 let block = providers.l2.get_block_by_number(block_number).await?;
-                let mut block_bytes = Vec::new();
-                block.encode(&mut block_bytes);
+                let mut out_buf = BytesMut::default();
+                Encodable::encode(&block, &mut out_buf);
                 let mut kv_lock = kv.write().await;
-                kv_lock.set(PreimageKey::new_keccak256(*number_hash).into(), block_bytes.into())?;
+                kv_lock.set(PreimageKey::new_keccak256(*number_hash).into(), out_buf.into())?;
             }
         }
 

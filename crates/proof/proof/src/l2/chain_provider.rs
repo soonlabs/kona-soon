@@ -94,7 +94,7 @@ impl<T: CommsClient> OracleL2ChainProvider<T> {
         let number_hash = keccak256(number_bytes.as_ref());
         let block_bytes = self.oracle.get(PreimageKey::new_keccak256(*number_hash)).await?;
 
-        L2Block::decode(&mut block_bytes.as_slice()).map_err(OracleProviderError::Rlp)
+        Decodable::decode(&mut block_bytes.as_slice()).map_err(OracleProviderError::Rlp)
     }
 
     fn get_l1_block_info(&self, block: L2Block) -> Result<L1BlockInfoInstruction, OracleProviderError> {
