@@ -1,5 +1,5 @@
 use crate::alloc::string::ToString;
-use crate::ExecutorError::ExecutionError;
+use crate::ExecutorError::{ExecutionError, FraudExecutorError};
 use crate::{ExecutorError, ExecutorResult, L2BlockBuilder, TrieDBProvider};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
@@ -13,6 +13,8 @@ use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use solana_sdk::transaction::VersionedTransaction;
 use soon_primitives::blocks::L2BlockInfo;
 use soon_primitives::rollup_config::SoonRollupConfig;
+use litesvm::accounts_callback::NoopAccountsCallback;
+use litesvm::LiteSVM;
 
 #[derive(Debug)]
 pub struct OffchainL2Builder<P, H>
@@ -55,8 +57,11 @@ where
             )?;
         let soon_accounts: SoonAccounts = bincode::deserialize(&init_accounts_code)
             .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
-
-        let mut executor = FraudExecutor::new(&soon_accounts)?;
+        let mut svm = LiteSVM::<NoopAccountsCallback>::new_soon()
+            .map_err(|e| FraudExecutorError(e.into()))?;
+        svm.import_accounts(soon_accounts.accounts).map_err(|e| FraudExecutorError(e.into()))?;
+        svm.finish_init().map_err(|e| FraudExecutorError(e.into()))?;
+        let mut executor = FraudExecutor::new(svm);
 
         // check state root
         {

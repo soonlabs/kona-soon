@@ -10,6 +10,8 @@ use kona_mpt::TrieHinter;
 use op_alloy_consensus::OpReceiptEnvelope;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use soon_primitives::{blocks::L2BlockInfo, rollup_config::SoonRollupConfig};
+use litesvm::accounts_callback::NoopAccountsCallback;
+use litesvm::LiteSVM;
 
 /// The [`StatelessL2Builder`] is an OP Stack block builder that traverses a merkle patricia trie
 /// via the [`TrieDB`] during execution.
@@ -74,7 +76,7 @@ where
 
         // Step 2. Create the executor, using the trie database.
         // TODO: import using trie db later
-        let mut executor = FraudExecutor::new(&Default::default())?;
+        let mut executor = FraudExecutor::new(LiteSVM::<NoopAccountsCallback>::default());
 
         // Step 3. Execute the block containing the transactions within the payload attributes.
         let block = self.convert_block(attrs)?;

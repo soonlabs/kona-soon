@@ -24,13 +24,9 @@ use solana_system_program::{SystemAccountKind, get_system_account_kind};
 use std::{collections::HashMap, sync::Arc};
 use solana_program::clock::{Epoch, Slot};
 use solana_program_runtime::loaded_programs::ProgramRuntimeEnvironments;
-use tracing::error;
+use tracing::{warn, error};
 use crate::accounts_callback::AccountsCallback;
-use crate::error::{InvalidSysvarDataError, LiteSVMError};
-
-const FEES_ID: Pubkey = solana_program::pubkey!("SysvarFees111111111111111111111111111111111");
-const RECENT_BLOCKHASHES_ID: Pubkey =
-    solana_program::pubkey!("SysvarRecentB1ockHashes11111111111111111111");
+use crate::error::LiteSVMError;
 
 #[derive(Default)]
 pub(crate) struct AccountsDb<CB: AccountsCallback> {
@@ -53,7 +49,7 @@ impl<CB: AccountsCallback> AccountsDb<CB> {
         self
     }
 
-    pub fn set_last_root_epoch(&mut self, epoch: Epoch) -> &mut Self {
+    pub fn set_epoch(&mut self, epoch: Epoch) -> &mut Self {
         self.programs_cache.latest_root_epoch = epoch;
         self
     }
@@ -73,7 +69,7 @@ impl<CB: AccountsCallback> AccountsDb<CB> {
                 set_sysvar(data.data());
                 self.accounts_cache.insert(*pubkey, data);
             } else {
-                error!("Sysvar account {pubkey} not found in callback.");
+                warn!("Sysvar account {pubkey} not found in callback.");
             }
         });
     }
@@ -82,23 +78,10 @@ impl<CB: AccountsCallback> AccountsDb<CB> {
         &self,
         pubkey: &Pubkey,
     ) -> Option<AccountSharedData> {
-        self.accounts_cache.get(pubkey).cloned().or_else(|| self.callback.get_account_data(self.slot, pubkey))
-    }
-
-    pub(crate) fn get_and_add_account(
-        &mut self,
-        pubkey: &Pubkey,
-    ) -> Result<AccountSharedData, LiteSVMError> {
-        if let Some(account) = self.accounts_cache.get(pubkey) {
-            return Ok(account.clone());
-        }
-
-        if let Some(account) = self.callback.get_account_data(self.slot, pubkey) {
-            self.add_account(*pubkey, account.clone())?;
-            Ok(account)
-        } else {
-            Err(LiteSVMError::AccountNotFound(*pubkey))
-        }
+        self.accounts_cache
+            .get(pubkey)
+            .cloned()
+            .or_else(|| self.callback.get_account_data(self.slot, pubkey))
     }
 
     /// We should only use this when we know we're not touching any executable or sysvar accounts,
@@ -112,7 +95,7 @@ impl<CB: AccountsCallback> AccountsDb<CB> {
         pubkey: Pubkey,
         account: AccountSharedData,
     ) -> Result<(), LiteSVMError> {
-        if account.executable() && native_loader::check_id(account.owner()) {
+        if account.executable() && !native_loader::check_id(account.owner()) {
             let loaded_program = self.load_program(&account)?;
             self.programs_cache.replenish(pubkey, Arc::new(loaded_program));
         }
@@ -120,9 +103,17 @@ impl<CB: AccountsCallback> AccountsDb<CB> {
         Ok(())
     }
 
+    pub fn clear_cache_accounts(&mut self) {
+        self.accounts_cache.clear();
+    }
+
     /// Get all accounts in the database.
     pub(crate) fn all_cached_accounts(&self) -> Vec<(Pubkey, AccountSharedData)> {
         self.accounts_cache.iter().map(|(pubkey, account)| (*pubkey, account.clone())).collect()
+    }
+
+    pub(crate) fn clean_zero_accounts(&mut self) {
+        self.accounts_cache.retain(|_, account| account.lamports() > 0);
     }
 
     pub(crate) fn sync_accounts(
@@ -130,9 +121,9 @@ impl<CB: AccountsCallback> AccountsDb<CB> {
         mut accounts: Vec<(Pubkey, AccountSharedData)>,
     ) -> Result<(), LiteSVMError> {
         // need to add programdata accounts first if there are any
-        itertools::partition(&mut accounts, |x| {
-            x.1.owner() == &bpf_loader_upgradeable::id()
-                && x.1.data().first().is_some_and(|byte| *byte == 3)
+        itertools::partition(&mut accounts, |(_, account)| {
+            account.owner() == &bpf_loader_upgradeable::id()
+                && account.data().first().is_some_and(|byte| *byte == 3)
         });
         for (pubkey, acc) in accounts {
             self.add_account(pubkey, acc)?;

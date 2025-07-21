@@ -1,3 +1,4 @@
+use solana_program::lamports::LamportsError;
 use solana_program::pubkey::Pubkey;
 use solana_sdk::instruction::InstructionError;
 use solana_sdk::transaction::TransactionError;
@@ -35,13 +36,10 @@ pub enum LiteSVMError {
     Bincode(#[from] bincode::Error),
     #[error(transparent)]
     Transaction(#[from] TransactionError),
-
-    #[error("Add overflow")]
-    AddOverflow,
-    #[error("Sub overflow")]
-    SubOverflow,
-
-    #[error("Account {0} not found in callback")]
-    AccountNotFound(Pubkey),
-
+    #[error(transparent)]
+    Lamports(#[from] LamportsError),
+    #[error("Insufficient lamports to mint account")]
+    InsufficientLamports,
+    #[error("Missing account {0}")]
+    MissingAccount(Pubkey),
 }

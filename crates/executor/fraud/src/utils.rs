@@ -12,125 +12,125 @@ use soon_primitives::blocks::RawBlock;
 use soon_primitives::mpt::account_from_solana_native;
 use litesvm::accounts_callback::AccountsCallback;
 
-pub fn init_litesvm_with_accounts<CB: AccountsCallback>(accounts: &SoonAccounts) -> Result<LiteSVM<CB>> {
-    let mut litesvm = LiteSVM::default().with_builtins(None).with_precompiles(None);
-    litesvm_import_accounts(&mut litesvm, accounts)?;
-    Ok(litesvm)
-}
-
-pub fn litesvm_import_accounts(litesvm: &mut LiteSVM<impl AccountsCallback>, accounts: &SoonAccounts) -> Result<()> {
-    litesvm.import_accounts(accounts.accounts.clone())?;
-    Ok(())
-}
-
-pub fn litesvm_import_accounts_one_by_one(
-    litesvm: &mut LiteSVM<impl AccountsCallback>,
-    accounts: &SoonAccounts,
-) -> Result<String> {
-    let mut output = String::new();
-
-    output.push_str("=== LiteSVM Account Analysis ===\n");
-    output.push_str(&format!("Accounts to import: {}\n", accounts.accounts.len()));
-
-    output.push_str("\n--- Importing Soon Storage Accounts One by One ---\n");
-
-    let mut successfully_imported = 0;
-    let mut conflicts_resolved = 0;
-    let mut skipped_accounts = Vec::new();
-
-    for (pubkey, account) in &accounts.accounts {
-        let account_type = classify_account(pubkey, account);
-
-        // use panic catching to handle possible crashes
-        let result = panic::catch_unwind(panic::AssertUnwindSafe(|| {
-            if let Some(existing_account) = litesvm.get_account(pubkey) {
-                // if account exists but differs, use the Soon storage version (overwrite)
-                let existing_shared_data: AccountSharedData = existing_account.into();
-                if existing_shared_data != *account {
-                    litesvm.set_account(*pubkey, (*account).clone().into()).map(|_| "overwritten")
-                } else {
-                    Ok("identical")
-                }
-            } else {
-                // new account, add normally
-                litesvm.set_account(*pubkey, (*account).clone().into()).map(|_| "added")
-            }
-        }));
-
-        match result {
-            Ok(Ok(status)) => match status {
-                "overwritten" => {
-                    conflicts_resolved += 1;
-                    output.push_str(&format!(
-                        "  🔄 Overwriting {}: {} (was different)\n",
-                        pubkey, account_type
-                    ));
-                }
-                "identical" => {
-                    output.push_str(&format!(
-                        "  ✅ {}: {} (already identical)\n",
-                        pubkey, account_type
-                    ));
-                }
-                "added" => {
-                    successfully_imported += 1;
-                    output.push_str(&format!("  ➕ {}: {} (added new)\n", pubkey, account_type));
-                }
-                _ => {}
-            },
-            Ok(Err(e)) => {
-                output.push_str(&format!(
-                    "  ❌ {}: {} - Error: {} (SKIPPED)\n",
-                    pubkey, account_type, e
-                ));
-                skipped_accounts.push((*pubkey, format!("Error: {}", e)));
-            }
-            Err(_) => {
-                output.push_str(&format!(
-                    "  ❌ {}: {} - Panic occurred (SKIPPED)\n",
-                    pubkey, account_type
-                ));
-                skipped_accounts.push((*pubkey, "Panic occurred".to_string()));
-            }
-        }
-    }
-
-    output.push_str("\n--- Import Summary ---\n");
-    output.push_str(&format!("Successfully imported new: {}\n", successfully_imported));
-    output.push_str(&format!("Conflicts resolved (overwritten): {}\n", conflicts_resolved));
-    output.push_str(&format!("Skipped (unsupported): {}\n", skipped_accounts.len()));
-
-    if !skipped_accounts.is_empty() {
-        output.push_str("\nSkipped accounts:\n");
-        for (pubkey, error) in &skipped_accounts {
-            output.push_str(&format!("  {}: {}\n", pubkey, error));
-        }
-    }
-
-    // analyze the final account distribution
-    let exported_accounts = litesvm.export_accounts();
-    let mut sysvars = 0;
-    let mut builtins = 0;
-    let mut user_accounts = 0;
-
-    output.push_str("\n--- Final Account Summary ---\n");
-    for (pubkey, account) in &exported_accounts {
-        let account_type = classify_account(pubkey, account);
-        if account_type.starts_with("Sysvar") {
-            sysvars += 1;
-        } else if account_type.starts_with("Builtin") {
-            builtins += 1;
-        } else {
-            user_accounts += 1;
-        }
-    }
-
-    output.push_str(&format!("  Sysvars: {}\n", sysvars));
-    output.push_str(&format!("  Builtins: {}\n", builtins));
-    output.push_str(&format!("  User accounts: {}\n", user_accounts));
-
-    Ok(output)
-}
+// pub fn init_litesvm_with_accounts<CB: AccountsCallback>(accounts: &SoonAccounts) -> Result<LiteSVM<CB>> {
+//     let mut litesvm = LiteSVM::default().with_builtins().with_precompiles();
+//     litesvm_import_accounts(&mut litesvm, accounts)?;
+//     Ok(litesvm)
+// }
+//
+// pub fn litesvm_import_accounts(litesvm: &mut LiteSVM<impl AccountsCallback>, accounts: &SoonAccounts) -> Result<()> {
+//     litesvm.import_accounts(accounts.accounts.clone())?;
+//     Ok(())
+// }
+//
+// pub fn litesvm_import_accounts_one_by_one(
+//     litesvm: &mut LiteSVM<impl AccountsCallback>,
+//     accounts: &SoonAccounts,
+// ) -> Result<String> {
+//     let mut output = String::new();
+//
+//     output.push_str("=== LiteSVM Account Analysis ===\n");
+//     output.push_str(&format!("Accounts to import: {}\n", accounts.accounts.len()));
+//
+//     output.push_str("\n--- Importing Soon Storage Accounts One by One ---\n");
+//
+//     let mut successfully_imported = 0;
+//     let mut conflicts_resolved = 0;
+//     let mut skipped_accounts = Vec::new();
+//
+//     for (pubkey, account) in &accounts.accounts {
+//         let account_type = classify_account(pubkey, account);
+//
+//         // use panic catching to handle possible crashes
+//         let result = panic::catch_unwind(panic::AssertUnwindSafe(|| {
+//             if let Some(existing_account) = litesvm.get_account(pubkey) {
+//                 // if account exists but differs, use the Soon storage version (overwrite)
+//                 let existing_shared_data: AccountSharedData = existing_account.into();
+//                 if existing_shared_data != *account {
+//                     litesvm.set_account(*pubkey, (*account).clone().into()).map(|_| "overwritten")
+//                 } else {
+//                     Ok("identical")
+//                 }
+//             } else {
+//                 // new account, add normally
+//                 litesvm.set_account(*pubkey, (*account).clone().into()).map(|_| "added")
+//             }
+//         }));
+//
+//         match result {
+//             Ok(Ok(status)) => match status {
+//                 "overwritten" => {
+//                     conflicts_resolved += 1;
+//                     output.push_str(&format!(
+//                         "  🔄 Overwriting {}: {} (was different)\n",
+//                         pubkey, account_type
+//                     ));
+//                 }
+//                 "identical" => {
+//                     output.push_str(&format!(
+//                         "  ✅ {}: {} (already identical)\n",
+//                         pubkey, account_type
+//                     ));
+//                 }
+//                 "added" => {
+//                     successfully_imported += 1;
+//                     output.push_str(&format!("  ➕ {}: {} (added new)\n", pubkey, account_type));
+//                 }
+//                 _ => {}
+//             },
+//             Ok(Err(e)) => {
+//                 output.push_str(&format!(
+//                     "  ❌ {}: {} - Error: {} (SKIPPED)\n",
+//                     pubkey, account_type, e
+//                 ));
+//                 skipped_accounts.push((*pubkey, format!("Error: {}", e)));
+//             }
+//             Err(_) => {
+//                 output.push_str(&format!(
+//                     "  ❌ {}: {} - Panic occurred (SKIPPED)\n",
+//                     pubkey, account_type
+//                 ));
+//                 skipped_accounts.push((*pubkey, "Panic occurred".to_string()));
+//             }
+//         }
+//     }
+//
+//     output.push_str("\n--- Import Summary ---\n");
+//     output.push_str(&format!("Successfully imported new: {}\n", successfully_imported));
+//     output.push_str(&format!("Conflicts resolved (overwritten): {}\n", conflicts_resolved));
+//     output.push_str(&format!("Skipped (unsupported): {}\n", skipped_accounts.len()));
+//
+//     if !skipped_accounts.is_empty() {
+//         output.push_str("\nSkipped accounts:\n");
+//         for (pubkey, error) in &skipped_accounts {
+//             output.push_str(&format!("  {}: {}\n", pubkey, error));
+//         }
+//     }
+//
+//     // analyze the final account distribution
+//     let exported_accounts = litesvm.export_accounts();
+//     let mut sysvars = 0;
+//     let mut builtins = 0;
+//     let mut user_accounts = 0;
+//
+//     output.push_str("\n--- Final Account Summary ---\n");
+//     for (pubkey, account) in &exported_accounts {
+//         let account_type = classify_account(pubkey, account);
+//         if account_type.starts_with("Sysvar") {
+//             sysvars += 1;
+//         } else if account_type.starts_with("Builtin") {
+//             builtins += 1;
+//         } else {
+//             user_accounts += 1;
+//         }
+//     }
+//
+//     output.push_str(&format!("  Sysvars: {}\n", sysvars));
+//     output.push_str(&format!("  Builtins: {}\n", builtins));
+//     output.push_str(&format!("  User accounts: {}\n", user_accounts));
+//
+//     Ok(output)
+// }
 
 pub fn classify_account(pubkey: &Pubkey, account: &AccountSharedData) -> String {
     let pubkey_str = pubkey.to_string();
@@ -187,8 +187,8 @@ fn is_known_sysvar(pubkey_str: &str) -> bool {
 
 pub fn add_trie_account(
     target: &mut Vec<(B256, MptAccount)>,
-    pubkey: &solana_sdk::pubkey::Pubkey,
-    account: &solana_sdk::account::AccountSharedData,
+    pubkey: &Pubkey,
+    account: &AccountSharedData,
 ) {
     let hashed_pubkey = keccak256(pubkey);
     let mpt_account = account_from_solana_native(account);

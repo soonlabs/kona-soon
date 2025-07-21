@@ -5,66 +5,35 @@ use crate::{
     builtin::BUILTINS,
     error::LiteSVMError,
     history::TransactionHistory,
-    precompiles::load_precompiles,
     spl::load_spl_programs,
     types::{ExecutionResult, FailedTransactionMetadata, TransactionMetadata, TransactionResult},
     utils::{create_blockhash, rent::RentState},
 };
-use itertools::Itertools;
 use solana_bpf_loader_program::syscalls::create_program_runtime_environment_v1;
 use solana_compute_budget::{
     compute_budget::ComputeBudget,
     compute_budget_processor::{process_compute_budget_instructions, ComputeBudgetLimits},
 };
 use solana_loader_v4_program::create_program_runtime_environment_v2;
-#[allow(deprecated)]
-use solana_program::sysvar::{fees::Fees, recent_blockhashes::RecentBlockhashes};
 use solana_program_runtime::{
     invoke_context::{BuiltinFunctionWithContext, EnvironmentConfig, InvokeContext},
     loaded_programs::{LoadProgramMetrics, ProgramCacheEntry},
     log_collector::LogCollector,
     timings::ExecuteTimings,
 };
-#[allow(deprecated)]
-use solana_sdk::sysvar::recent_blockhashes::IterItem;
-use solana_sdk::{
-    account::{Account, AccountSharedData, ReadableAccount, WritableAccount},
-    bpf_loader,
-    clock::Clock,
-    epoch_schedule::EpochSchedule,
-    feature_set::{
-        include_loaded_accounts_data_size_in_fee_calculation, remove_rounding_in_fee_calculation,
-        FeatureSet,
-    },
-    fee::FeeStructure,
-    hash::Hash,
-    inner_instruction::InnerInstructionsList,
-    instruction::InstructionError,
-    message::{Message, SanitizedMessage, VersionedMessage},
-    native_loader,
-    native_token::LAMPORTS_PER_SOL,
-    nonce::{state::DurableNonce, NONCED_TX_MARKER_IX_INDEX},
-    nonce_account,
-    pubkey::Pubkey,
-    rent::Rent,
-    rent_collector::{RentCollector, RENT_EXEMPT_RENT_EPOCH},
-    reserved_account_keys::ReservedAccountKeys,
-    signature::{Keypair, Signature},
-    signer::Signer,
-    slot_history::SlotHistory,
-    stake_history::StakeHistory,
-    system_instruction, system_program,
-    sysvar::{Sysvar, SysvarId},
-    transaction::{MessageHash, SanitizedTransaction, TransactionError, VersionedTransaction},
-    transaction_context::{ExecutionRecord, IndexOfAccount, TransactionContext},
-};
+use solana_sdk::{account::{Account, AccountSharedData, ReadableAccount, WritableAccount}, bpf_loader, clock::Clock, epoch_schedule::EpochSchedule, feature_set, feature_set::{
+    include_loaded_accounts_data_size_in_fee_calculation, remove_rounding_in_fee_calculation,
+    FeatureSet,
+}, fee::FeeStructure, hash::Hash, inner_instruction::InnerInstructionsList, instruction::InstructionError, message::SanitizedMessage, native_loader, nonce::{state::DurableNonce, NONCED_TX_MARKER_IX_INDEX}, nonce_account, pubkey::Pubkey, rent::Rent, rent_collector::RentCollector, reserved_account_keys::ReservedAccountKeys, signature::Signature, slot_history::SlotHistory, stake_history::StakeHistory, system_instruction, system_program, sysvar::{Sysvar, SysvarId}, transaction::{MessageHash, SanitizedTransaction, TransactionError, VersionedTransaction}, transaction_context::{ExecutionRecord, IndexOfAccount, TransactionContext}};
 use solana_svm::{account_loader::collect_rent_from_account, message_processor::MessageProcessor};
 use solana_system_program::{get_system_account_kind, SystemAccountKind};
 use std::fmt::Debug;
 use std::{cell::RefCell, path::Path, rc::Rc, sync::Arc};
-use solana_program::clock::{Slot, INITIAL_RENT_EPOCH};
+use solana_program::clock::{Epoch, Slot, INITIAL_RENT_EPOCH};
 use solana_program::last_restart_slot::LastRestartSlot;
 use solana_program::slot_hashes::SlotHashes;
+use solana_program_runtime::loaded_programs::ProgramRuntimeEnvironments;
+use solana_sdk::precompiles::get_precompiles;
 use tracing::{error, info, warn};
 use types::SimulatedTransactionInfo;
 use utils::{
@@ -73,19 +42,18 @@ use utils::{
 };
 use accounts_callback::AccountsCallback;
 use crate::error::InvalidSysvarDataError;
-use crate::genesis::{default_epoch_schedule, default_rent};
+use crate::genesis::*;
 
 pub mod error;
 pub mod types;
 pub mod accounts_callback;
+pub mod genesis;
 
 mod accounts_db;
 mod builtin;
 mod history;
-mod precompiles;
 mod spl;
 mod utils;
-mod genesis;
 
 // The test code doesn't actually get run because it's not
 // what doctest expects but at least it
@@ -95,22 +63,29 @@ mod genesis;
 pub struct ReadmeDoctests;
 
 pub struct LiteSVM<CB: AccountsCallback> {
+    slot: Slot,
+    epoch: Epoch,
     accounts: AccountsDb<CB>,
-    feature_set: Arc<FeatureSet>,
+    feature_set: FeatureSet,
     latest_blockhash: Hash,
     log_collector: Rc<RefCell<LogCollector>>,
     history: TransactionHistory,
     compute_budget: Option<ComputeBudget>,
     sigverify: bool,
     blockhash_check: bool,
+    rent: Rent,
+    slots_per_year: f64,
     fee_structure: Option<FeeStructure>,
     log_bytes_limit: Option<usize>,
-    rent_collector: Option<RentCollector>,
+    rent_collector: RentCollector,
+    fee_collector: Option<Pubkey>,
 }
 
 impl<CB: AccountsCallback> Default for LiteSVM<CB> {
     fn default() -> Self {
         Self {
+            slot: 0,
+            epoch: 0,
             accounts: Default::default(),
             feature_set: Default::default(),
             latest_blockhash: create_blockhash(b"genesis"),
@@ -119,9 +94,12 @@ impl<CB: AccountsCallback> Default for LiteSVM<CB> {
             compute_budget: None,
             sigverify: false,
             blockhash_check: false,
+            rent: soon_rent(),
+            slots_per_year: soon_slots_per_year(),
             fee_structure: None,
             log_bytes_limit: Some(10_000),
-            rent_collector: None,
+            rent_collector: Default::default(),
+            fee_collector: None,
         }
     }
 }
@@ -141,16 +119,68 @@ impl<CB: AccountsCallback> Debug for LiteSVM<CB> {
 
 impl<CB: AccountsCallback> LiteSVM<CB> {
     /// Creates the basic test environment.
-    pub fn new() -> Self {
-        Self::default()
-            .with_builtins(None)
-            .with_spl_programs()
-            .with_sigverify(true)
-            .with_blockhash_check(true)
+    pub fn new_soon() -> Result<Self, LiteSVMError> {
+        Ok(Self::default()
+            .with_builtins()
+            .with_precompiles()?
+            // .with_sigverify(true)
+            // .with_blockhash_check(true)
+            .with_compute_budget(soon_compute_budget())
+            .with_rent(soon_rent())?
+            .with_epoch_schedule(soon_epoch_schedule())?
+            .with_fee_structure(Some(soon_fee_structure())))
     }
 
-    pub fn with_accounts_db(mut self, accounts: AccountsDb<CB>) -> Self {
-        self.accounts = accounts;
+    pub fn finish_init(&mut self) -> Result<(), LiteSVMError> {
+        // create environments
+        let program_runtime_v1 = create_program_runtime_environment_v1(
+            &self.feature_set,
+            &self.compute_budget.unwrap_or_default(),
+            false,
+            false,
+        )
+        .unwrap();
+        let program_runtime_v2 =
+            create_program_runtime_environment_v2(&self.compute_budget.unwrap_or_default(), false);
+        self.accounts.set_environments(ProgramRuntimeEnvironments {
+            program_runtime_v1: Arc::new(program_runtime_v1),
+            program_runtime_v2: Arc::new(program_runtime_v2),
+        });
+
+        // fill sysvars cache
+        self.accounts.fill_sysvar_cache();
+
+        // override slot and epoch if found clock
+        if let Ok(clock) = self.get_sysvar::<Clock>() {
+            self.slot = clock.slot;
+            self.epoch = clock.epoch;
+            self.accounts.set_slot(self.slot);
+            self.accounts.set_epoch(self.epoch);
+        }
+
+        // fill rent collector
+        self.rent_collector = RentCollector::new(
+            self.epoch,
+            self.get_sysvar()?,
+            self.slots_per_year,
+            self.rent.clone(),
+        );
+
+        Ok(())
+    }
+
+    /// Sets the slot and epoch for the accounts db.
+    pub fn with_slot_and_epoch(mut self, slot: Slot, epoch: Epoch) -> Self {
+        self.slot = slot;
+        self.epoch = epoch;
+        self.accounts.set_slot(slot);
+        self.accounts.set_epoch(epoch);
+        self
+    }
+
+    /// Sets the accounts db callback.
+    pub fn with_accounts_callback(mut self, callback: CB) -> Self {
+        self.accounts.set_callback(callback);
         self
     }
 
@@ -172,8 +202,20 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         self
     }
 
-    pub fn set_fee_structure(&mut self, fee_structure: Option<FeeStructure>) {
+    pub const fn with_fee_collector(mut self, collector: Option<Pubkey>) -> Self {
+        self.fee_collector = collector;
+        self
+    }
+
+    /// Sets the feature set for the test environment.
+    pub fn with_feature_set(mut self, feature_set: FeatureSet) -> Self {
+        self.feature_set = feature_set;
+        self
+    }
+
+    pub fn with_fee_structure(mut self, fee_structure: Option<FeeStructure>) -> Self {
         self.fee_structure = fee_structure;
+        self
     }
 
     pub fn with_clock(mut self, clock: Clock) -> Result<Self, LiteSVMError> {
@@ -209,6 +251,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     }
 
     pub fn with_rent(mut self, rent: Rent) -> Result<Self, LiteSVMError> {
+        self.rent = rent.clone();
         self.set_sysvar(rent)?;
         Ok(self)
     }
@@ -217,56 +260,60 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         self.set_sysvar(epoch_schedule)?;
         Ok(self)
     }
-    
-    pub fn with_lamports(mut self, pubkey: Pubkey, lamports: u64) -> Result<Self, LiteSVMError> {
-        let lamports = self.minimum_balance_for_rent_exemption(0).max(lamports);
-        let account = AccountSharedData::new(lamports, 0, &system_program::id());
-        self.accounts.add_account(pubkey, account)?;
+
+    pub fn with_minting_to(mut self, pubkey: Pubkey, lamports: u64) -> Result<Self, LiteSVMError> {
+        self.mint_to(pubkey, lamports)?;
         Ok(self)
     }
 
-    pub fn with_precompiles(mut self, feature_set: Option<FeatureSet>) -> Self {
-        self.set_precompiles(feature_set);
-        self
+    fn mint_to(&mut self, pubkey: Pubkey, lamports: u64) -> Result<(), LiteSVMError> {
+        let account = if let Some(mut account) = self.accounts.get_account(&pubkey) {
+            account.checked_add_lamports(lamports)?;
+            account
+        } else {
+            if lamports < self.minimum_balance_for_rent_exemption(0) {
+                return Err(LiteSVMError::InsufficientLamports);
+            }
+            AccountSharedData::new(lamports, 0, &system_program::id())
+        };
+        self.accounts.add_account(pubkey, account)?;
+        Ok(())
     }
 
-    fn set_precompiles(&mut self, feature_set: Option<FeatureSet>) {
-        let feature_set = feature_set.unwrap_or_else(FeatureSet::all_enabled);
-        load_precompiles(self, feature_set);
+    pub fn with_precompiles(mut self) -> Result<Self, LiteSVMError> {
+        let mut account = AccountSharedData::default();
+        account.set_owner(native_loader::id());
+        account.set_lamports(1);
+        account.set_executable(true);
+
+        for precompile in get_precompiles() {
+            if precompile
+                .feature
+                .map_or(true, |feature_id| self.feature_set.is_active(&feature_id))
+            {
+                self.set_account(precompile.program_id, account.clone().into())?;
+            }
+        }
+
+        Ok(self)
     }
 
     /// Changes the default builtins.
-    pub fn with_builtins(mut self, feature_set: Option<FeatureSet>) -> Self {
-        let mut feature_set = feature_set.unwrap_or(FeatureSet::all_enabled());
-
-        BUILTINS.iter().for_each(|builtint| {
-            let loaded_program =
-                ProgramCacheEntry::new_builtin(0, builtint.name.len(), builtint.entrypoint);
-            self.accounts.programs_cache.replenish(builtint.program_id, Arc::new(loaded_program));
-            self.accounts.add_account_no_checks(
-                builtint.program_id,
-                native_loader::create_loadable_account_with_fields(builtint.name, (1, INITIAL_RENT_EPOCH)),
-            );
-
-            if let Some(feature_id) = builtint.feature_id {
-                feature_set.activate(&feature_id, 0);
+    pub fn with_builtins(mut self) -> Self {
+        BUILTINS.iter().for_each(|builtin| {
+            if let Some(feature_id) = builtin.feature_id {
+                if !self.feature_set.is_active(&feature_id) {
+                    return;
+                }
             }
+            let loaded_program =
+                ProgramCacheEntry::new_builtin(0, builtin.name.len(), builtin.entrypoint);
+            self.accounts.programs_cache.replenish(builtin.program_id, Arc::new(loaded_program));
+            self.accounts.add_account_no_checks(
+                builtin.program_id,
+                native_loader::create_loadable_account_with_fields(builtin.name, (1, INITIAL_RENT_EPOCH)),
+            );
         });
-
-        let program_runtime_v1 = create_program_runtime_environment_v1(
-            &feature_set,
-            &ComputeBudget::default(),
-            false,
-            false,
-        )
-        .unwrap();
-
-        let program_runtime_v2 =
-            create_program_runtime_environment_v2(&ComputeBudget::default(), false);
-
-        self.accounts.programs_cache.environments.program_runtime_v1 = Arc::new(program_runtime_v1);
-        self.accounts.programs_cache.environments.program_runtime_v2 = Arc::new(program_runtime_v2);
-        self.feature_set = Arc::new(feature_set);
         self
     }
 
@@ -283,20 +330,14 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         self
     }
 
-    pub const fn with_log_bytes_limit(mut self, limit: Option<usize>) -> Self {
-        self.log_bytes_limit = limit;
+    pub const fn with_log_bytes_limit(mut self, limit: usize) -> Self {
+        self.log_bytes_limit = Some(limit);
         self
     }
 
     /// Returns minimum balance required to make an account with specified data length rent exempt.
     pub fn minimum_balance_for_rent_exemption(&self, data_len: usize) -> u64 {
-        1.max(
-            self.accounts
-                .sysvar_cache
-                .get_rent()
-                .unwrap_or(Arc::new(default_rent()))
-                .minimum_balance(data_len)
-        )
+        1.max(self.rent.minimum_balance(data_len))
     }
 
     /// Returns all information associated with the account of the provided pubkey.
@@ -309,7 +350,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         self.accounts.add_account(pubkey, data.into())
     }
 
-    pub fn set_rent_collector(&mut self, rent_collector: Option<RentCollector>) {
+    pub fn set_rent_collector(&mut self, rent_collector: RentCollector) {
         self.rent_collector = rent_collector;
     }
 
@@ -320,6 +361,10 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
             LiteSVMError::Instruction(InstructionError::MissingAccount)
                 | LiteSVMError::Instruction(InstructionError::InvalidAccountData)
         )
+    }
+
+    pub fn clear_cache_accounts(&mut self) {
+        self.accounts.clear_cache_accounts();
     }
 
     /// Import accounts from a vector of (pubkey, account) pairs.
@@ -350,6 +395,8 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
                 }
             }
         }
+
+        info!("no missing accounts");
 
         // Keep retrying until no new missing accounts are added
         loop {
@@ -419,11 +466,15 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     }
 
     /// Gets a sysvar from the test environment.
-    pub fn get_sysvar<T>(&self) -> T
+    pub fn get_sysvar<T>(&self) -> Result<T, LiteSVMError>
     where
         T: Sysvar + SysvarId,
     {
-        bincode::deserialize(self.accounts.get_account(&T::id()).unwrap().data()).unwrap()
+        let account = self
+            .accounts
+            .get_account(&T::id())
+            .ok_or(LiteSVMError::MissingAccount(T::id()))?;
+        bincode::deserialize(account.data()).map_err(|e| LiteSVMError::Bincode(e))
     }
 
     /// Gets a transaction from the transaction history.
@@ -487,7 +538,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     ) -> TransactionContext {
         TransactionContext::new(
             accounts,
-            self.get_sysvar(),
+            self.rent.clone(),
             compute_budget.max_instruction_stack_depth,
             compute_budget.max_instruction_trace_length,
         )
@@ -557,8 +608,8 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         let mut accumulated_consume_units = 0;
         let message = tx.message();
         let account_keys = message.account_keys();
-        let fee = self.fee_structure.as_ref().map_or_else(
-            || 0,
+        let fee = self.fee_structure.as_ref().map_or(
+            0,
             |f| {
                 f.calculate_fee(
                     message,
@@ -580,13 +631,13 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
                 let account = if solana_sdk::sysvar::instructions::check_id(key) {
                     construct_instructions_account(message)
                 } else {
-                    let mut account = self.accounts.get_and_add_account(key).map_err(|_| TransactionError::AccountNotFound)?;
+                    let mut account = self.accounts.get_account(key).unwrap_or_default();
                     if !validated_fee_payer
                         && (!message.is_invoked(i) || message.is_instruction_account(i))
                     {
                         fee_payer_rent_debit = collect_rent_from_account(
                             &self.feature_set,
-                            self.rent_collector.as_ref().unwrap_or(&Default::default()),
+                            &self.rent_collector,
                             key,
                             &mut account,
                         )
@@ -604,7 +655,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
                     } else if message.is_writable(i) {
                         fee_payer_rent_debit = collect_rent_from_account(
                             &self.feature_set,
-                            self.rent_collector.as_ref().unwrap_or(&Default::default()),
+                            &self.rent_collector,
                             key,
                             &mut account,
                         )
@@ -698,7 +749,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
                             *blockhash,
                             None,
                             None,
-                            self.feature_set.clone(),
+                            Arc::new(self.feature_set.clone()),
                             0,
                             &self.accounts.sysvar_cache,
                         ),
@@ -902,47 +953,31 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     pub fn seal_block(
         &mut self,
         results: &[TransactionResult],
-        fee_collector: Pubkey,
     ) -> Result<(), LiteSVMError> {
         let mut fees = 0;
         results.iter().for_each(|r| match r {
             Ok(meta) => fees += meta.fee,
             Err(err) => fees += err.meta.fee,
         });
-        if fees > 0 {
-            self.add_or_update_user_account(fee_collector, fees)?;
+        let validate_fee_collector =
+            self.feature_set.is_active(&feature_set::validate_fee_collector_account::id());
+        if validate_fee_collector && fees > 0 && self.fee_collector.is_some() {
+            self.mint_to(self.fee_collector.unwrap(), fees)?;
         }
 
         self.accounts.clean_zero_accounts();
         Ok(())
     }
 
-    fn add_or_update_user_account(
-        &mut self,
-        pubkey: Pubkey,
-        lamports: u64,
-    ) -> Result<(), LiteSVMError> {
-        if let Some(mut account) = self.accounts.get_account(&pubkey) {
-            let new_lamports =
-                account.lamports().checked_add(lamports).ok_or(LiteSVMError::AddOverflow)?;
-            account.set_lamports(new_lamports);
-            self.set_account(pubkey, account.into())?;
-        } else {
-            self.set_account(pubkey, Account::new(lamports, 0, &system_program::id()))?;
-        }
-        Ok(())
-    }
-
     pub fn execute_block_transactions(
         &mut self,
         txs: Vec<impl Into<VersionedTransaction>>,
-        fee_collector: Pubkey,
     ) -> Result<Vec<TransactionResult>, LiteSVMError> {
         let mut results = Vec::with_capacity(txs.len());
         for tx in txs {
             results.push(self.send_transaction(tx));
         }
-        self.seal_block(&results, fee_collector)?;
+        self.seal_block(&results)?;
         Ok(results)
     }
 
