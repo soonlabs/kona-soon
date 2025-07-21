@@ -1,9 +1,10 @@
 //! Contains the concrete implementation of the [L2ChainProvider] trait for the client program.
 
+use crate::alloc::string::ToString;
 use crate::{HintType, errors::OracleProviderError};
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use alloy_eips::BlockNumHash;
-use alloy_primitives::{keccak256, Address, Bytes, B256, U160};
+use alloy_primitives::{Address, B256, Bytes, U160, keccak256};
 use alloy_rlp::Decodable;
 use async_trait::async_trait;
 use kona_driver::PipelineCursor;
@@ -12,12 +13,11 @@ use kona_mpt::{TrieHinter, TrieNode, TrieProvider};
 use kona_preimage::{CommsClient, PreimageKey, PreimageKeyType};
 use l1_block_info::instruction::L1BlockInfoInstruction;
 use soon_derive::traits::L2ChainProvider;
-use soon_primitives::blocks::{str_block_hash_to, BlockInfo, L2BlockInfo};
+use soon_primitives::blocks::{BlockInfo, L2BlockInfo, str_block_hash_to};
 use soon_primitives::l2blocks::L2Block;
 use soon_primitives::rollup_config::SoonRollupConfig;
 use soon_primitives::system::SystemConfig;
 use spin::RwLock;
-use crate::alloc::string::ToString;
 
 /// The oracle-backed L2 chain provider for the client program.
 #[derive(Debug, Clone)]
@@ -61,7 +61,10 @@ impl<T: CommsClient> OracleL2ChainProvider<T> {
 }
 
 impl<T: CommsClient> OracleL2ChainProvider<T> {
-    pub async fn get_l2_block_info_by_number(&self, number: u64) -> Result<L2BlockInfo, OracleProviderError> {
+    pub async fn get_l2_block_info_by_number(
+        &self,
+        number: u64,
+    ) -> Result<L2BlockInfo, OracleProviderError> {
         let block = self.get_block_by_number(number).await?;
         let block_info = BlockInfo::new(
             str_block_hash_to(block.blockhash.as_str()),
@@ -71,36 +74,54 @@ impl<T: CommsClient> OracleL2ChainProvider<T> {
         );
         let l1_block_info_instruction = self.get_l1_block_info(block)?;
         match l1_block_info_instruction {
-            L1BlockInfoInstruction::UpdateL1BlockInfo { number, timestamp: _, base_fee: _, hash, sequence_number, batcher_hash: _, fee_overhead: _, fee_scalar: _, gas: _, is_system_tx: _ } => {
-                Ok(L2BlockInfo {
-                    block_info,
-                    l1_origin: BlockNumHash {
-                        number,
-                        hash: B256::from(hash),
-                    },
-                    seq_num: sequence_number,
-                })  
-            }
-            _ => Err(OracleProviderError::FetchBlockInfoFailed("Invalid l1 block info instruction".to_string())),
+            L1BlockInfoInstruction::UpdateL1BlockInfo {
+                number,
+                timestamp: _,
+                base_fee: _,
+                hash,
+                sequence_number,
+                batcher_hash: _,
+                fee_overhead: _,
+                fee_scalar: _,
+                gas: _,
+                is_system_tx: _,
+            } => Ok(L2BlockInfo {
+                block_info,
+                l1_origin: BlockNumHash { number, hash: B256::from(hash) },
+                seq_num: sequence_number,
+            }),
+            _ => Err(OracleProviderError::FetchBlockInfoFailed(
+                "Invalid l1 block info instruction".to_string(),
+            )),
         }
     }
 
     pub async fn get_block_by_number(&self, number: u64) -> Result<L2Block, OracleProviderError> {
         let number_bytes = number.to_be_bytes();
         HintType::L2BlockData
-        .with_data(&[number_bytes.as_ref()])
-        .send(self.oracle.as_ref())
-        .await?;
+            .with_data(&[number_bytes.as_ref()])
+            .send(self.oracle.as_ref())
+            .await?;
         let number_hash = keccak256(number_bytes.as_ref());
         let block_bytes = self.oracle.get(PreimageKey::new_keccak256(*number_hash)).await?;
 
         Decodable::decode(&mut block_bytes.as_slice()).map_err(OracleProviderError::Rlp)
     }
 
-    fn get_l1_block_info(&self, block: L2Block) -> Result<L1BlockInfoInstruction, OracleProviderError> {
-        let l1_block_info_tx = block.transactions.first().ok_or(OracleProviderError::FetchBlockInfoFailed("No l1 block info tx found".to_string()))?;
-        let l1_block_info_tx_data = l1_block_info_tx.0.message.instructions().first().ok_or(OracleProviderError::FetchBlockInfoFailed("No instruction found".to_string()))?;
-        let l1_block_info_instruction = L1BlockInfoInstruction::unpack(l1_block_info_tx_data.data.as_slice()).map_err(|err| OracleProviderError::FetchBlockInfoFailed(err.to_string()))?;
+    fn get_l1_block_info(
+        &self,
+        block: L2Block,
+    ) -> Result<L1BlockInfoInstruction, OracleProviderError> {
+        let l1_block_info_tx = block.transactions.first().ok_or(
+            OracleProviderError::FetchBlockInfoFailed("No l1 block info tx found".to_string()),
+        )?;
+        let l1_block_info_tx_data =
+            l1_block_info_tx.0.message.instructions().first().ok_or(
+                OracleProviderError::FetchBlockInfoFailed("No instruction found".to_string()),
+            )?;
+        let l1_block_info_instruction =
+            L1BlockInfoInstruction::unpack(l1_block_info_tx_data.data.as_slice())
+                .map_err(|err| OracleProviderError::FetchBlockInfoFailed(err.to_string()))?;
         Ok(l1_block_info_instruction)
     }
 }
@@ -117,21 +138,31 @@ impl<T: CommsClient + Send + Sync> L2ChainProvider for OracleL2ChainProvider<T> 
         self.get_block_by_number(number).await
     }
 
-    async fn system_config_by_number(
-        &mut self,
-        number: u64,
-    ) -> Result<SystemConfig, Self::Error> {
+    async fn system_config_by_number(&mut self, number: u64) -> Result<SystemConfig, Self::Error> {
         let block = self.block_by_number(number).await?;
         let l1_block_info_instruction = self.get_l1_block_info(block)?;
         match l1_block_info_instruction {
-            L1BlockInfoInstruction::UpdateL1BlockInfo { number: _, timestamp: _, base_fee: _, hash: _, sequence_number: _   , batcher_hash, fee_overhead: _, fee_scalar: _, gas: _, is_system_tx: _ } => {
+            L1BlockInfoInstruction::UpdateL1BlockInfo {
+                number: _,
+                timestamp: _,
+                base_fee: _,
+                hash: _,
+                sequence_number: _,
+                batcher_hash,
+                fee_overhead: _,
+                fee_scalar: _,
+                gas: _,
+                is_system_tx: _,
+            } => {
                 let address_value = U160::from_le_slice(&batcher_hash[..20]);
                 Ok(SystemConfig {
                     batcher_address: Address::from(address_value),
                     ..Default::default()
-                })  
+                })
             }
-            _ => Err(OracleProviderError::FetchBlockInfoFailed("Invalid l1 block info instruction".to_string())),
+            _ => Err(OracleProviderError::FetchBlockInfoFailed(
+                "Invalid l1 block info instruction".to_string(),
+            )),
         }
     }
 }
@@ -158,7 +189,13 @@ impl<T: CommsClient> TrieProvider for OracleL2ChainProvider<T> {
 
 impl<T: CommsClient> TrieDBProvider for OracleL2ChainProvider<T> {
     fn bytecode_by_hash(&self, hash: B256) -> Result<Bytes, OracleProviderError> {
-        Ok(Bytes::new())
+        crate::block_on(async move {
+            self.oracle
+                .get(PreimageKey::new(*hash, PreimageKeyType::Keccak256))
+                .await
+                .map(Bytes::from)
+                .map_err(OracleProviderError::Preimage)
+        })
     }
 }
 
