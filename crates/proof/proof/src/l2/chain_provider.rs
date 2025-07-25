@@ -19,6 +19,12 @@ use soon_primitives::rollup_config::SoonRollupConfig;
 use soon_primitives::system::SystemConfig;
 use spin::RwLock;
 
+/// Trait for setting a pipeline cursor.
+pub trait CursorSetter {
+    /// Sets the derivation pipeline cursor.
+    fn set_cursor(&mut self, cursor: Arc<RwLock<PipelineCursor>>);
+}
+
 /// The oracle-backed L2 chain provider for the client program.
 #[derive(Debug, Clone)]
 pub struct OracleL2ChainProvider<T: CommsClient> {
@@ -57,6 +63,12 @@ impl<T: CommsClient> OracleL2ChainProvider<T> {
         self.cursor
             .as_ref()
             .map_or(Ok(self.l2_head), |cursor| Ok(cursor.read().l2_safe_head().block_info.hash))
+    }
+}
+
+impl<T: CommsClient> CursorSetter for OracleL2ChainProvider<T> {
+    fn set_cursor(&mut self, cursor: Arc<RwLock<PipelineCursor>>) {
+        self.cursor = Some(cursor);
     }
 }
 

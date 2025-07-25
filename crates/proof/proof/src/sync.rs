@@ -23,8 +23,8 @@ pub async fn new_oracle_pipeline_cursor<L1, L2>(
 where
     L1: ChainProvider + Send + Sync + Debug + Clone,
     L2: L2ChainProvider + Send + Sync + Debug + Clone,
-    OracleProviderError:
-        From<<L1 as ChainProvider>::Error> + From<<L2 as L2ChainProvider>::Error>,
+    L2: L2ChainProvider<Error = OracleProviderError>,
+    L1: ChainProvider<Error = OracleProviderError>,
 {
     let safe_head_info = l2_chain_provider.l2_block_info_by_number(safe_header.block_info.number).await?;
     let l1_origin = chain_provider.block_info_by_number(BlockNumberOrTag::from(safe_head_info.l1_origin.number)).await?;
