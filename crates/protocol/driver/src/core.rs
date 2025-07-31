@@ -108,7 +108,7 @@ where
             };
 
             self.executor
-                .update_safe_head(tip_cursor.l2_safe_head_header)
+                .update_safe_head(tip_cursor.l2_safe_head)
                 .map_err(DriverError::Executor)?;
             let outcome = match self.executor.execute_payload(attributes.clone()).await {
                 Ok(outcome) => outcome,
@@ -122,7 +122,6 @@ where
             let origin = self.pipeline.origin().ok_or(PipelineError::MissingOrigin.crit())?;
             let tip_cursor = TipCursor::new(
                 outcome.header,
-                Default::default(),
                 self.executor.compute_output_root().map_err(DriverError::Executor)?,
             );
 

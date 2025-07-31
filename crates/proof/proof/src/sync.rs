@@ -40,7 +40,7 @@ where
 
     // Construct the cursor.
     let mut cursor = PipelineCursor::new(channel_timeout, origin);
-    let tip = TipCursor::new(safe_head_info, safe_header, B256::ZERO);
+    let tip = TipCursor::new(safe_head_info, B256::ZERO);
     cursor.advance(origin, tip);
 
     // Wrap the cursor in a shared read-write lock

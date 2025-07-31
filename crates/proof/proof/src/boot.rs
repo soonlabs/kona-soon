@@ -117,8 +117,11 @@ impl BootInfo {
                 .map_err(OracleProviderError::SliceConversion)?,
         );
 
-        //TODO get right rollup_config
-        let rollup_config = SoonRollupConfig::default();
+        let ser_cfg = oracle
+            .get(PreimageKey::new_local(L2_ROLLUP_CONFIG_KEY.to()))
+            .await
+            .map_err(OracleProviderError::Preimage)?;
+        let rollup_config = serde_json::from_slice(&ser_cfg).map_err(OracleProviderError::Serde)?;
 
         Ok(Self {
             l1_head,
