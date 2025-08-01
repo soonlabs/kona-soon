@@ -1,17 +1,20 @@
 //! Single-chain fault proof program entrypoint.
 
 use alloc::sync::Arc;
-use alloy_consensus::Sealed;
 use alloy_primitives::B256;
 use core::fmt::Debug;
-use soon_derive::errors::PipelineErrorKind;
-use soon_derive::sources::DAServerSource;
 use kona_driver::DriverError;
-use kona_executor::{ExecutorError, TrieDBProvider};
+use kona_executor::ExecutorError;
 use kona_preimage::{CommsClient, HintWriterClient, PreimageKey, PreimageOracleClient};
 use kona_proof::{
-    errors::OracleProviderError, l1::{OracleDaProvider, OracleL1ChainProvider, OraclePipeline}, l2::OracleL2ChainProvider, sync::new_oracle_pipeline_cursor, BootInfo, CachingOracle, HintType
+    BootInfo, CachingOracle, HintType,
+    errors::OracleProviderError,
+    l1::{OracleDaProvider, OracleL1ChainProvider, OraclePipeline},
+    l2::OracleL2ChainProvider,
+    sync::new_oracle_pipeline_cursor,
 };
+use soon_derive::errors::PipelineErrorKind;
+use soon_derive::sources::DAServerSource;
 use thiserror::Error;
 use tracing::{error, info};
 
@@ -98,15 +101,17 @@ where
     .await?;
     l2_provider.set_cursor(cursor.clone());
 
-    let da_provider = DAServerSource::new(l1_provider.clone(), da_provider, rollup_config.batch_inbox_address);
-    let pipeline = OraclePipeline::new(
+    let da_provider =
+        DAServerSource::new(l1_provider.clone(), da_provider, rollup_config.batch_inbox_address);
+    let _pipeline = OraclePipeline::new(
         rollup_config.clone(),
         cursor.clone(),
         oracle.clone(),
         da_provider,
         l1_provider.clone(),
         l2_provider.clone(),
-    ).await?;
+    )
+    .await?;
 
     Ok(())
 }

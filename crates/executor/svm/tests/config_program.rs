@@ -3,7 +3,7 @@ use {
     bincode::{deserialize, serialized_size},
     litesvm::LiteSVM,
     serde::{Deserialize, Serialize},
-    solana_config_program::{config_instruction, get_config_data, ConfigKeys, ConfigState},
+    solana_config_program::{ConfigKeys, ConfigState, config_instruction, get_config_data},
     solana_sdk::{
         account::{Account, ReadableAccount},
         instruction::{AccountMeta, InstructionError},
@@ -117,10 +117,7 @@ fn test_process_store_ok() {
         .unwrap();
 
     let config_account = context.svm.get_account(&config_keypair.pubkey()).unwrap();
-    assert_eq!(
-        Some(my_config),
-        deserialize(get_config_data(config_account.data()).unwrap()).ok()
-    );
+    assert_eq!(Some(my_config), deserialize(get_config_data(config_account.data()).unwrap()).ok());
 }
 
 #[test_log::test]
@@ -195,11 +192,7 @@ fn test_process_store_with_additional_signers() {
     let pubkey = Pubkey::new_unique();
     let signer0 = Keypair::new();
     let signer1 = Keypair::new();
-    let keys = vec![
-        (pubkey, false),
-        (signer0.pubkey(), true),
-        (signer1.pubkey(), true),
-    ];
+    let keys = vec![(pubkey, false), (signer0.pubkey(), true), (signer1.pubkey(), true)];
     let my_config = MyConfig::new(42);
 
     create_config_account(&mut context, &config_keypair, keys.clone());
@@ -220,10 +213,7 @@ fn test_process_store_with_additional_signers() {
     let config_account = context.svm.get_account(&config_keypair.pubkey()).unwrap();
     let config_state: ConfigKeys = deserialize(config_account.data()).unwrap();
     assert_eq!(config_state.keys, keys);
-    assert_eq!(
-        Some(my_config),
-        deserialize(get_config_data(config_account.data()).unwrap()).ok()
-    );
+    assert_eq!(Some(my_config), deserialize(get_config_data(config_account.data()).unwrap()).ok());
 }
 
 #[test]
@@ -239,10 +229,7 @@ fn test_process_store_bad_config_account() {
 
     context
         .svm
-        .set_account(
-            signer0.pubkey(),
-            Account::new(100_000, 0, &solana_config_program::id()),
-        )
+        .set_account(signer0.pubkey(), Account::new(100_000, 0, &solana_config_program::id()))
         .unwrap();
 
     create_config_account(&mut context, &config_keypair, keys.clone());
@@ -262,10 +249,7 @@ fn test_process_store_bad_config_account() {
         ))
         .unwrap_err()
         .err;
-    assert_eq!(
-        err,
-        TransactionError::InstructionError(0, InstructionError::InvalidAccountData)
-    );
+    assert_eq!(err, TransactionError::InstructionError(0, InstructionError::InvalidAccountData));
 }
 
 #[test]
@@ -331,11 +315,7 @@ fn test_config_updates() {
     let signer0 = Keypair::new();
     let signer1 = Keypair::new();
     let signer2 = Keypair::new();
-    let keys = vec![
-        (pubkey, false),
-        (signer0.pubkey(), true),
-        (signer1.pubkey(), true),
-    ];
+    let keys = vec![(pubkey, false), (signer0.pubkey(), true), (signer1.pubkey(), true)];
     let my_config = MyConfig::new(42);
 
     create_config_account(&mut context, &config_keypair, keys.clone());
@@ -449,10 +429,7 @@ fn test_config_initialize_contains_duplicates_fails() {
         ))
         .unwrap_err()
         .err;
-    assert_eq!(
-        err,
-        TransactionError::InstructionError(0, InstructionError::InvalidArgument)
-    );
+    assert_eq!(err, TransactionError::InstructionError(0, InstructionError::InvalidArgument));
 }
 
 #[test]
@@ -464,11 +441,7 @@ fn test_config_update_contains_duplicates_fails() {
     let pubkey = Pubkey::new_unique();
     let signer0 = Keypair::new();
     let signer1 = Keypair::new();
-    let keys = vec![
-        (pubkey, false),
-        (signer0.pubkey(), true),
-        (signer1.pubkey(), true),
-    ];
+    let keys = vec![(pubkey, false), (signer0.pubkey(), true), (signer1.pubkey(), true)];
     let my_config = MyConfig::new(42);
 
     create_config_account(&mut context, &config_keypair, keys.clone());
@@ -504,10 +477,7 @@ fn test_config_update_contains_duplicates_fails() {
         ))
         .unwrap_err()
         .err;
-    assert_eq!(
-        err,
-        TransactionError::InstructionError(0, InstructionError::InvalidArgument)
-    );
+    assert_eq!(err, TransactionError::InstructionError(0, InstructionError::InvalidArgument));
 }
 
 #[test]
@@ -518,11 +488,7 @@ fn test_config_updates_requiring_config() {
 
     let pubkey = Pubkey::new_unique();
     let signer0 = Keypair::new();
-    let keys = vec![
-        (pubkey, false),
-        (signer0.pubkey(), true),
-        (config_keypair.pubkey(), true),
-    ];
+    let keys = vec![(pubkey, false), (signer0.pubkey(), true), (config_keypair.pubkey(), true)];
     let my_config = MyConfig::new(42);
 
     create_config_account(
@@ -561,10 +527,7 @@ fn test_config_updates_requiring_config() {
     let config_account = context.svm.get_account(&config_keypair.pubkey()).unwrap();
     let config_state: ConfigKeys = deserialize(config_account.data()).unwrap();
     assert_eq!(config_state.keys, keys);
-    assert_eq!(
-        Some(new_config),
-        deserialize(get_config_data(config_account.data()).unwrap()).ok()
-    );
+    assert_eq!(Some(new_config), deserialize(get_config_data(config_account.data()).unwrap()).ok());
 
     // Attempt update with incomplete signatures.
     let keys = vec![(pubkey, false), (config_keypair.pubkey(), true)]; // Missing signer0.
@@ -611,10 +574,7 @@ fn test_config_initialize_no_panic() {
         ))
         .unwrap_err()
         .err;
-    assert_eq!(
-        err,
-        TransactionError::InstructionError(0, InstructionError::NotEnoughAccountKeys)
-    );
+    assert_eq!(err, TransactionError::InstructionError(0, InstructionError::NotEnoughAccountKeys));
 }
 
 #[test]
@@ -625,11 +585,7 @@ fn test_config_bad_owner() {
 
     let pubkey = Pubkey::new_unique();
     let signer0 = Keypair::new();
-    let keys = vec![
-        (pubkey, false),
-        (signer0.pubkey(), true),
-        (config_keypair.pubkey(), true),
-    ];
+    let keys = vec![(pubkey, false), (signer0.pubkey(), true), (config_keypair.pubkey(), true)];
     let my_config = MyConfig::new(42);
 
     // Store a config account with the wrong owner.
@@ -637,10 +593,7 @@ fn test_config_bad_owner() {
     let lamports = context.svm.get_sysvar::<Rent>().minimum_balance(space);
     context
         .svm
-        .set_account(
-            config_keypair.pubkey(),
-            Account::new(lamports, 0, &Pubkey::new_unique()),
-        )
+        .set_account(config_keypair.pubkey(), Account::new(lamports, 0, &Pubkey::new_unique()))
         .unwrap();
 
     let payer = &context.payer;
@@ -656,10 +609,7 @@ fn test_config_bad_owner() {
         ))
         .unwrap_err()
         .err;
-    assert_eq!(
-        err,
-        TransactionError::InstructionError(0, InstructionError::InvalidAccountOwner)
-    );
+    assert_eq!(err, TransactionError::InstructionError(0, InstructionError::InvalidAccountOwner));
 }
 
 #[test]
@@ -694,10 +644,7 @@ fn test_maximum_keys_input() {
         .unwrap();
 
     let config_account = context.svm.get_account(&config_keypair.pubkey()).unwrap();
-    assert_eq!(
-        Some(my_config),
-        deserialize(get_config_data(config_account.data()).unwrap()).ok()
-    );
+    assert_eq!(Some(my_config), deserialize(get_config_data(config_account.data()).unwrap()).ok());
 
     // Do an update with 37 keys, forcing the program to deserialize the
     // config account data.

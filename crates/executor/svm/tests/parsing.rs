@@ -25,14 +25,8 @@ fn test_inner_instruction_parsing() {
     assert_eq!(3, result.inner_instructions[0].len());
     assert_eq!(1, result.inner_instructions[1].len());
     assert_eq!(2, result.inner_instructions[0][0].stack_height);
-    assert_eq!(
-        2,
-        result.inner_instructions[0][0].instruction.program_id_index,
-    );
-    assert_eq!(
-        vec![0, 1],
-        result.inner_instructions[0][0].instruction.accounts
-    );
+    assert_eq!(2, result.inner_instructions[0][0].instruction.program_id_index,);
+    assert_eq!(vec![0, 1], result.inner_instructions[0][0].instruction.accounts);
     assert_eq!(
         vec![2, 0, 0, 0, 128, 138, 19, 0, 0, 0, 0, 0],
         result.inner_instructions[0][0].instruction.data

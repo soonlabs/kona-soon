@@ -16,8 +16,8 @@
 fn main() {
     use alloy_primitives::BlockHash;
     use kona_comp::{ChannelOut, CompressionAlgo, VariantCompressor};
-    use soon_primitives::rollup_config::SoonRollupConfig;
     use kona_protocol::{Batch, ChannelId, SingleBatch};
+    use soon_primitives::rollup_config::SoonRollupConfig;
 
     // Use the example transaction
     let transactions = example_transactions();

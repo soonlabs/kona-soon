@@ -3,9 +3,9 @@
 
 use crate::errors::OracleProviderError;
 use alloy_primitives::{B256, U256};
-use soon_primitives::rollup_config::SoonRollupConfig;
 use kona_preimage::{PreimageKey, PreimageOracleClient};
 use serde::{Deserialize, Serialize};
+use soon_primitives::rollup_config::SoonRollupConfig;
 
 /// The local key ident for the L1 head hash.
 pub const L1_HEAD_KEY: U256 = U256::from_be_slice(&[1]);
@@ -83,14 +83,14 @@ impl BootInfo {
             .map_err(OracleProviderError::Preimage)?;
 
         let agreed_l2_block_number = u64::from_be_bytes(
-                oracle
-                    .get(PreimageKey::new_local(L2_AGREED_BLOCK_NUMBER_KEY.to()))
-                    .await
-                    .map_err(OracleProviderError::Preimage)?
-                    .as_slice()
-                    .try_into()
-                    .map_err(OracleProviderError::SliceConversion)?,
-        );     
+            oracle
+                .get(PreimageKey::new_local(L2_AGREED_BLOCK_NUMBER_KEY.to()))
+                .await
+                .map_err(OracleProviderError::Preimage)?
+                .as_slice()
+                .try_into()
+                .map_err(OracleProviderError::SliceConversion)?,
+        );
 
         let mut l2_claim: B256 = B256::ZERO;
         oracle

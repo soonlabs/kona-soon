@@ -10,20 +10,20 @@ use alloy_primitives::B256;
 use alloy_provider::RootProvider;
 use clap::Parser;
 use kona_cli::cli_styles;
-use soon_primitives::rollup_config::SoonRollupConfig;
 use kona_preimage::{
     BidirectionalChannel, Channel, HintReader, HintWriter, OracleReader, OracleServer,
 };
 use kona_proof::HintType;
 use kona_std_fpvm::{FileChannel, FileDescriptor};
 use serde::Serialize;
+use soon_da_provider::da_proxy::DAProxyImpl;
+use soon_l2_chain_provider::chain_provider::L2BlockFetcher;
+use soon_primitives::rollup_config::SoonRollupConfig;
 use std::{path::PathBuf, sync::Arc};
 use tokio::{
     sync::RwLock,
     task::{self, JoinHandle},
 };
-use soon_l2_chain_provider::chain_provider::L2BlockFetcher;
-use soon_da_provider::da_proxy::DAProxyImpl;
 
 /// The host binary CLI application arguments.
 #[derive(Default, Parser, Serialize, Clone, Debug)]
@@ -45,20 +45,10 @@ pub struct SingleChainHost {
     #[arg(long, visible_alias = "l2-block-number", env)]
     pub claimed_l2_block_number: u64,
     /// Address of L2 JSON-RPC endpoint to use (eth and debug namespace required).
-    #[arg(
-        long,
-        visible_alias = "l2",
-        requires = "l1_node_address",
-        env
-    )]
+    #[arg(long, visible_alias = "l2", requires = "l1_node_address", env)]
     pub l2_node_address: Option<String>,
     /// Address of L1 JSON-RPC endpoint to use (eth and debug namespace required)
-    #[arg(
-        long,
-        visible_alias = "l1",
-        requires = "l2_node_address",
-        env
-    )]
+    #[arg(long, visible_alias = "l1", requires = "l2_node_address", env)]
     pub l1_node_address: Option<String>,
     /// Address of the L1 Beacon API endpoint to use.
     #[arg(
@@ -219,10 +209,10 @@ impl SingleChainHost {
 
     /// Returns `true` if the host is running in offline mode.
     pub const fn is_offline(&self) -> bool {
-        self.l1_node_address.is_none() &&
-            self.l2_node_address.is_none() &&
-            self.l1_beacon_address.is_none() &&
-            self.data_dir.is_some()
+        self.l1_node_address.is_none()
+            && self.l2_node_address.is_none()
+            && self.l1_beacon_address.is_none()
+            && self.data_dir.is_some()
     }
 
     /// Reads the [SoonRollupConfig] from the file system and returns it as a string.
@@ -265,7 +255,12 @@ impl SingleChainHost {
                 .ok_or(SingleChainHostError::Other("Provider must be set"))?,
         );
 
-        let da_provider = DAProxyImpl::new_with_url(&self.da_proxy_url.clone().ok_or(SingleChainHostError::Other("DA proxy URL must be set"))?);
+        let da_provider = DAProxyImpl::new_with_url(
+            &self
+                .da_proxy_url
+                .clone()
+                .ok_or(SingleChainHostError::Other("DA proxy URL must be set"))?,
+        );
 
         let l2_provider = L2BlockFetcher::new_with_url(
             self.l2_node_address

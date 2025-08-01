@@ -1,9 +1,9 @@
 //! Error types for the proof program.
 
 use alloc::string::{String, ToString};
-use soon_derive::errors::{PipelineError, PipelineErrorKind};
 use kona_mpt::{OrderedListWalkerError, TrieNodeError};
 use kona_preimage::errors::PreimageOracleError;
+use soon_derive::errors::{PipelineError, PipelineErrorKind};
 use thiserror::Error;
 
 /// Error from an oracle-backed provider.
@@ -30,14 +30,16 @@ pub enum OracleProviderError {
     /// Serde error.
     #[error("Serde error: {0}")]
     Serde(serde_json::Error),
-
+    /// Bincode error
     #[error("Bincode error: {0}")]
     Bincode(bincode::Error),
     /// Unknown Chain ID
     #[error("Unknown chain ID: {0}")]
     UnknownChainId(u64),
+    /// Fetch l2 block info error
     #[error("fetch l2 block info failed: {0}")]
     FetchBlockInfoFailed(String),
+    /// Fetch L2 system config error
     #[error("fetch l2 system config failed: {0}")]
     FetchSystemConfigFailed(String),
 }

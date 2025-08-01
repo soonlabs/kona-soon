@@ -21,10 +21,7 @@ fn test_set_compute_budget() {
     let tx_fee = 5000;
     svm.airdrop(&from, tx_fee + 100).unwrap();
     // need to set the low compute budget after the airdrop tx
-    svm = svm.with_compute_budget(ComputeBudget {
-        compute_unit_limit: 10,
-        ..Default::default()
-    });
+    svm = svm.with_compute_budget(ComputeBudget { compute_unit_limit: 10, ..Default::default() });
     let instruction = transfer(&from, &to, 64);
     let tx = Transaction::new(
         &[&from_keypair],
@@ -55,10 +52,7 @@ fn test_set_compute_unit_limit() {
     let tx = Transaction::new(
         &[&from_keypair],
         Message::new(
-            &[
-                ComputeBudgetInstruction::set_compute_unit_limit(10),
-                instruction,
-            ],
+            &[ComputeBudgetInstruction::set_compute_unit_limit(10), instruction],
             Some(&from),
         ),
         svm.latest_blockhash(),

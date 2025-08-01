@@ -1,6 +1,6 @@
 use std::{path::PathBuf, sync::Arc};
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use litesvm::LiteSVM;
 use solana_program::{
     instruction::{AccountMeta, Instruction},
@@ -76,20 +76,10 @@ async fn do_program_test(
         // as LiteSVM also verifies the transaction by default.
         tx.verify().unwrap();
         tx.verify_precompiles(&feature_set).unwrap();
-        let tx_res = ctx
-            .banks_client
-            .process_transaction_with_metadata(tx)
-            .await
-            .unwrap();
+        let tx_res = ctx.banks_client.process_transaction_with_metadata(tx).await.unwrap();
         tx_res.result.unwrap();
     }
-    let fetched = ctx
-        .banks_client
-        .get_account(counter_address)
-        .await
-        .unwrap()
-        .unwrap()
-        .data[0];
+    let fetched = ctx.banks_client.get_account(counter_address).await.unwrap().unwrap().data[0];
     assert_eq!(fetched, NUM_GREETINGS);
 }
 
@@ -120,10 +110,7 @@ fn criterion_benchmark(c: &mut Criterion) {
                 );
                 svm.send_transaction(tx.clone()).unwrap();
             }
-            assert_eq!(
-                svm.get_account(&counter_address).unwrap().data[0],
-                NUM_GREETINGS
-            );
+            assert_eq!(svm.get_account(&counter_address).unwrap().data[0], NUM_GREETINGS);
         })
     });
     group.bench_function("banks_client_bench", |b| {

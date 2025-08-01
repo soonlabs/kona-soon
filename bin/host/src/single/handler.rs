@@ -4,19 +4,17 @@ use crate::{
     HintHandler, OnlineHostBackendCfg, backend::util::store_ordered_trie, kv::SharedKeyValueStore,
     single::cfg::SingleChainHost,
 };
-use alloy_eips::{
-    eip2718::Encodable2718,
-};
+use alloy_eips::eip2718::Encodable2718;
 use alloy_primitives::{Address, B256, Bytes, keccak256};
 use alloy_provider::Provider;
+use alloy_rlp::{BytesMut, Encodable};
 use alloy_rpc_types::Block;
 use anyhow::{Result, anyhow, ensure};
 use async_trait::async_trait;
 use kona_preimage::{PreimageKey, PreimageKeyType};
 use kona_proof::{Hint, HintType};
-use tracing::warn;
 use soon_primitives::output_root::OutputRoot;
-use alloy_rlp::{BytesMut, Encodable};
+use tracing::warn;
 
 /// The [HintHandler] for the [SingleChainHost].
 #[derive(Debug, Clone, Copy)]
@@ -69,8 +67,7 @@ impl HintHandler for SingleChainHintHandler {
 
                 store_ordered_trie(kv.as_ref(), raw_receipts.as_slice()).await?;
             }
-            HintType::L1Blob => {
-            }
+            HintType::L1Blob => {}
             HintType::DAProxyBlob => {
                 ensure!(hint.data.len() == 513, "Invalid hint data length");
                 let key_hash = keccak256(hint.data.as_ref());
@@ -106,7 +103,8 @@ impl HintHandler for SingleChainHintHandler {
             HintType::StartingL2Output => {
                 ensure!(hint.data.len() == 32, "Invalid hint data length");
 
-                let output_res: OutputRoot = providers.l2.output_at_block(cfg.agreed_l2_block_number).await?;
+                let output_res: OutputRoot =
+                    providers.l2.output_at_block(cfg.agreed_l2_block_number).await?;
                 let output_root_hash = output_res.hash();
 
                 ensure!(
@@ -143,10 +141,8 @@ impl HintHandler for SingleChainHintHandler {
                 let block_number = u64::from_be_bytes(hint.data.as_ref()[..8].try_into()?);
                 let account = B256::from_slice(&hint.data.as_ref()[8..40]);
 
-                let proof_response = providers
-                    .l2
-                    .get_account_node_proof(account, block_number)
-                    .await?;
+                let proof_response =
+                    providers.l2.get_account_node_proof(account, block_number).await?;
 
                 // Write the account proof nodes to the key-value store.
                 let mut kv_lock = kv.write().await;
@@ -163,10 +159,8 @@ impl HintHandler for SingleChainHintHandler {
                 let block_number = u64::from_be_bytes(hint.data.as_ref()[..8].try_into()?);
                 let account = B256::from_slice(&hint.data.as_ref()[8..40]);
 
-                let proof_response = providers
-                    .l2
-                    .get_storage_node_proof(account, block_number)
-                    .await?;
+                let proof_response =
+                    providers.l2.get_storage_node_proof(account, block_number).await?;
 
                 // Write the account proof nodes to the key-value store.
                 let mut kv_lock = kv.write().await;

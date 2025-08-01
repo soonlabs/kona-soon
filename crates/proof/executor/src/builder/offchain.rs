@@ -128,10 +128,12 @@ where
 
     fn compute_output_root(&mut self) -> ExecutorResult<B256> {
         if self.accounts.accounts.len() == 0 {
-            let init_accounts_code =
-                self.provider.bytecode_by_hash(cal_init_accounts_hash(self.init_slot())).map_err(
-                    |_| ExecutorError::FraudInitError("Failed to get init accounts code".to_string()),
-                )?;
+            let init_accounts_code = self
+                .provider
+                .bytecode_by_hash(cal_init_accounts_hash(self.init_slot()))
+                .map_err(|_| {
+                    ExecutorError::FraudInitError("Failed to get init accounts code".to_string())
+                })?;
             let soon_accounts: SoonAccounts = bincode::deserialize(&init_accounts_code)
                 .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
             Ok(soon_accounts.state_root())

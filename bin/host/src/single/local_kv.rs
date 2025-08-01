@@ -7,8 +7,8 @@ use alloy_primitives::B256;
 use anyhow::Result;
 use kona_preimage::PreimageKey;
 use kona_proof::boot::{
-    L1_HEAD_KEY, L2_CHAIN_ID_KEY, L2_CLAIM_BLOCK_NUMBER_KEY, L2_CLAIM_KEY, L2_OUTPUT_ROOT_KEY,
-    L2_ROLLUP_CONFIG_KEY, L2_AGREED_BLOCK_NUMBER_KEY,
+    L1_HEAD_KEY, L2_AGREED_BLOCK_NUMBER_KEY, L2_CHAIN_ID_KEY, L2_CLAIM_BLOCK_NUMBER_KEY,
+    L2_CLAIM_KEY, L2_OUTPUT_ROOT_KEY, L2_ROLLUP_CONFIG_KEY,
 };
 
 /// A simple, synchronous key-value store that returns data from a [SingleChainHost] config.
@@ -30,7 +30,9 @@ impl KeyValueStore for SingleChainLocalInputs {
         match preimage_key.key_value() {
             L1_HEAD_KEY => Some(self.cfg.l1_head.to_vec()),
             L2_OUTPUT_ROOT_KEY => Some(self.cfg.agreed_l2_output_root.to_vec()),
-            L2_AGREED_BLOCK_NUMBER_KEY => Some(self.cfg.agreed_l2_block_number.to_be_bytes().to_vec()),
+            L2_AGREED_BLOCK_NUMBER_KEY => {
+                Some(self.cfg.agreed_l2_block_number.to_be_bytes().to_vec())
+            }
             L2_CLAIM_KEY => Some(self.cfg.claimed_l2_output_root.to_vec()),
             L2_CLAIM_BLOCK_NUMBER_KEY => {
                 Some(self.cfg.claimed_l2_block_number.to_be_bytes().to_vec())

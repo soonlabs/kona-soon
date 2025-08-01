@@ -6,14 +6,14 @@ use solana_program::{
     instruction::InstructionError,
     loader_v4::{self, LoaderV4State},
     message::{
-        v0::{LoadedAddresses, MessageAddressTableLookup}, AddressLoader,
-        AddressLoaderError,
+        AddressLoader, AddressLoaderError,
+        v0::{LoadedAddresses, MessageAddressTableLookup},
     },
     sysvar::{
-        clock::ID as CLOCK_ID, epoch_rewards::ID as EPOCH_REWARDS_ID, epoch_schedule::ID as EPOCH_SCHEDULE_ID,
-        last_restart_slot::ID as LAST_RESTART_SLOT_ID, rent::ID as RENT_ID,
-        slot_hashes::ID as SLOT_HASHES_ID, stake_history::ID as STAKE_HISTORY_ID,
-        Sysvar,
+        Sysvar, clock::ID as CLOCK_ID, epoch_rewards::ID as EPOCH_REWARDS_ID,
+        epoch_schedule::ID as EPOCH_SCHEDULE_ID, last_restart_slot::ID as LAST_RESTART_SLOT_ID,
+        rent::ID as RENT_ID, slot_hashes::ID as SLOT_HASHES_ID,
+        stake_history::ID as STAKE_HISTORY_ID,
     },
 };
 use solana_program_runtime::{
@@ -27,7 +27,7 @@ use solana_sdk::{
     pubkey::Pubkey,
     transaction::TransactionError,
 };
-use solana_system_program::{get_system_account_kind, SystemAccountKind};
+use solana_system_program::{SystemAccountKind, get_system_account_kind};
 use std::{collections::HashMap, sync::Arc};
 use tracing::error;
 
@@ -98,7 +98,7 @@ impl AccountsDb {
     pub(crate) fn all_accounts(&self) -> Vec<(Pubkey, AccountSharedData)> {
         self.inner.iter().map(|(pubkey, account)| (*pubkey, account.clone())).collect()
     }
-    
+
     pub(crate) fn clean_zero_accounts(&mut self) {
         self.inner.retain(|_, account| account.executable() || account.lamports() > 0);
     }

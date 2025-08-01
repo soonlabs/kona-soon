@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use litesvm::LiteSVM;
 use solana_program::{
     instruction::{AccountMeta, Instruction},
@@ -64,10 +64,7 @@ fn criterion_benchmark(c: &mut Criterion) {
                 );
                 svm.send_transaction(tx).unwrap();
             }
-            assert_eq!(
-                svm.get_account(&counter_address).unwrap().data[0],
-                NUM_GREETINGS
-            );
+            assert_eq!(svm.get_account(&counter_address).unwrap().data[0], NUM_GREETINGS);
         })
     });
 }

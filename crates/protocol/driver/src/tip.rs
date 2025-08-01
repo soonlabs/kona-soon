@@ -14,10 +14,7 @@ pub struct TipCursor {
 
 impl TipCursor {
     /// Instantiates a new `SyncCursor`.
-    pub fn new(
-        l2_safe_head: L2BlockInfo,
-        l2_safe_head_output_root: B256,
-    ) -> Self {
+    pub fn new(l2_safe_head: L2BlockInfo, l2_safe_head_output_root: B256) -> Self {
         Self { l2_safe_head, l2_safe_head_output_root }
     }
 
@@ -25,7 +22,6 @@ impl TipCursor {
     pub const fn l2_safe_head(&self) -> &L2BlockInfo {
         &self.l2_safe_head
     }
-
 
     /// Returns the output root of the L2 safe head.
     pub const fn l2_safe_head_output_root(&self) -> &B256 {

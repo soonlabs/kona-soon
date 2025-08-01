@@ -1,11 +1,9 @@
 use crate::{HintType, errors::OracleProviderError};
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use alloy_primitives::keccak256;
-use kona_preimage::{CommsClient, PreimageKey};
 use async_trait::async_trait;
+use kona_preimage::{CommsClient, PreimageKey};
 use soon_derive::traits::DAProvider;
-
-
 
 /// An oracle-backed blob provider.
 #[derive(Debug, Clone)]
@@ -29,10 +27,7 @@ impl<T: CommsClient + Sync + Send> DAProvider for OracleDaProvider<T> {
     }
     /// fetch data by key from DA provider
     async fn get_input(&self, key: Vec<u8>) -> Result<Vec<u8>, Self::Error> {
-        HintType::L2BlockData
-        .with_data(&[key.as_ref()])
-        .send(self.oracle.as_ref())
-        .await?;
+        HintType::L2BlockData.with_data(&[key.as_ref()]).send(self.oracle.as_ref()).await?;
         let key_hash = keccak256::<&[u8]>(key.as_ref());
         Ok(self.oracle.get(PreimageKey::new_keccak256(*key_hash)).await?)
     }

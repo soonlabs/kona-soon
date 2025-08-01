@@ -1,12 +1,12 @@
 //! An abstraction for the driver's block executor.
 
+use alloc::boxed::Box;
 use alloy_primitives::B256;
 use async_trait::async_trait;
 use core::error::Error;
-use alloc::boxed::Box;
+use fraud_executor::outcome::BlockBuildingOutcome;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use soon_primitives::blocks::L2BlockInfo;
-use fraud_executor::outcome::BlockBuildingOutcome;
 
 /// Executor
 ///

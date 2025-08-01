@@ -1,13 +1,13 @@
 use std::path::PathBuf;
 
 use litesvm::LiteSVM;
-use solana_program::address_lookup_table::instruction::create_lookup_table;
 use solana_program::address_lookup_table::AddressLookupTableAccount;
+use solana_program::address_lookup_table::instruction::create_lookup_table;
 use solana_program::message::VersionedMessage;
 use solana_program::{
     address_lookup_table::instruction::extend_lookup_table,
     instruction::{AccountMeta, Instruction},
-    message::{v0::Message as MessageV0, Message},
+    message::{Message, v0::Message as MessageV0},
     pubkey::Pubkey,
     rent::Rent,
 };
@@ -47,20 +47,10 @@ pub fn integration_test() {
             ..Default::default()
         },
     );
-    assert_eq!(
-        svm.get_account(&counter_address).unwrap().data,
-        0u32.to_le_bytes().to_vec()
-    );
+    assert_eq!(svm.get_account(&counter_address).unwrap().data, 0u32.to_le_bytes().to_vec());
     let num_greets = 2u8;
     for deduper in 0..num_greets {
-        let tx = make_tx(
-            program_id,
-            counter_address,
-            &payer_pk,
-            blockhash,
-            &payer_kp,
-            deduper,
-        );
+        let tx = make_tx(program_id, counter_address, &payer_pk, blockhash, &payer_kp, deduper);
         let _ = svm.send_transaction(tx).unwrap();
     }
     assert_eq!(
@@ -117,20 +107,10 @@ async fn do_program_test(program_id: Pubkey, counter_address: Pubkey) {
     let mut ctx = pt.start_with_context().await;
     ctx.set_account(&counter_address, &counter_acc(program_id).into());
     assert_eq!(
-        ctx.banks_client
-            .get_account(counter_address)
-            .await
-            .unwrap()
-            .unwrap()
-            .data,
+        ctx.banks_client.get_account(counter_address).await.unwrap().unwrap().data,
         0u32.to_le_bytes().to_vec()
     );
-    assert!(ctx
-        .banks_client
-        .get_account(program_id)
-        .await
-        .unwrap()
-        .is_some());
+    assert!(ctx.banks_client.get_account(program_id).await.unwrap().is_some());
 
     for deduper in 0..NUM_GREETINGS {
         let tx = make_tx(
@@ -141,20 +121,10 @@ async fn do_program_test(program_id: Pubkey, counter_address: Pubkey) {
             &ctx.payer,
             deduper,
         );
-        let tx_res = ctx
-            .banks_client
-            .process_transaction_with_metadata(tx)
-            .await
-            .unwrap();
+        let tx_res = ctx.banks_client.process_transaction_with_metadata(tx).await.unwrap();
         tx_res.result.unwrap();
     }
-    let fetched = ctx
-        .banks_client
-        .get_account(counter_address)
-        .await
-        .unwrap()
-        .unwrap()
-        .data[0];
+    let fetched = ctx.banks_client.get_account(counter_address).await.unwrap().unwrap().data[0];
     assert_eq!(fetched, NUM_GREETINGS);
 }
 
@@ -194,20 +164,10 @@ async fn do_program_test_wrong_signature(program_id: Pubkey, counter_address: Pu
     let mut ctx = pt.start_with_context().await;
     ctx.set_account(&counter_address, &counter_acc(program_id).into());
     assert_eq!(
-        ctx.banks_client
-            .get_account(counter_address)
-            .await
-            .unwrap()
-            .unwrap()
-            .data,
+        ctx.banks_client.get_account(counter_address).await.unwrap().unwrap().data,
         0u32.to_le_bytes().to_vec()
     );
-    assert!(ctx
-        .banks_client
-        .get_account(program_id)
-        .await
-        .unwrap()
-        .is_some());
+    assert!(ctx.banks_client.get_account(program_id).await.unwrap().is_some());
 
     let tx = make_tx_wrong_signature(
         program_id,
@@ -216,19 +176,9 @@ async fn do_program_test_wrong_signature(program_id: Pubkey, counter_address: Pu
         ctx.last_blockhash,
         &ctx.payer,
     );
-    let tx_res = ctx
-        .banks_client
-        .process_transaction_with_metadata(tx)
-        .await
-        .unwrap();
+    let tx_res = ctx.banks_client.process_transaction_with_metadata(tx).await.unwrap();
     tx_res.result.unwrap();
-    let fetched = ctx
-        .banks_client
-        .get_account(counter_address)
-        .await
-        .unwrap()
-        .unwrap()
-        .data[0];
+    let fetched = ctx.banks_client.get_account(counter_address).await.unwrap().unwrap().data[0];
     assert_eq!(fetched, 1);
 }
 
@@ -263,19 +213,13 @@ fn test_address_lookup_table() {
         },
     );
     let (lookup_table_ix, lookup_table_address) = create_lookup_table(payer_pk, payer_pk, 0);
-    let extend_ix = extend_lookup_table(
-        lookup_table_address,
-        payer_pk,
-        Some(payer_pk),
-        vec![counter_address],
-    );
+    let extend_ix =
+        extend_lookup_table(lookup_table_address, payer_pk, Some(payer_pk), vec![counter_address]);
     let lookup_msg = Message::new(&[lookup_table_ix, extend_ix], Some(&payer_pk));
     let lookup_tx = Transaction::new(&[&payer_kp], lookup_msg, blockhash);
     svm.send_transaction(lookup_tx).unwrap();
-    let alta = AddressLookupTableAccount {
-        key: lookup_table_address,
-        addresses: vec![counter_address],
-    };
+    let alta =
+        AddressLookupTableAccount { key: lookup_table_address, addresses: vec![counter_address] };
     let counter_msg = MessageV0::try_compile(
         &payer_pk,
         &[Instruction {
@@ -312,14 +256,7 @@ pub fn test_nonexistent_program() {
         },
     )
     .unwrap();
-    let tx = make_tx(
-        program_id,
-        counter_address,
-        &payer_pk,
-        blockhash,
-        &payer_kp,
-        0,
-    );
+    let tx = make_tx(program_id, counter_address, &payer_pk, blockhash, &payer_kp, 0);
     let err = svm.send_transaction(tx).unwrap_err();
     assert_eq!(err.err, TransactionError::InvalidProgramForExecution);
 }

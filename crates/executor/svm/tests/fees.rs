@@ -19,8 +19,7 @@ fn test_insufficient_funds_for_rent() {
 
     let mut svm = LiteSVM::new();
 
-    svm.airdrop(&from, svm.get_sysvar::<Rent>().minimum_balance(0))
-        .unwrap();
+    svm.airdrop(&from, svm.get_sysvar::<Rent>().minimum_balance(0)).unwrap();
     let instruction = transfer(&from, &to, 1);
     let tx = Transaction::new(
         &[&from_keypair],
@@ -49,11 +48,7 @@ fn test_fees_failed_transaction() {
     svm.add_program_from_file(program_id, &so_path).unwrap();
     let initial_balance = 1_000_000_000;
     svm.airdrop(&from, initial_balance).unwrap();
-    let instruction = Instruction {
-        program_id,
-        accounts: vec![],
-        data: vec![],
-    };
+    let instruction = Instruction { program_id, accounts: vec![], data: vec![] };
     let tx = Transaction::new(
         &[&from_keypair],
         Message::new(&[instruction], Some(&from)),

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use litesvm::LiteSVM;
 use solana_program::{
     instruction::{AccountMeta, Instruction},
@@ -47,14 +47,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     svm.airdrop(&payer_pk, 100_000_000_000).unwrap();
     let counter_address = Pubkey::new_unique();
     let latest_blockhash = svm.latest_blockhash();
-    let tx = make_tx(
-        program_id,
-        counter_address,
-        &payer_pk,
-        latest_blockhash,
-        &payer_kp,
-        0,
-    );
+    let tx = make_tx(program_id, counter_address, &payer_pk, latest_blockhash, &payer_kp, 0);
     let mut group = c.benchmark_group("max_perf_comparison");
     group.bench_function("max_perf_litesvm", |b| {
         b.iter(|| {
@@ -62,10 +55,7 @@ fn criterion_benchmark(c: &mut Criterion) {
             for _ in 0..NUM_GREETINGS {
                 svm.send_transaction(tx.clone()).unwrap();
             }
-            assert_eq!(
-                svm.get_account(&counter_address).unwrap().data[0],
-                NUM_GREETINGS
-            );
+            assert_eq!(svm.get_account(&counter_address).unwrap().data[0], NUM_GREETINGS);
         })
     });
     group.bench_function("max_perf_banks_client", |b| {
@@ -95,20 +85,10 @@ async fn do_program_test(program_id: Pubkey, counter_address: Pubkey) {
             &ctx.payer,
             deduper,
         );
-        let tx_res = ctx
-            .banks_client
-            .process_transaction_with_metadata(tx.clone())
-            .await
-            .unwrap();
+        let tx_res = ctx.banks_client.process_transaction_with_metadata(tx.clone()).await.unwrap();
         tx_res.result.unwrap();
     }
-    let fetched = ctx
-        .banks_client
-        .get_account(counter_address)
-        .await
-        .unwrap()
-        .unwrap()
-        .data[0];
+    let fetched = ctx.banks_client.get_account(counter_address).await.unwrap().unwrap().data[0];
     assert_eq!(fetched, NUM_GREETINGS);
 }
 
