@@ -65,20 +65,4 @@ pub trait TrieHinter {
         slot: U256,
         block_number: u64,
     ) -> Result<(), Self::Error>;
-
-    /// Hints the host to fetch the execution witness for the [OpPayloadAttributes] applied on top
-    /// of the parent block's state.
-    ///
-    /// ## Takes
-    /// - `parent_hash` - The hash of the parent block.
-    /// - `op_payload_attributes` - The attributes of the operation payload.
-    ///
-    /// ## Returns
-    /// - Ok(()): If the hint was successful.
-    /// - Err(Self::Error): If the hint was unsuccessful.
-    fn hint_execution_witness(
-        &self,
-        parent_hash: B256,
-        op_payload_attributes: &OpPayloadAttributes,
-    ) -> Result<(), Self::Error>;
 }

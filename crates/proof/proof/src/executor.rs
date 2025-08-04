@@ -1,16 +1,15 @@
 //! An executor constructor.
 
 use alloc::{boxed::Box, sync::Arc};
-use alloy_consensus::{Header, Sealed};
 use alloy_primitives::B256;
 use async_trait::async_trait;
+use fraud_executor::outcome::BlockBuildingOutcome;
 use kona_driver::Executor;
 use kona_executor::TrieDBProvider;
+pub use kona_executor::{L2BlockBuilder, OffchainL2Builder, StatelessL2Builder};
 use kona_mpt::TrieHinter;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use soon_primitives::{blocks::L2BlockInfo, rollup_config::SoonRollupConfig};
-
-pub use kona_executor::{L2BlockBuilder, OffchainL2Builder, StatelessL2Builder};
 
 /// An executor wrapper type.
 #[derive(Debug)]
@@ -82,7 +81,7 @@ where
     async fn execute_payload(
         &mut self,
         attributes: OpPayloadAttributes,
-    ) -> Result<L2BlockInfo, Self::Error> {
+    ) -> Result<BlockBuildingOutcome, Self::Error> {
         self.inner.as_mut().map_or_else(
             || Err(kona_executor::ExecutorError::MissingExecutor),
             |e| e.build_block(attributes),

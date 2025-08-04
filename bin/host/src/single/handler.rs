@@ -4,17 +4,16 @@ use crate::{
     HintHandler, OnlineHostBackendCfg, backend::util::store_ordered_trie, kv::SharedKeyValueStore,
     single::cfg::SingleChainHost,
 };
-use alloy_eips::{
-    eip2718::Encodable2718,
-};
+use alloy_eips::eip2718::Encodable2718;
 use alloy_primitives::{Address, B256, Bytes, keccak256};
 use alloy_provider::Provider;
-use alloy_rpc_types::{Block, debug::ExecutionWitness};
+use alloy_rlp::{BytesMut, Encodable};
+use alloy_rpc_types::Block;
 use anyhow::{Result, anyhow, ensure};
 use async_trait::async_trait;
 use kona_preimage::{PreimageKey, PreimageKeyType};
 use kona_proof::{Hint, HintType};
-use op_alloy_rpc_types_engine::OpPayloadAttributes;
+use soon_primitives::output_root::OutputRoot;
 use tracing::warn;
 
 /// The [HintHandler] for the [SingleChainHost].
@@ -68,9 +67,13 @@ impl HintHandler for SingleChainHintHandler {
 
                 store_ordered_trie(kv.as_ref(), raw_receipts.as_slice()).await?;
             }
-            HintType::L1Blob => {
-            }
+            HintType::L1Blob => {}
             HintType::DAProxyBlob => {
+                ensure!(hint.data.len() == 513, "Invalid hint data length");
+                let key_hash = keccak256(hint.data.as_ref());
+                let data = providers.da.download_preimage(hint.data.as_ref().to_vec()).await?;
+                let mut kv_lock = kv.write().await;
+                kv_lock.set(PreimageKey::new_keccak256(*key_hash).into(), data.into())?;
             }
             HintType::L1Precompile => {
                 ensure!(hint.data.len() >= 28, "Invalid hint data length");
@@ -97,67 +100,23 @@ impl HintHandler for SingleChainHintHandler {
                     result,
                 )?;
             }
-            HintType::L2BlockHeader => {
-                ensure!(hint.data.len() == 32, "Invalid hint data length");
-
-                // Fetch the raw header from the L2 chain provider.
-                let hash: B256 = hint.data.as_ref().try_into()?;
-                let raw_header: Bytes =
-                    providers.l2.client().request("debug_getRawHeader", [hash]).await?;
-
-                // Acquire a lock on the key-value store and set the preimage.
-                let mut kv_lock = kv.write().await;
-                kv_lock.set(PreimageKey::new_keccak256(*hash).into(), raw_header.into())?;
-            }
-            HintType::L2Transactions => {
-                ensure!(hint.data.len() == 32, "Invalid hint data length");
-
-                let hash: B256 = hint.data.as_ref().try_into()?;
-                let Block { transactions, .. } = providers
-                    .l2
-                    .get_block_by_hash(hash)
-                    .full()
-                    .await?
-                    .ok_or(anyhow!("Block not found."))?;
-
-                let encoded_transactions = transactions
-                    .into_transactions()
-                    .map(|tx| tx.inner.inner.encoded_2718())
-                    .collect::<Vec<_>>();
-                store_ordered_trie(kv.as_ref(), encoded_transactions.as_slice()).await?;
-            }
             HintType::StartingL2Output => {
-            }
-            HintType::L2Code => {
-                // geth hashdb scheme code hash key prefix
-                const CODE_PREFIX: u8 = b'c';
-
                 ensure!(hint.data.len() == 32, "Invalid hint data length");
 
-                let hash: B256 = hint.data.as_ref().try_into()?;
+                let output_res: OutputRoot =
+                    providers.l2.output_at_block(cfg.agreed_l2_block_number).await?;
+                let output_root_hash = output_res.hash();
 
-                // Attempt to fetch the code from the L2 chain provider.
-                let code_key = [&[CODE_PREFIX], hash.as_slice()].concat();
-                let code = providers
-                    .l2
-                    .client()
-                    .request::<&[Bytes; 1], Bytes>("debug_dbGet", &[code_key.into()])
-                    .await;
+                ensure!(
+                    output_root_hash == cfg.agreed_l2_output_root,
+                    "Output root does not match L2 head."
+                );
 
-                // Check if the first attempt to fetch the code failed. If it did, try fetching the
-                // code hash preimage without the geth hashdb scheme prefix.
-                let code = match code {
-                    Ok(code) => code,
-                    Err(_) => providers
-                        .l2
-                        .client()
-                        .request::<&[B256; 1], Bytes>("debug_dbGet", &[hash])
-                        .await
-                        .map_err(|e| anyhow!("Error fetching code hash preimage: {e}"))?,
-                };
-
-                let mut kv_lock = kv.write().await;
-                kv_lock.set(PreimageKey::new_keccak256(*hash).into(), code.into())?;
+                let mut kv_write_lock = kv.write().await;
+                kv_write_lock.set(
+                    PreimageKey::new_keccak256(*output_root_hash).into(),
+                    output_res.encode().into(),
+                )?;
             }
             HintType::L2StateNode => {
                 ensure!(hint.data.len() == 32, "Invalid hint data length");
@@ -171,106 +130,58 @@ impl HintHandler for SingleChainHintHandler {
                 );
 
                 // Fetch the preimage from the L2 chain provider.
-                let preimage: Bytes = providers.l2.client().request("debug_dbGet", &[hash]).await?;
+                let preimage = providers.l2.get_trie_node(hash).await?;
 
                 let mut kv_write_lock = kv.write().await;
-                kv_write_lock.set(PreimageKey::new_keccak256(*hash).into(), preimage.into())?;
+                kv_write_lock.set(PreimageKey::new_keccak256(*hash).into(), preimage)?;
             }
             HintType::L2AccountProof => {
-                ensure!(hint.data.len() == 8 + 20, "Invalid hint data length");
+                ensure!(hint.data.len() == 8 + 32, "Invalid hint data length");
 
                 let block_number = u64::from_be_bytes(hint.data.as_ref()[..8].try_into()?);
-                let address = Address::from_slice(&hint.data.as_ref()[8..28]);
+                let account = B256::from_slice(&hint.data.as_ref()[8..40]);
 
-                let proof_response = providers
-                    .l2
-                    .get_proof(address, Default::default())
-                    .block_id(block_number.into())
-                    .await?;
+                let proof_response =
+                    providers.l2.get_account_node_proof(account, block_number).await?;
 
                 // Write the account proof nodes to the key-value store.
                 let mut kv_lock = kv.write().await;
-                proof_response.account_proof.into_iter().try_for_each(|node| {
-                    let node_hash = keccak256(node.as_ref());
+                proof_response.into_iter().try_for_each(|node| {
+                    let node_hash = keccak256::<&[u8]>(node.as_ref());
                     let key = PreimageKey::new_keccak256(*node_hash);
                     kv_lock.set(key.into(), node.into())?;
                     Ok::<(), anyhow::Error>(())
                 })?;
             }
             HintType::L2AccountStorageProof => {
-                ensure!(hint.data.len() == 8 + 20 + 32, "Invalid hint data length");
+                ensure!(hint.data.len() == 8 + 32, "Invalid hint data length");
 
                 let block_number = u64::from_be_bytes(hint.data.as_ref()[..8].try_into()?);
-                let address = Address::from_slice(&hint.data.as_ref()[8..28]);
-                let slot = B256::from_slice(&hint.data.as_ref()[28..]);
+                let account = B256::from_slice(&hint.data.as_ref()[8..40]);
 
-                let mut proof_response = providers
-                    .l2
-                    .get_proof(address, vec![slot])
-                    .block_id(block_number.into())
-                    .await?;
-
-                let mut kv_lock = kv.write().await;
+                let proof_response =
+                    providers.l2.get_storage_node_proof(account, block_number).await?;
 
                 // Write the account proof nodes to the key-value store.
-                proof_response.account_proof.into_iter().try_for_each(|node| {
-                    let node_hash = keccak256(node.as_ref());
-                    let key = PreimageKey::new_keccak256(*node_hash);
-                    kv_lock.set(key.into(), node.into())?;
-                    Ok::<(), anyhow::Error>(())
-                })?;
-
-                // Write the storage proof nodes to the key-value store.
-                let storage_proof = proof_response.storage_proof.remove(0);
-                storage_proof.proof.into_iter().try_for_each(|node| {
-                    let node_hash = keccak256(node.as_ref());
+                let mut kv_lock = kv.write().await;
+                proof_response.into_iter().try_for_each(|node| {
+                    let node_hash = keccak256::<&[u8]>(node.as_ref());
                     let key = PreimageKey::new_keccak256(*node_hash);
                     kv_lock.set(key.into(), node.into())?;
                     Ok::<(), anyhow::Error>(())
                 })?;
             }
-            HintType::L2PayloadWitness => {
-                if !cfg.enable_experimental_witness_endpoint {
-                    warn!(
-                        target: "single_hint_handler",
-                        "L2PayloadWitness hint was sent, but payload witness is disabled. Skipping hint."
-                    );
-                    return Ok(());
-                }
+            HintType::L2BlockData => {
+                ensure!(hint.data.len() == 8, "Invalid hint data length");
 
-                ensure!(hint.data.len() >= 32, "Invalid hint data length");
+                let block_number = u64::from_be_bytes(hint.data.as_ref()[..8].try_into()?);
+                let number_hash = keccak256(hint.data.as_ref());
 
-                let parent_block_hash = B256::from_slice(&hint.data.as_ref()[..32]);
-                let payload_attributes: OpPayloadAttributes =
-                    serde_json::from_slice(&hint.data[32..])?;
-
-                let Ok(execute_payload_response) = providers
-                    .l2
-                    .client()
-                    .request::<(B256, OpPayloadAttributes), ExecutionWitness>(
-                        "debug_executePayload",
-                        (parent_block_hash, payload_attributes),
-                    )
-                    .await
-                else {
-                    // Allow this hint to fail silently, as not all execution clients support
-                    // the `debug_executePayload` method.
-                    return Ok(());
-                };
-
-                let preimages = execute_payload_response
-                    .state
-                    .into_iter()
-                    .chain(execute_payload_response.codes)
-                    .chain(execute_payload_response.keys);
-
+                let block = providers.l2.get_block_by_number(block_number).await?;
+                let mut out_buf = BytesMut::default();
+                Encodable::encode(&block, &mut out_buf);
                 let mut kv_lock = kv.write().await;
-                for preimage in preimages {
-                    let computed_hash = keccak256(preimage.as_ref());
-
-                    let key = PreimageKey::new_keccak256(*computed_hash);
-                    kv_lock.set(key.into(), preimage.into())?;
-                }
+                kv_lock.set(PreimageKey::new_keccak256(*number_hash).into(), out_buf.into())?;
             }
         }
 

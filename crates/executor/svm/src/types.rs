@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use solana_sdk::{
     account::AccountSharedData,
     inner_instruction::InnerInstructionsList,
@@ -9,10 +10,8 @@ use solana_sdk::{
     transaction_context::TransactionReturnData,
 };
 
-#[derive(Debug, Default, Clone)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct TransactionMetadata {
-    #[cfg_attr(feature = "serde", serde(with = "crate::utils::serde_with_str"))]
     pub signature: Signature,
     pub logs: Vec<String>,
     pub inner_instructions: InnerInstructionsList,
@@ -21,15 +20,13 @@ pub struct TransactionMetadata {
     pub fee: u64,
 }
 
-#[derive(Debug, Default, Clone)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct SimulatedTransactionInfo {
     pub meta: TransactionMetadata,
     pub post_accounts: Vec<(Pubkey, AccountSharedData)>,
 }
 
-#[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FailedTransactionMetadata {
     pub err: TransactionError,
     pub meta: TransactionMetadata,
@@ -82,11 +79,6 @@ impl ExecutionResult {
         compute_units_consumed: u64,
         fee: u64,
     ) -> Self {
-        Self {
-            tx_result,
-            compute_units_consumed,
-            fee,
-            ..Default::default()
-        }
+        Self { tx_result, compute_units_consumed, fee, ..Default::default() }
     }
 }

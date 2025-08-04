@@ -25,7 +25,7 @@ run-client-asterisc block_number l1_rpc l1_beacon_rpc l2_rpc rollup_node_rpc ver
 
   # Get the info for the previous block
   AGREED_L2_OUTPUT_ROOT=$(cast rpc --rpc-url $OP_NODE_ADDRESS "optimism_outputAtBlock" $(cast 2h $((CLAIMED_L2_BLOCK_NUMBER - 1))) | jq -r .outputRoot)
-  AGREED_L2_HEAD_HASH=$(cast block --rpc-url $L2_NODE_ADDRESS $((CLAIMED_L2_BLOCK_NUMBER - 1)) --json | jq -r .hash)
+  AGREED_L2_BLOCK_NUMBER=$(cast block --rpc-url $L2_NODE_ADDRESS $((CLAIMED_L2_BLOCK_NUMBER - 1)) --json | jq -r .hash)
   L1_ORIGIN_NUM=$(cast rpc --rpc-url $OP_NODE_ADDRESS "optimism_outputAtBlock" $(cast 2h $((CLAIMED_L2_BLOCK_NUMBER - 1))) | jq -r .blockRef.l1origin.number)
   L1_HEAD=$(cast block --rpc-url $L1_NODE_ADDRESS $((L1_ORIGIN_NUM + 30)) --json | jq -r .hash)
   L2_CHAIN_ID=$(cast chain-id --rpc-url $L2_NODE_ADDRESS)
@@ -51,7 +51,7 @@ run-client-asterisc block_number l1_rpc l1_beacon_rpc l2_rpc rollup_node_rpc ver
     $HOST_BIN_PATH \
     single \
     --l1-head $L1_HEAD \
-    --agreed-l2-head-hash $AGREED_L2_HEAD_HASH \
+    --agreed-l2-block-number $AGREED_L2_BLOCK_NUMBER \
     --claimed-l2-output-root $CLAIMED_L2_OUTPUT_ROOT \
     --agreed-l2-output-root $AGREED_L2_OUTPUT_ROOT \
     --claimed-l2-block-number $CLAIMED_L2_BLOCK_NUMBER \
@@ -88,7 +88,7 @@ run-client-native block_number l1_rpc l1_beacon_rpc l2_rpc rollup_node_rpc rollu
 
   # Get the info for the previous block
   AGREED_L2_OUTPUT_ROOT=$(cast rpc --rpc-url $OP_NODE_ADDRESS "optimism_outputAtBlock" $(cast 2h $((CLAIMED_L2_BLOCK_NUMBER - 1))) | jq -r .outputRoot)
-  AGREED_L2_HEAD_HASH=$(cast block --rpc-url $L2_NODE_ADDRESS $((CLAIMED_L2_BLOCK_NUMBER - 1)) --json | jq -r .hash)
+  AGREED_L2_BLOCK_NUMBER=$(cast block --rpc-url $L2_NODE_ADDRESS $((CLAIMED_L2_BLOCK_NUMBER - 1)) --json | jq -r .hash)
   L1_ORIGIN_NUM=$(cast rpc --rpc-url $OP_NODE_ADDRESS "optimism_outputAtBlock" $(cast 2h $((CLAIMED_L2_BLOCK_NUMBER - 1))) | jq -r .blockRef.l1origin.number)
   L1_HEAD=$(cast block --rpc-url $L1_NODE_ADDRESS $((L1_ORIGIN_NUM + 30)) --json | jq -r .hash)
 
@@ -99,7 +99,7 @@ run-client-native block_number l1_rpc l1_beacon_rpc l2_rpc rollup_node_rpc rollu
   cargo r --bin kona-host --release -- \
     single \
     --l1-head $L1_HEAD \
-    --agreed-l2-head-hash $AGREED_L2_HEAD_HASH \
+    --agreed-l2-block-number $AGREED_L2_BLOCK_NUMBER \
     --claimed-l2-output-root $CLAIMED_L2_OUTPUT_ROOT \
     --agreed-l2-output-root $AGREED_L2_OUTPUT_ROOT \
     --claimed-l2-block-number $CLAIMED_L2_BLOCK_NUMBER \
@@ -118,7 +118,7 @@ run-client-native-offline block_number l2_claim l2_output_root l2_head l1_head l
   CLAIMED_L2_BLOCK_NUMBER={{block_number}}
   CLAIMED_L2_OUTPUT_ROOT={{l2_claim}}
   AGREED_L2_OUTPUT_ROOT={{l2_output_root}}
-  AGREED_L2_HEAD_HASH={{l2_head}}
+  AGREED_L2_BLOCK_NUMBER={{l2_head}}
   L1_HEAD={{l1_head}}
   L2_CHAIN_ID={{l2_chain_id}}
 
@@ -129,7 +129,7 @@ run-client-native-offline block_number l2_claim l2_output_root l2_head l1_head l
   cargo r --bin kona-host -- \
     single \
     --l1-head $L1_HEAD \
-    --agreed-l2-head-hash $AGREED_L2_HEAD_HASH \
+    --agreed-l2-block-number $AGREED_L2_BLOCK_NUMBER \
     --claimed-l2-output-root $CLAIMED_L2_OUTPUT_ROOT \
     --agreed-l2-output-root $AGREED_L2_OUTPUT_ROOT \
     --claimed-l2-block-number $CLAIMED_L2_BLOCK_NUMBER \
@@ -149,7 +149,7 @@ run-client-asterisc-offline block_number l2_claim l2_output_root l2_head l1_head
   CLAIMED_L2_BLOCK_NUMBER={{block_number}}
   CLAIMED_L2_OUTPUT_ROOT={{l2_claim}}
   AGREED_L2_OUTPUT_ROOT={{l2_output_root}}
-  AGREED_L2_HEAD_HASH={{l2_head}}
+  AGREED_L2_BLOCK_NUMBER={{l2_head}}
   L1_HEAD={{l1_head}}
   L2_CHAIN_ID={{l2_chain_id}}
 
@@ -174,7 +174,7 @@ run-client-asterisc-offline block_number l2_claim l2_output_root l2_head l1_head
     $HOST_BIN_PATH \
     single \
     --l1-head $L1_HEAD \
-    --agreed-l2-head-hash $AGREED_L2_HEAD_HASH \
+    --agreed-l2-block-number $AGREED_L2_BLOCK_NUMBER \
     --claimed-l2-output-root $CLAIMED_L2_OUTPUT_ROOT \
     --agreed-l2-output-root $AGREED_L2_OUTPUT_ROOT \
     --claimed-l2-block-number $CLAIMED_L2_BLOCK_NUMBER \
@@ -204,7 +204,7 @@ run-client-cannon block_number l1_rpc l1_beacon_rpc l2_rpc rollup_node_rpc verbo
 
   # Get the info for the previous block
   AGREED_L2_OUTPUT_ROOT=$(cast rpc --rpc-url $OP_NODE_ADDRESS "optimism_outputAtBlock" $(cast 2h $((CLAIMED_L2_BLOCK_NUMBER - 1))) | jq -r .outputRoot)
-  AGREED_L2_HEAD_HASH=$(cast block --rpc-url $L2_NODE_ADDRESS $((CLAIMED_L2_BLOCK_NUMBER - 1)) --json | jq -r .hash)
+  AGREED_L2_BLOCK_NUMBER=$(cast block --rpc-url $L2_NODE_ADDRESS $((CLAIMED_L2_BLOCK_NUMBER - 1)) --json | jq -r .hash)
   L1_ORIGIN_NUM=$(cast rpc --rpc-url $OP_NODE_ADDRESS "optimism_outputAtBlock" $(cast 2h $((CLAIMED_L2_BLOCK_NUMBER - 1))) | jq -r .blockRef.l1origin.number)
   L1_HEAD=$(cast block --rpc-url $L1_NODE_ADDRESS $((L1_ORIGIN_NUM + 30)) --json | jq -r .hash)
   L2_CHAIN_ID=$(cast chain-id --rpc-url $L2_NODE_ADDRESS)
@@ -230,7 +230,7 @@ run-client-cannon block_number l1_rpc l1_beacon_rpc l2_rpc rollup_node_rpc verbo
     $HOST_BIN_PATH \
     single \
     --l1-head $L1_HEAD \
-    --agreed-l2-head-hash $AGREED_L2_HEAD_HASH \
+    --agreed-l2-block-number $AGREED_L2_BLOCK_NUMBER \
     --claimed-l2-output-root $CLAIMED_L2_OUTPUT_ROOT \
     --agreed-l2-output-root $AGREED_L2_OUTPUT_ROOT \
     --claimed-l2-block-number $CLAIMED_L2_BLOCK_NUMBER \
@@ -253,7 +253,7 @@ run-client-cannon-offline block_number l2_claim l2_output_root l2_head l1_head l
   CLAIMED_L2_BLOCK_NUMBER={{block_number}}
   CLAIMED_L2_OUTPUT_ROOT={{l2_claim}}
   AGREED_L2_OUTPUT_ROOT={{l2_output_root}}
-  AGREED_L2_HEAD_HASH={{l2_head}}
+  AGREED_L2_BLOCK_NUMBER={{l2_head}}
   L1_HEAD={{l1_head}}
   L2_CHAIN_ID={{l2_chain_id}}
 
@@ -278,7 +278,7 @@ run-client-cannon-offline block_number l2_claim l2_output_root l2_head l1_head l
     $HOST_BIN_PATH \
     single \
     --l1-head $L1_HEAD \
-    --agreed-l2-head-hash $AGREED_L2_HEAD_HASH \
+    --agreed-l2-block-number $AGREED_L2_BLOCK_NUMBER \
     --claimed-l2-output-root $CLAIMED_L2_OUTPUT_ROOT \
     --agreed-l2-output-root $AGREED_L2_OUTPUT_ROOT \
     --claimed-l2-block-number $CLAIMED_L2_BLOCK_NUMBER \

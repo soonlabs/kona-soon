@@ -15,6 +15,7 @@ workspace = true
 # Workspace
 soon-derive.workspace = true
 soon-primitives.workspace = true
+fraud-executor.workspace = true
 
 # Alloy
 alloy-rlp.workspace = true
@@ -29,5 +30,5 @@ op-alloy-rpc-types-engine.workspace = true
 # Misc
 async-trait.workspace = true
 spin.workspace = true
-thiserror .workspace = true
+thiserror.workspace = true
 tracing.workspace = true

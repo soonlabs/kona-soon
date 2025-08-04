@@ -3,9 +3,9 @@
 
 use crate::errors::OracleProviderError;
 use alloy_primitives::{B256, U256};
-use soon_primitives::rollup_config::SoonRollupConfig;
 use kona_preimage::{PreimageKey, PreimageOracleClient};
 use serde::{Deserialize, Serialize};
+use soon_primitives::rollup_config::SoonRollupConfig;
 
 /// The local key ident for the L1 head hash.
 pub const L1_HEAD_KEY: U256 = U256::from_be_slice(&[1]);
@@ -13,17 +13,20 @@ pub const L1_HEAD_KEY: U256 = U256::from_be_slice(&[1]);
 /// The local key ident for the L2 output root.
 pub const L2_OUTPUT_ROOT_KEY: U256 = U256::from_be_slice(&[2]);
 
+/// The local key ident for the agreed upon L2 block number.
+pub const L2_AGREED_BLOCK_NUMBER_KEY: U256 = U256::from_be_slice(&[3]);
+
 /// The local key ident for the L2 output root claim.
-pub const L2_CLAIM_KEY: U256 = U256::from_be_slice(&[3]);
+pub const L2_CLAIM_KEY: U256 = U256::from_be_slice(&[4]);
 
 /// The local key ident for the L2 claim block number.
-pub const L2_CLAIM_BLOCK_NUMBER_KEY: U256 = U256::from_be_slice(&[4]);
+pub const L2_CLAIM_BLOCK_NUMBER_KEY: U256 = U256::from_be_slice(&[5]);
 
 /// The local key ident for the L2 chain ID.
-pub const L2_CHAIN_ID_KEY: U256 = U256::from_be_slice(&[5]);
+pub const L2_CHAIN_ID_KEY: U256 = U256::from_be_slice(&[6]);
 
 /// The local key ident for the L2 rollup config.
-pub const L2_ROLLUP_CONFIG_KEY: U256 = U256::from_be_slice(&[6]);
+pub const L2_ROLLUP_CONFIG_KEY: U256 = U256::from_be_slice(&[7]);
 
 /// The boot information for the client program.
 ///
@@ -42,6 +45,8 @@ pub struct BootInfo {
     pub l1_head: B256,
     /// The agreed upon safe L2 output root.
     pub agreed_l2_output_root: B256,
+    /// The agreed upon safe L2 block number.
+    pub agreed_l2_block_number: u64,
     /// The L2 output root claim.
     pub claimed_l2_output_root: B256,
     /// The L2 claim block number.
@@ -77,6 +82,16 @@ impl BootInfo {
             .await
             .map_err(OracleProviderError::Preimage)?;
 
+        let agreed_l2_block_number = u64::from_be_bytes(
+            oracle
+                .get(PreimageKey::new_local(L2_AGREED_BLOCK_NUMBER_KEY.to()))
+                .await
+                .map_err(OracleProviderError::Preimage)?
+                .as_slice()
+                .try_into()
+                .map_err(OracleProviderError::SliceConversion)?,
+        );
+
         let mut l2_claim: B256 = B256::ZERO;
         oracle
             .get_exact(PreimageKey::new_local(L2_CLAIM_KEY.to()), l2_claim.as_mut())
@@ -102,12 +117,16 @@ impl BootInfo {
                 .map_err(OracleProviderError::SliceConversion)?,
         );
 
-        //TODO get right rollup_config
-        let rollup_config = SoonRollupConfig::default();
+        let ser_cfg = oracle
+            .get(PreimageKey::new_local(L2_ROLLUP_CONFIG_KEY.to()))
+            .await
+            .map_err(OracleProviderError::Preimage)?;
+        let rollup_config = serde_json::from_slice(&ser_cfg).map_err(OracleProviderError::Serde)?;
 
         Ok(Self {
             l1_head,
             agreed_l2_output_root: l2_output_root,
+            agreed_l2_block_number,
             claimed_l2_output_root: l2_claim,
             claimed_l2_block_number: l2_claim_block,
             chain_id,

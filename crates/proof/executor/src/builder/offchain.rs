@@ -3,10 +3,11 @@ use crate::ExecutorError::{ExecutionError, FraudExecutorError};
 use crate::{ExecutorError, ExecutorResult, L2BlockBuilder, TrieDBProvider};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
-use alloy_primitives::{b256, Keccak256, B256};
+use alloy_primitives::{B256, Keccak256};
 use fraud_executor::accounts::{AccountPairs, SoonAccounts};
 use fraud_executor::block::SimpleBlock;
 use fraud_executor::executor::FraudExecutor;
+use fraud_executor::outcome::BlockBuildingOutcome;
 use fraud_executor::utils::analyze_account_sets;
 use kona_mpt::TrieHinter;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
@@ -16,15 +17,17 @@ use soon_primitives::rollup_config::SoonRollupConfig;
 use litesvm::accounts_callback::NoopAccountsCallback;
 use litesvm::LiteSVM;
 
+/// The [`OffchainL2Builder`] is an OP Stack block builder that uses the offchain data to build a
+/// block.
 #[derive(Debug)]
 pub struct OffchainL2Builder<P, H>
 where
     P: TrieDBProvider,
     H: TrieHinter,
 {
-    pub(crate) config: Arc<SoonRollupConfig>,
+    pub(crate) _config: Arc<SoonRollupConfig>,
     pub(crate) provider: P,
-    pub(crate) hinter: H,
+    pub(crate) _hinter: H,
     pub(crate) parent_header: L2BlockInfo,
     pub(crate) accounts: SoonAccounts,
 }
@@ -40,14 +43,20 @@ where
         hinter: H,
         parent_header: L2BlockInfo,
     ) -> Self {
-        Self { config, provider, hinter, parent_header, accounts: SoonAccounts::default() }
+        Self {
+            _config: config,
+            provider,
+            _hinter: hinter,
+            parent_header,
+            accounts: SoonAccounts::default(),
+        }
     }
 
     fn init(&mut self) -> ExecutorResult<()> {
         Ok(())
     }
 
-    fn build_block(&mut self, attrs: OpPayloadAttributes) -> ExecutorResult<L2BlockInfo> {
+    fn build_block(&mut self, attrs: OpPayloadAttributes) -> ExecutorResult<BlockBuildingOutcome> {
         // Step 1. Set up the execution environment using genesis
 
         // Step 2. Create the executor, using the trie database.
@@ -124,7 +133,19 @@ where
     }
 
     fn compute_output_root(&mut self) -> ExecutorResult<B256> {
-        Ok(self.accounts.state_root())
+        if self.accounts.accounts.len() == 0 {
+            let init_accounts_code = self
+                .provider
+                .bytecode_by_hash(cal_init_accounts_hash(self.init_slot()))
+                .map_err(|_| {
+                    ExecutorError::FraudInitError("Failed to get init accounts code".to_string())
+                })?;
+            let soon_accounts: SoonAccounts = bincode::deserialize(&init_accounts_code)
+                .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
+            Ok(soon_accounts.state_root())
+        } else {
+            Ok(self.accounts.state_root())
+        }
     }
 }
 
@@ -143,9 +164,12 @@ where
 
     fn convert_block(&self, attrs: OpPayloadAttributes) -> ExecutorResult<SimpleBlock> {
         let slot = self.current_slot();
+        let (hash, parent_hash) = self.fetch_slot_hash_pair(slot)?;
 
         Ok(SimpleBlock {
             slot,
+            hash,
+            parent_hash,
             transactions: attrs
                 .transactions
                 .unwrap_or_default()
@@ -170,6 +194,16 @@ where
         info!("fetched {} extra accounts", soon_accounts.len());
         Ok(soon_accounts)
     }
+
+    fn fetch_slot_hash_pair(&self, slot: u64) -> ExecutorResult<(B256, B256)> {
+        let data = self
+            .provider
+            .bytecode_by_hash(slot_hash_pair_hash(slot))
+            .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
+        let slot_hash_pair: (B256, B256) = bincode::deserialize(&data)
+            .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
+        Ok(slot_hash_pair)
+    }
 }
 
 /// Calculate the hash of the extra accounts for the given slot.
@@ -177,12 +211,19 @@ pub fn cal_extra_accounts_hash(slot: u64) -> B256 {
     slot_spec_hash(slot, b"extra_accounts")
 }
 
+/// Calculate the hash of the init accounts for the given slot.
 pub fn cal_init_accounts_hash(slot: u64) -> B256 {
     slot_spec_hash(slot, b"init_accounts")
 }
 
+/// Calculate the hash of the init state root for the given slot.
 pub fn cal_init_state_root_hash(slot: u64) -> B256 {
     slot_spec_hash(slot, b"init_state_root")
+}
+
+/// Calculate the hash of the slot hash pair for the given slot.
+pub fn slot_hash_pair_hash(slot: u64) -> B256 {
+    slot_spec_hash(slot, b"slot_hash_set")
 }
 
 fn slot_spec_hash(slot: u64, suffix: &[u8]) -> B256 {

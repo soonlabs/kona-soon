@@ -2,12 +2,11 @@
 
 use crate::errors::OracleProviderError;
 use alloc::sync::Arc;
-use alloy_primitives::{B256, Sealed};
-use core::fmt::Debug;
-use alloy_consensus::Header;
 use alloy_eips::BlockNumberOrTag;
-use soon_derive::traits::ChainProvider;
+use alloy_primitives::B256;
+use core::fmt::Debug;
 use kona_driver::{PipelineCursor, TipCursor};
+use soon_derive::traits::ChainProvider;
 use soon_derive::traits::L2ChainProvider;
 use soon_primitives::blocks::L2BlockInfo;
 use soon_primitives::rollup_config::SoonRollupConfig;
@@ -23,11 +22,14 @@ pub async fn new_oracle_pipeline_cursor<L1, L2>(
 where
     L1: ChainProvider + Send + Sync + Debug + Clone,
     L2: L2ChainProvider + Send + Sync + Debug + Clone,
-    OracleProviderError:
-        From<<L1 as ChainProvider>::Error> + From<<L2 as L2ChainProvider>::Error>,
+    L2: L2ChainProvider<Error = OracleProviderError>,
+    L1: ChainProvider<Error = OracleProviderError>,
 {
-    let safe_head_info = l2_chain_provider.l2_block_info_by_number(safe_header.block_info.number).await?;
-    let l1_origin = chain_provider.block_info_by_number(BlockNumberOrTag::from(safe_head_info.l1_origin.number)).await?;
+    let safe_head_info =
+        l2_chain_provider.l2_block_info_by_number(safe_header.block_info.number).await?;
+    let l1_origin = chain_provider
+        .block_info_by_number(BlockNumberOrTag::from(safe_head_info.l1_origin.number))
+        .await?;
 
     // Walk back the starting L1 block by `channel_timeout` to ensure that the full channel is
     // captured.
@@ -36,11 +38,12 @@ where
     // if l1_origin_number < rollup_config.genesis.l1.number {
     //     l1_origin_number = rollup_config.genesis.l1.number;
     // }
-    let origin = chain_provider.block_info_by_number(BlockNumberOrTag::from(l1_origin_number)).await?;
+    let origin =
+        chain_provider.block_info_by_number(BlockNumberOrTag::from(l1_origin_number)).await?;
 
     // Construct the cursor.
     let mut cursor = PipelineCursor::new(channel_timeout, origin);
-    let tip = TipCursor::new(safe_head_info, safe_header, B256::ZERO);
+    let tip = TipCursor::new(safe_head_info, B256::ZERO);
     cursor.advance(origin, tip);
 
     // Wrap the cursor in a shared read-write lock

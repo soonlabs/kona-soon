@@ -10,15 +10,15 @@ use alloy_primitives::B256;
 use alloy_provider::RootProvider;
 use clap::Parser;
 use kona_cli::cli_styles;
-use soon_primitives::rollup_config::SoonRollupConfig;
 use kona_preimage::{
     BidirectionalChannel, Channel, HintReader, HintWriter, OracleReader, OracleServer,
 };
 use kona_proof::HintType;
-//use kona_providers_alloy::{OnlineBeaconClient, OnlineBlobProvider, OnlineDaProvider};
 use kona_std_fpvm::{FileChannel, FileDescriptor};
-use op_alloy_network::Optimism;
 use serde::Serialize;
+use soon_da_provider::da_proxy::DAProxyImpl;
+use soon_l2_chain_provider::chain_provider::L2BlockFetcher;
+use soon_primitives::rollup_config::SoonRollupConfig;
 use std::{path::PathBuf, sync::Arc};
 use tokio::{
     sync::RwLock,
@@ -32,9 +32,9 @@ pub struct SingleChainHost {
     /// Hash of the L1 head block. Derivation stops after this block is processed.
     #[arg(long, env)]
     pub l1_head: B256,
-    /// Hash of the agreed upon safe L2 block committed to by `--agreed-l2-output-root`.
+    /// Block number of the agreed upon safe L2 block committed to by `--agreed-l2-output-root`.
     #[arg(long, visible_alias = "l2-head", env)]
-    pub agreed_l2_head_hash: B256,
+    pub agreed_l2_block_number: u64,
     /// Agreed safe L2 Output Root to start derivation from.
     #[arg(long, visible_alias = "l2-output-root", env)]
     pub agreed_l2_output_root: B256,
@@ -45,20 +45,10 @@ pub struct SingleChainHost {
     #[arg(long, visible_alias = "l2-block-number", env)]
     pub claimed_l2_block_number: u64,
     /// Address of L2 JSON-RPC endpoint to use (eth and debug namespace required).
-    #[arg(
-        long,
-        visible_alias = "l2",
-        requires = "l1_node_address",
-        env
-    )]
+    #[arg(long, visible_alias = "l2", requires = "l1_node_address", env)]
     pub l2_node_address: Option<String>,
     /// Address of L1 JSON-RPC endpoint to use (eth and debug namespace required)
-    #[arg(
-        long,
-        visible_alias = "l1",
-        requires = "l2_node_address",
-        env
-    )]
+    #[arg(long, visible_alias = "l1", requires = "l2_node_address", env)]
     pub l1_node_address: Option<String>,
     /// Address of the L1 Beacon API endpoint to use.
     #[arg(
@@ -182,8 +172,7 @@ impl SingleChainHost {
                 kv_store.clone(),
                 providers,
                 SingleChainHintHandler,
-            )
-            .with_proactive_hint(HintType::L2PayloadWitness);
+            );
 
             task::spawn(async {
                 PreimageServer::new(
@@ -220,10 +209,10 @@ impl SingleChainHost {
 
     /// Returns `true` if the host is running in offline mode.
     pub const fn is_offline(&self) -> bool {
-        self.l1_node_address.is_none() &&
-            self.l2_node_address.is_none() &&
-            self.l1_beacon_address.is_none() &&
-            self.data_dir.is_some()
+        self.l1_node_address.is_none()
+            && self.l2_node_address.is_none()
+            && self.l1_beacon_address.is_none()
+            && self.data_dir.is_some()
     }
 
     /// Reads the [SoonRollupConfig] from the file system and returns it as a string.
@@ -265,21 +254,21 @@ impl SingleChainHost {
                 .as_ref()
                 .ok_or(SingleChainHostError::Other("Provider must be set"))?,
         );
-        // let blob_provider = OnlineBlobProvider::init(OnlineBeaconClient::new_http(
-        //     self.l1_beacon_address
-        //         .clone()
-        //         .ok_or(SingleChainHostError::Other("Beacon API URL must be set"))?,
-        // ))
-        // .await;
-        let l2_provider = http_provider::<Optimism>(
+
+        let da_provider = DAProxyImpl::new_with_url(
+            &self
+                .da_proxy_url
+                .clone()
+                .ok_or(SingleChainHostError::Other("DA proxy URL must be set"))?,
+        );
+
+        let l2_provider = L2BlockFetcher::new_with_url(
             self.l2_node_address
                 .as_ref()
                 .ok_or(SingleChainHostError::Other("L2 node address must be set"))?,
         );
 
-       // let da_provider = OnlineDaProvider::new(self.da_proxy_url.clone().ok_or(SingleChainHostError::Other("DA proxy URL must be set"))?);
-
-        Ok(SingleChainProviders { l1: l1_provider, l2: l2_provider })
+        Ok(SingleChainProviders { l1: l1_provider, da: da_provider, l2: l2_provider })
     }
 }
 
@@ -293,12 +282,10 @@ impl OnlineHostBackendCfg for SingleChainHost {
 pub struct SingleChainProviders {
     /// The L1 EL provider.
     pub l1: RootProvider,
-    // /// The L1 beacon node provider.
-    // pub blobs: OnlineBlobProvider<OnlineBeaconClient>,
-    // /// The DA proxy provider.
-    // pub da: OnlineDaProvider,
+    /// The DA proxy provider.
+    pub da: DAProxyImpl,
     /// The L2 EL provider.
-    pub l2: RootProvider<Optimism>,
+    pub l2: L2BlockFetcher,
 }
 
 #[cfg(test)]

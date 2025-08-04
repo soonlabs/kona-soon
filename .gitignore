@@ -26,3 +26,6 @@ prestate-artifacts-*
 
 # IDE files
 .idea
+
+# Claude code
+CLAUDE.md

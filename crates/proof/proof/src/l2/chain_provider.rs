@@ -1,21 +1,29 @@
 //! Contains the concrete implementation of the [L2ChainProvider] trait for the client program.
 
+use crate::alloc::string::ToString;
 use crate::{HintType, errors::OracleProviderError};
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
-use alloy_consensus::Header;
-use alloy_primitives::{Address, B256, Bytes};
+use alloy_eips::BlockNumHash;
+use alloy_primitives::{Address, B256, Bytes, U160, keccak256};
 use alloy_rlp::Decodable;
 use async_trait::async_trait;
 use kona_driver::PipelineCursor;
 use kona_executor::TrieDBProvider;
 use kona_mpt::{TrieHinter, TrieNode, TrieProvider};
 use kona_preimage::{CommsClient, PreimageKey, PreimageKeyType};
+use l1_block_info::instruction::L1BlockInfoInstruction;
 use soon_derive::traits::L2ChainProvider;
-use soon_primitives::blocks::L2BlockInfo;
+use soon_primitives::blocks::{BlockInfo, L2BlockInfo, str_block_hash_to};
 use soon_primitives::l2blocks::L2Block;
 use soon_primitives::rollup_config::SoonRollupConfig;
 use soon_primitives::system::SystemConfig;
 use spin::RwLock;
+
+/// Trait for setting a pipeline cursor.
+pub trait CursorSetter {
+    /// Sets the derivation pipeline cursor.
+    fn set_cursor(&mut self, cursor: Arc<RwLock<PipelineCursor>>);
+}
 
 /// The oracle-backed L2 chain provider for the client program.
 #[derive(Debug, Clone)]
@@ -58,24 +66,75 @@ impl<T: CommsClient> OracleL2ChainProvider<T> {
     }
 }
 
+impl<T: CommsClient> CursorSetter for OracleL2ChainProvider<T> {
+    fn set_cursor(&mut self, cursor: Arc<RwLock<PipelineCursor>>) {
+        self.cursor = Some(cursor);
+    }
+}
+
 impl<T: CommsClient> OracleL2ChainProvider<T> {
-    /// Returns a [Header] corresponding to the given L2 block number, by walking back from the
-    /// L2 safe head.
-    #[allow(dead_code)]
-    async fn header_by_number(&mut self, block_number: u64) -> Result<L2BlockInfo, OracleProviderError> {
-        // Fetch the starting block header.
-        let mut header = self.header_by_hash(self.l2_safe_head().await?)?;
-
-        // Check if the block number is in range. If not, we can fail early.
-        if block_number > header.block_info.number {
-            return Err(OracleProviderError::BlockNumberPastHead(block_number, header.block_info.number));
+    pub async fn get_l2_block_info_by_number(
+        &self,
+        number: u64,
+    ) -> Result<L2BlockInfo, OracleProviderError> {
+        let block = self.get_block_by_number(number).await?;
+        let block_info = BlockInfo::new(
+            str_block_hash_to(block.blockhash.as_str()),
+            number,
+            str_block_hash_to(block.previous_blockhash.as_str()),
+            block.block_time,
+        );
+        let l1_block_info_instruction = self.get_l1_block_info(block)?;
+        match l1_block_info_instruction {
+            L1BlockInfoInstruction::UpdateL1BlockInfo {
+                number,
+                timestamp: _,
+                base_fee: _,
+                hash,
+                sequence_number,
+                batcher_hash: _,
+                fee_overhead: _,
+                fee_scalar: _,
+                gas: _,
+                is_system_tx: _,
+            } => Ok(L2BlockInfo {
+                block_info,
+                l1_origin: BlockNumHash { number, hash: B256::from(hash) },
+                seq_num: sequence_number,
+            }),
+            _ => Err(OracleProviderError::FetchBlockInfoFailed(
+                "Invalid l1 block info instruction".to_string(),
+            )),
         }
+    }
 
-        while header.block_info.number > block_number {
-            header = self.header_by_hash(header.block_info.parent_hash)?;
-        }
+    pub async fn get_block_by_number(&self, number: u64) -> Result<L2Block, OracleProviderError> {
+        let number_bytes = number.to_be_bytes();
+        HintType::L2BlockData
+            .with_data(&[number_bytes.as_ref()])
+            .send(self.oracle.as_ref())
+            .await?;
+        let number_hash = keccak256(number_bytes.as_ref());
+        let block_bytes = self.oracle.get(PreimageKey::new_keccak256(*number_hash)).await?;
 
-        Ok(header)
+        Decodable::decode(&mut block_bytes.as_slice()).map_err(OracleProviderError::Rlp)
+    }
+
+    fn get_l1_block_info(
+        &self,
+        block: L2Block,
+    ) -> Result<L1BlockInfoInstruction, OracleProviderError> {
+        let l1_block_info_tx = block.transactions.first().ok_or(
+            OracleProviderError::FetchBlockInfoFailed("No l1 block info tx found".to_string()),
+        )?;
+        let l1_block_info_tx_data =
+            l1_block_info_tx.0.message.instructions().first().ok_or(
+                OracleProviderError::FetchBlockInfoFailed("No instruction found".to_string()),
+            )?;
+        let l1_block_info_instruction =
+            L1BlockInfoInstruction::unpack(l1_block_info_tx_data.data.as_slice())
+                .map_err(|err| OracleProviderError::FetchBlockInfoFailed(err.to_string()))?;
+        Ok(l1_block_info_instruction)
     }
 }
 
@@ -83,27 +142,40 @@ impl<T: CommsClient> OracleL2ChainProvider<T> {
 impl<T: CommsClient + Send + Sync> L2ChainProvider for OracleL2ChainProvider<T> {
     type Error = OracleProviderError;
 
-    async fn l2_block_info_by_number(&mut self, _number: u64) -> Result<L2BlockInfo, Self::Error> {
-        // Get the block at the given number.
-        Ok(L2BlockInfo::default())
+    async fn l2_block_info_by_number(&mut self, number: u64) -> Result<L2BlockInfo, Self::Error> {
+        self.get_l2_block_info_by_number(number).await
     }
 
-    async fn block_by_number(&mut self, _number: u64) -> Result<L2Block, Self::Error> {
-        Ok(L2Block::default())
+    async fn block_by_number(&mut self, number: u64) -> Result<L2Block, Self::Error> {
+        self.get_block_by_number(number).await
     }
 
-    async fn system_config_by_number(
-        &mut self,
-        number: u64,
-    ) -> Result<SystemConfig, <Self as L2ChainProvider>::Error> {
-        // Get the block at the given number.
-        let _block = self.block_by_number(number).await?;
-
-        // Construct the system config from the payload.
-        // to_system_config(&block, rollup_config.as_ref())
-        //     .map_err(OracleProviderError::OpBlockConversion)
-        //TODO block to system config impl
-        Ok(SystemConfig::default())
+    async fn system_config_by_number(&mut self, number: u64) -> Result<SystemConfig, Self::Error> {
+        let block = self.block_by_number(number).await?;
+        let l1_block_info_instruction = self.get_l1_block_info(block)?;
+        match l1_block_info_instruction {
+            L1BlockInfoInstruction::UpdateL1BlockInfo {
+                number: _,
+                timestamp: _,
+                base_fee: _,
+                hash: _,
+                sequence_number: _,
+                batcher_hash,
+                fee_overhead: _,
+                fee_scalar: _,
+                gas: _,
+                is_system_tx: _,
+            } => {
+                let address_value = U160::from_le_slice(&batcher_hash[..20]);
+                Ok(SystemConfig {
+                    batcher_address: Address::from(address_value),
+                    ..Default::default()
+                })
+            }
+            _ => Err(OracleProviderError::FetchBlockInfoFailed(
+                "Invalid l1 block info instruction".to_string(),
+            )),
+        }
     }
 }
 
@@ -129,33 +201,12 @@ impl<T: CommsClient> TrieProvider for OracleL2ChainProvider<T> {
 
 impl<T: CommsClient> TrieDBProvider for OracleL2ChainProvider<T> {
     fn bytecode_by_hash(&self, hash: B256) -> Result<Bytes, OracleProviderError> {
-        // Fetch the bytecode preimage from the caching oracle.
         crate::block_on(async move {
-            HintType::L2Code
-                .with_data(&[hash.as_slice()])
-                .with_data(self.chain_id.map_or_else(Vec::new, |id| id.to_be_bytes().to_vec()))
-                .send(self.oracle.as_ref())
-                .await?;
             self.oracle
-                .get(PreimageKey::new_keccak256(*hash))
+                .get(PreimageKey::new(*hash, PreimageKeyType::Keccak256))
                 .await
-                .map(Into::into)
+                .map(Bytes::from)
                 .map_err(OracleProviderError::Preimage)
-        })
-    }
-
-    fn header_by_hash(&self, hash: B256) -> Result<L2BlockInfo, OracleProviderError> {
-        // Fetch the header from the caching oracle.
-        crate::block_on(async move {
-            HintType::L2BlockHeader
-                .with_data(&[hash.as_slice()])
-                .with_data(self.chain_id.map_or_else(Vec::new, |id| id.to_be_bytes().to_vec()))
-                .send(self.oracle.as_ref())
-                .await?;
-            let header_bytes = self.oracle.get(PreimageKey::new_keccak256(*hash)).await?;
-
-            bincode::deserialize(&header_bytes)
-               .map_err(OracleProviderError::Bincode)
         })
     }
 }
@@ -196,23 +247,6 @@ impl<T: CommsClient> TrieHinter for OracleL2ChainProvider<T> {
                     address.as_slice(),
                     slot.to_be_bytes::<32>().as_ref(),
                 ])
-                .with_data(self.chain_id.map_or_else(Vec::new, |id| id.to_be_bytes().to_vec()))
-                .send(self.oracle.as_ref())
-                .await
-        })
-    }
-
-    fn hint_execution_witness(
-        &self,
-        parent_hash: B256,
-        op_payload_attributes: &op_alloy_rpc_types_engine::OpPayloadAttributes,
-    ) -> Result<(), Self::Error> {
-        crate::block_on(async move {
-            let encoded_attributes =
-                serde_json::to_vec(op_payload_attributes).map_err(OracleProviderError::Serde)?;
-
-            HintType::L2PayloadWitness
-                .with_data(&[parent_hash.as_slice(), &encoded_attributes])
                 .with_data(self.chain_id.map_or_else(Vec::new, |id| id.to_be_bytes().to_vec()))
                 .send(self.oracle.as_ref())
                 .await

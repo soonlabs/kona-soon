@@ -6,6 +6,7 @@ use alloy_consensus::Header;
 use alloy_primitives::{B256, Bytes, Sealable};
 use core::default::Default;
 use core::fmt::Debug;
+use fraud_executor::outcome::BlockBuildingOutcome;
 use soon_derive::{
     errors::{PipelineError, PipelineErrorKind},
     traits::{Pipeline, SignalReceiver},
@@ -32,7 +33,7 @@ where
     /// A pipeline abstraction.
     pub pipeline: DP,
     /// The safe head's execution artifacts + Transactions
-    pub safe_head_artifacts: Option<(L2BlockInfo, Vec<Bytes>)>,
+    pub safe_head_artifacts: Option<(BlockBuildingOutcome, Vec<Bytes>)>,
 }
 
 impl<E, DP, P> Driver<E, DP, P>
@@ -107,7 +108,7 @@ where
             };
 
             self.executor
-                .update_safe_head(tip_cursor.l2_safe_head_header.clone())
+                .update_safe_head(tip_cursor.l2_safe_head)
                 .map_err(DriverError::Executor)?;
             let outcome = match self.executor.execute_payload(attributes.clone()).await {
                 Ok(outcome) => outcome,
@@ -119,10 +120,8 @@ where
 
             // Get the pipeline origin and update the tip cursor.
             let origin = self.pipeline.origin().ok_or(PipelineError::MissingOrigin.crit())?;
-            let l2_info = outcome;
             let tip_cursor = TipCursor::new(
-                l2_info,
-                Default::default(),
+                outcome.header,
                 self.executor.compute_output_root().map_err(DriverError::Executor)?,
             );
 

@@ -17,11 +17,14 @@ kona-mpt.workspace = true
 kona-driver.workspace = true
 kona-preimage.workspace = true
 kona-executor.workspace = true
+fraud-executor.workspace = true
 
 # Soon & solana
-solana-transaction-status = { workspace = true }
+solana-transaction-status.workspace = true
 soon-derive.workspace = true
 soon-primitives.workspace = true
+l1-block-info.workspace = true
+soon-da-provider.workspace = true
 
 # Alloy
 alloy-rlp.workspace = true

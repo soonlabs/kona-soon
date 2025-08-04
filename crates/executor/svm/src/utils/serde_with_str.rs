@@ -1,6 +1,6 @@
 use {
-    serde::{de, Deserializer, Serializer},
     serde::{Deserialize, Serialize},
+    serde::{Deserializer, Serializer, de},
     std::str::FromStr,
 };
 
@@ -19,6 +19,5 @@ where
     <T as FromStr>::Err: std::fmt::Debug,
 {
     let s: String = String::deserialize(deserializer)?;
-    s.parse()
-        .map_err(|e| de::Error::custom(format!("Parse error: {e:?}")))
+    s.parse().map_err(|e| de::Error::custom(format!("Parse error: {e:?}")))
 }

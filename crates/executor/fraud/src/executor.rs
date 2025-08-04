@@ -1,9 +1,9 @@
 use solana_sdk::epoch_schedule::EpochSchedule;
 use crate::block::SimpleBlock;
 use crate::error::Result;
+use crate::outcome::BlockBuildingOutcome;
 use litesvm::LiteSVM;
 use solana_sdk::fee::FeeStructure;
-#[cfg(feature = "dev")]
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::rent_collector::RentCollector;
 use soon_mpt_primitives::B256;
@@ -41,11 +41,15 @@ impl<CB: AccountsCallback> FraudExecutor<CB> {
     //     Ok(executor)
     // }
 
-    pub fn execute_block(&mut self, block: SimpleBlock) -> Result<L2BlockInfo> {
+    pub fn execute_block(&mut self, block: SimpleBlock) -> Result<BlockBuildingOutcome> {
         // self.prepare_block(&block)?;
         // self.litesvm.import_accounts(block.extra_accounts)?;
-        let _results = self.litesvm.execute_block_transactions(block.transactions)?;
-        self.get_l2_block_info(block.slot)
+        let execution_result = self.litesvm.execute_block_transactions(block.transactions)?;
+
+        Ok(BlockBuildingOutcome {
+            header: self.get_l2_block_info(block.slot, block.hash, block.parent_hash)?,
+            execution_result,
+        })
     }
 
     pub fn export_diff_accounts(&self) -> AccountPairs {
@@ -65,13 +69,22 @@ impl<CB: AccountsCallback> FraudExecutor<CB> {
     //     self.litesvm.set_rent_collector(None);
     // }
 
-    fn get_l2_block_info(&self, slot: u64) -> Result<L2BlockInfo> {
+    fn get_l2_block_info(&self, slot: u64, hash: B256, parent_hash: B256) -> Result<L2BlockInfo> {
+        let l1_block_info = self.get_l1_block_info().unwrap_or_default();
+        let clock = self.litesvm.get_sysvar::<Clock>();
         Ok(L2BlockInfo {
-            // TODO: set zero hash here, calculate is needed later
-            block_info: BlockInfo::new(B256::ZERO, slot, B256::ZERO, 0),
-            l1_origin: BlockNumHash::default(),
-            seq_num: 0,
+            block_info: BlockInfo::new(hash, slot, parent_hash, clock.unix_timestamp as u64),
+            l1_origin: BlockNumHash::new(l1_block_info.number, l1_block_info.hash.into()),
+            seq_num: l1_block_info.sequence_number,
         })
+    }
+
+    fn get_l1_block_info(&self) -> Option<L1BlockInfo> {
+        let l1_info_account = l1_block_info::pda::l1_block_info_pubkey();
+        let l1_data = self.litesvm.get_account(&l1_info_account);
+        let l1_block_info = l1_data
+            .and_then(|l1_data| l1_block_info::state::L1BlockInfo::unpack(l1_data.data()).ok());
+        l1_block_info
     }
 }
 

@@ -1,14 +1,16 @@
 //! The [StatelessL2Builder] is a block builder that pulls state from a [TrieDB] during execution.
 
-use crate::{ExecutorError, ExecutorResult, TrieDB, TrieDBProvider, builder::L2BlockBuilder};
+use crate::ExecutorError;
+use crate::{ExecutorResult, TrieDB, TrieDBProvider, builder::L2BlockBuilder};
+use alloc::string::ToString;
 use alloc::sync::Arc;
-use alloy_consensus::{Header, Sealed};
-use alloy_evm::block::BlockExecutionResult;
+use alloc::vec::Vec;
 use alloy_primitives::B256;
+use fraud_executor::outcome::BlockBuildingOutcome;
 use fraud_executor::{accounts::SoonAccounts, block::SimpleBlock, executor::FraudExecutor};
 use kona_mpt::TrieHinter;
-use op_alloy_consensus::OpReceiptEnvelope;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
+use solana_sdk::transaction::VersionedTransaction;
 use soon_primitives::{blocks::L2BlockInfo, rollup_config::SoonRollupConfig};
 use litesvm::accounts_callback::NoopAccountsCallback;
 use litesvm::LiteSVM;
@@ -40,10 +42,21 @@ where
     P: TrieDBProvider,
     H: TrieHinter,
 {
-    fn convert_block(&self, _attrs: OpPayloadAttributes) -> ExecutorResult<SimpleBlock> {
+    fn convert_block(&self, attrs: OpPayloadAttributes) -> ExecutorResult<SimpleBlock> {
         Ok(SimpleBlock {
-            slot: 0,                            // TODO: get current slot
-            transactions: Default::default(),   // TODO: get transactions from attrs.transactions
+            hash: B256::ZERO,        // TODO: get hash from oracle
+            parent_hash: B256::ZERO, // TODO: get parent hash from oracle
+            slot: 0,                 // TODO: get current slot
+            transactions: attrs
+                .transactions
+                .unwrap_or_default()
+                .into_iter()
+                .map(|tx| {
+                    let tx: VersionedTransaction = bincode::deserialize(&tx)
+                        .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
+                    Ok(tx)
+                })
+                .collect::<ExecutorResult<Vec<VersionedTransaction>>>()?,
             extra_accounts: Default::default(), // TODO: get extra accounts from somewhere
         })
     }
@@ -71,7 +84,7 @@ where
     }
 
     /// Builds a new block on top of the parent state, using the given [`OpPayloadAttributes`].
-    fn build_block(&mut self, attrs: OpPayloadAttributes) -> ExecutorResult<L2BlockInfo> {
+    fn build_block(&mut self, attrs: OpPayloadAttributes) -> ExecutorResult<BlockBuildingOutcome> {
         // Step 1. Set up the execution environment using genesis
 
         // Step 2. Create the executor, using the trie database.

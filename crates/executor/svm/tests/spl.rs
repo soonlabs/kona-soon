@@ -35,9 +35,7 @@ fn spl_token() {
         svm.latest_blockhash(),
     ));
     assert!(tx_result.is_ok());
-    let expected_rent = svm
-        .get_sysvar::<Rent>()
-        .minimum_balance(spl_token::state::Mint::LEN);
+    let expected_rent = svm.get_sysvar::<Rent>().minimum_balance(spl_token::state::Mint::LEN);
     let balance_after = svm.get_balance(&payer_pk).unwrap();
 
     assert_eq!(balance_before - balance_after, expected_rent + expected_fee);

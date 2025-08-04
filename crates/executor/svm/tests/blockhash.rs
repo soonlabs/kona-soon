@@ -4,8 +4,8 @@ use solana_sdk::{
     account::ReadableAccount,
     account_utils::StateMut,
     nonce::{
-        state::{Data, Versions},
         State as NonceState,
+        state::{Data, Versions},
     },
     rent::Rent,
     signature::Keypair,
@@ -38,8 +38,7 @@ fn test_invalid_blockhash() {
 
     let mut svm = LiteSVM::new();
 
-    svm.airdrop(&from, svm.get_sysvar::<Rent>().minimum_balance(0))
-        .unwrap();
+    svm.airdrop(&from, svm.get_sysvar::<Rent>().minimum_balance(0)).unwrap();
     let instruction = transfer(&from, &to, 1);
     let tx = Transaction::new(
         &[&from_keypair],

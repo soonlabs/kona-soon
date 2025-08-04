@@ -1,20 +1,20 @@
 //! Single-chain fault proof program entrypoint.
 
 use alloc::sync::Arc;
-use alloy_consensus::Sealed;
 use alloy_primitives::B256;
 use core::fmt::Debug;
-use soon_derive::errors::PipelineErrorKind;
 use kona_driver::DriverError;
-use kona_executor::{ExecutorError, TrieDBProvider};
+use kona_executor::ExecutorError;
 use kona_preimage::{CommsClient, HintWriterClient, PreimageKey, PreimageOracleClient};
 use kona_proof::{
     BootInfo, CachingOracle, HintType,
     errors::OracleProviderError,
-    l1::{OracleBlobProvider, OracleL1ChainProvider},
+    l1::{OracleDaProvider, OracleL1ChainProvider, OraclePipeline},
     l2::OracleL2ChainProvider,
     sync::new_oracle_pipeline_cursor,
 };
+use soon_derive::errors::PipelineErrorKind;
+use soon_derive::sources::DAServerSource;
 use thiserror::Error;
 use tracing::{error, info};
 
@@ -57,11 +57,10 @@ where
     let mut l1_provider = OracleL1ChainProvider::new(boot.l1_head, oracle.clone());
     let mut l2_provider =
         OracleL2ChainProvider::new(safe_head_hash, rollup_config.clone(), oracle.clone());
-    let _beacon = OracleBlobProvider::new(oracle.clone());
+    let da_provider = OracleDaProvider::new(oracle.clone());
 
     // Fetch the safe head's block header.
-    let safe_head = l2_provider
-        .header_by_hash(safe_head_hash)?;
+    let safe_head = l2_provider.get_l2_block_info_by_number(boot.agreed_l2_block_number).await?;
 
     // If the claimed L2 block number is less than the safe head of the L2 chain, the claim is
     // invalid.
@@ -101,6 +100,18 @@ where
     )
     .await?;
     l2_provider.set_cursor(cursor.clone());
+
+    let da_provider =
+        DAServerSource::new(l1_provider.clone(), da_provider, rollup_config.batch_inbox_address);
+    let _pipeline = OraclePipeline::new(
+        rollup_config.clone(),
+        cursor.clone(),
+        oracle.clone(),
+        da_provider,
+        l1_provider.clone(),
+        l2_provider.clone(),
+    )
+    .await?;
 
     Ok(())
 }

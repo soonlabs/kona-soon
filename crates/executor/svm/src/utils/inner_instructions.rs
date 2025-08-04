@@ -8,11 +8,13 @@ use solana_sdk::{
 pub fn inner_instructions_list_from_instruction_trace(
     transaction_context: &TransactionContext,
 ) -> InnerInstructionsList {
-    debug_assert!(transaction_context
-        .get_instruction_context_at_index_in_trace(0)
-        .map(|instruction_context| instruction_context.get_stack_height()
-            == TRANSACTION_LEVEL_STACK_HEIGHT)
-        .unwrap_or(true));
+    debug_assert!(
+        transaction_context
+            .get_instruction_context_at_index_in_trace(0)
+            .map(|instruction_context| instruction_context.get_stack_height()
+                == TRANSACTION_LEVEL_STACK_HEIGHT)
+            .unwrap_or(true)
+    );
     let mut outer_instructions = Vec::new();
     for index_in_trace in 0..transaction_context.get_instruction_trace_length() {
         if let Ok(instruction_context) =
@@ -26,9 +28,7 @@ pub fn inner_instructions_list_from_instruction_trace(
                 let instruction = CompiledInstruction::new_from_raw_parts(
                     instruction_context
                         .get_index_of_program_account_in_transaction(
-                            instruction_context
-                                .get_number_of_program_accounts()
-                                .saturating_sub(1),
+                            instruction_context.get_number_of_program_accounts().saturating_sub(1),
                         )
                         .unwrap_or_default() as u8,
                     instruction_context.get_instruction_data().to_vec(),
@@ -42,10 +42,7 @@ pub fn inner_instructions_list_from_instruction_trace(
                         })
                         .collect(),
                 );
-                inner_instructions.push(InnerInstruction {
-                    instruction,
-                    stack_height,
-                });
+                inner_instructions.push(InnerInstruction { instruction, stack_height });
             } else {
                 debug_assert!(false);
             }

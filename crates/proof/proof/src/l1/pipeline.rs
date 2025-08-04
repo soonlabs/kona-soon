@@ -4,6 +4,8 @@ use crate::FlushableCache;
 use alloc::{boxed::Box, sync::Arc};
 use async_trait::async_trait;
 use core::fmt::Debug;
+use kona_driver::{DriverPipeline, PipelineCursor};
+use kona_preimage::CommsClient;
 use soon_derive::{
     errors::PipelineErrorKind,
     pipeline::{DerivationPipeline, PipelineBuilder},
@@ -14,12 +16,10 @@ use soon_derive::{
     },
     types::{PipelineResult, ResetSignal, Signal, StepResult},
 };
-use kona_driver::{DriverPipeline, PipelineCursor};
-use soon_primitives::system::SystemConfig;
-use soon_primitives::rollup_config::SoonRollupConfig;
-use kona_preimage::CommsClient;
 use soon_primitives::blocks::{BlockInfo, L2BlockInfo};
 use soon_primitives::derive::OpAttributesWithParent;
+use soon_primitives::rollup_config::SoonRollupConfig;
+use soon_primitives::system::SystemConfig;
 use spin::RwLock;
 
 /// An oracle-backed derivation pipeline.

@@ -172,12 +172,7 @@ fn get_minimum_delegation(svm: &mut LiteSVM, payer: &Keypair) -> u64 {
         &[&payer],
         svm.latest_blockhash(),
     );
-    let mut data = svm
-        .simulate_transaction(transaction)
-        .unwrap()
-        .meta
-        .return_data
-        .data;
+    let mut data = svm.simulate_transaction(transaction).unwrap().meta.return_data.data;
     data.resize(8, 0);
 
     data.try_into().map(u64::from_le_bytes).unwrap()
@@ -363,13 +358,8 @@ fn test_stake_checked_instructions() {
     // Test AuthorizeChecked with non-signing withdrawer
     let stake =
         create_independent_stake_account(&mut svm, &Authorized { staker, withdrawer }, 0, &payer);
-    let instruction = ixn::authorize_checked(
-        &stake,
-        &withdrawer,
-        &authorized,
-        StakeAuthorize::Withdrawer,
-        None,
-    );
+    let instruction =
+        ixn::authorize_checked(&stake, &withdrawer, &authorized, StakeAuthorize::Withdrawer, None);
 
     test_instruction_with_missing_signers(
         &mut svm,
@@ -409,11 +399,7 @@ fn test_stake_checked_instructions() {
         create_independent_stake_account(&mut svm, &Authorized { staker, withdrawer }, 0, &payer);
     let instruction = ixn::set_lockup_checked(
         &stake,
-        &LockupArgs {
-            unix_timestamp: None,
-            epoch: Some(1),
-            custodian: Some(custodian),
-        },
+        &LockupArgs { unix_timestamp: None, epoch: Some(1), custodian: Some(custodian) },
         &withdrawer,
     );
 
@@ -446,11 +432,7 @@ fn test_stake_initialize() {
 
     let authorized = Authorized { staker, withdrawer };
 
-    let lockup = Lockup {
-        epoch: 1,
-        unix_timestamp: 0,
-        custodian,
-    };
+    let lockup = Lockup { epoch: 1, unix_timestamp: 0, custodian };
 
     let stake = create_blank_stake_account(&mut svm, &payer);
     let instruction = ixn::initialize(&stake, &authorized, &lockup);
@@ -463,11 +445,7 @@ fn test_stake_initialize() {
     let stake_state: StakeStateV2 = bincode::deserialize(&account.data).unwrap();
     assert_eq!(
         stake_state,
-        StakeStateV2::Initialized(Meta {
-            authorized,
-            rent_exempt_reserve,
-            lockup,
-        }),
+        StakeStateV2::Initialized(Meta { authorized, rent_exempt_reserve, lockup }),
     );
 
     // 2nd time fails, can't move it from anything other than uninit->init
@@ -544,20 +522,17 @@ fn test_authorize() {
     let stake = create_blank_stake_account_from_keypair(&mut svm, &stake_keypair, &payer);
 
     // authorize uninitialized fails
-    for (authority, authority_type) in [
-        (&stakers[0], StakeAuthorize::Staker),
-        (&withdrawers[0], StakeAuthorize::Withdrawer),
-    ] {
+    for (authority, authority_type) in
+        [(&stakers[0], StakeAuthorize::Staker), (&withdrawers[0], StakeAuthorize::Withdrawer)]
+    {
         let instruction = ixn::authorize(&stake, &stake, &authority.pubkey(), authority_type, None);
         let e =
             process_instruction(&mut svm, &instruction, &vec![&stake_keypair], &payer).unwrap_err();
         assert_eq!(e, ProgramError::InvalidAccountData);
     }
 
-    let authorized = Authorized {
-        staker: stakers[0].pubkey(),
-        withdrawer: withdrawers[0].pubkey(),
-    };
+    let authorized =
+        Authorized { staker: stakers[0].pubkey(), withdrawer: withdrawers[0].pubkey() };
 
     let instruction = ixn::initialize(&stake, &authorized, &Lockup::default());
     process_instruction(&mut svm, &instruction, &no_signers, &payer).unwrap();
@@ -587,19 +562,10 @@ fn test_authorize() {
     // old authority no longer works
     for (old_authority, new_authority, authority_type) in [
         (&stakers[0], Pubkey::new_unique(), StakeAuthorize::Staker),
-        (
-            &withdrawers[0],
-            Pubkey::new_unique(),
-            StakeAuthorize::Withdrawer,
-        ),
+        (&withdrawers[0], Pubkey::new_unique(), StakeAuthorize::Withdrawer),
     ] {
-        let instruction = ixn::authorize(
-            &stake,
-            &old_authority.pubkey(),
-            &new_authority,
-            authority_type,
-            None,
-        );
+        let instruction =
+            ixn::authorize(&stake, &old_authority.pubkey(), &new_authority, authority_type, None);
         let e =
             process_instruction(&mut svm, &instruction, &vec![old_authority], &payer).unwrap_err();
         assert_eq!(e, ProgramError::MissingRequiredSignature);
@@ -654,13 +620,8 @@ fn test_authorize() {
     // withdraw using staker fails
     for staker in stakers {
         let recipient = Pubkey::new_unique();
-        let instruction = ixn::withdraw(
-            &stake,
-            &staker.pubkey(),
-            &recipient,
-            rent_exempt_reserve,
-            None,
-        );
+        let instruction =
+            ixn::withdraw(&stake, &staker.pubkey(), &recipient, rent_exempt_reserve, None);
         let e = process_instruction(&mut svm, &instruction, &vec![&staker], &payer).unwrap_err();
         assert_eq!(e, ProgramError::MissingRequiredSignature);
     }
@@ -767,8 +728,7 @@ fn test_stake_delegate() {
     let mut fake_vote_account = get_account(&mut svm, &accounts.vote_account.pubkey());
     fake_vote_account.owner = Pubkey::new_unique();
     let fake_vote_address = Pubkey::new_unique();
-    svm.set_account(fake_vote_address, fake_vote_account)
-        .unwrap();
+    svm.set_account(fake_vote_address, fake_vote_account).unwrap();
 
     let stake = create_independent_stake_account(&mut svm, &authorized, minimum_delegation, &payer);
     let instruction = ixn::delegate_stake(&stake, &staker, &fake_vote_address);
@@ -781,20 +741,15 @@ fn test_stake_delegate() {
     let rewards_pool_address = Pubkey::new_unique();
     let rewards_pool = Account {
         lamports: get_stake_account_rent(&mut svm),
-        data: bincode::serialize(&StakeStateV2::RewardsPool)
-            .unwrap()
-            .to_vec(),
+        data: bincode::serialize(&StakeStateV2::RewardsPool).unwrap().to_vec(),
         owner: solana_program::stake::program::id(),
         executable: false,
         rent_epoch: u64::MAX,
     };
     svm.set_account(rewards_pool_address, rewards_pool).unwrap();
 
-    let instruction = ixn::delegate_stake(
-        &rewards_pool_address,
-        &staker,
-        &accounts.vote_account.pubkey(),
-    );
+    let instruction =
+        ixn::delegate_stake(&rewards_pool_address, &staker, &accounts.vote_account.pubkey());
 
     let e =
         process_instruction(&mut svm, &instruction, &vec![&staker_keypair], &payer).unwrap_err();

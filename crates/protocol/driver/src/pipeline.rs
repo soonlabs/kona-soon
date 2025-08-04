@@ -2,7 +2,7 @@
 
 use alloc::boxed::Box;
 use async_trait::async_trait;
-use soon_primitives::{derive::OpAttributesWithParent, blocks::L2BlockInfo};
+use soon_primitives::{blocks::L2BlockInfo, derive::OpAttributesWithParent};
 
 use soon_derive::{
     errors::{PipelineError, PipelineErrorKind, ResetError},
