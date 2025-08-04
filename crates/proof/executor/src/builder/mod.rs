@@ -11,8 +11,7 @@ use fraud_executor::outcome::BlockBuildingOutcome;
 
 mod offchain;
 pub use offchain::{
-    OffchainL2Builder, cal_extra_accounts_hash, cal_init_accounts_hash, cal_init_state_root_hash,
-    slot_hash_pair_hash,
+    OffchainL2Builder, cal_init_accounts_hash, cal_init_state_root_hash, slot_hash_pair_hash,
 };
 
 use crate::{ExecutorResult, TrieDBProvider};

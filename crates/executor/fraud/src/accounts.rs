@@ -33,9 +33,3 @@ impl From<SoonAccounts> for Vec<(B256, MptAccount)> {
         accounts
     }
 }
-
-// impl<CB: AccountsCallback> From<&LiteSVM<CB>> for SoonAccounts {
-//     fn from(litesvm: &LiteSVM<CB>) -> Self {
-//         Self { accounts: litesvm.export_accounts() }
-//     }
-// }

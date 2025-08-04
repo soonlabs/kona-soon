@@ -4093,6 +4093,7 @@ dependencies = [
  "soon-mpt-trie",
  "soon-primitives",
  "thiserror 2.0.12",
+ "tracing",
 ]
 
 [[package]]

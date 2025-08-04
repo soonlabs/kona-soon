@@ -9,11 +9,9 @@ use solana_program_runtime::{
 use solana_sdk::{
     account::{AccountSharedData, ReadableAccount, WritableAccount},
     account_utils::StateMut,
-    native_loader, nonce,
+    native_loader,
     pubkey::Pubkey,
-    transaction::TransactionError,
 };
-use solana_system_program::{SystemAccountKind, get_system_account_kind};
 use std::{collections::HashMap, sync::Arc};
 use solana_program::clock::{Epoch, Slot};
 use solana_program_runtime::loaded_programs::ProgramRuntimeEnvironments;

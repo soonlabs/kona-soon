@@ -17,6 +17,7 @@ kona-mpt.workspace = true
 fraud-executor.workspace = true
 litesvm.workspace = true
 bincode.workspace = true
+serde = { workspace = true, features = ["derive"] }
 
 # Soon
 soon-primitives.workspace = true
@@ -49,7 +50,6 @@ tracing.workspace = true
 # `test-utils` feature
 rand = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
-serde = { workspace = true, features = ["derive"], optional = true }
 tokio = { workspace = true, features = ["full"], optional = true }
 rstest = { workspace = true, optional = true }
 rocksdb = { workspace = true, features = ["snappy"], optional = true }
@@ -67,7 +67,6 @@ kona-executor = { workspace = true, features = ["test-utils"] }
 test-utils = [
   "dep:rand",
   "dep:serde_json",
-  "dep:serde",
   "dep:tokio",
   "dep:rstest",
   "dep:rocksdb",

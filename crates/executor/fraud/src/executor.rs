@@ -1,10 +1,13 @@
+use l1_block_info::state::L1BlockInfo;
+use solana_sdk::account::ReadableAccount;
+use solana_sdk::clock::Clock;
 use solana_sdk::epoch_schedule::EpochSchedule;
 use crate::block::SimpleBlock;
 use crate::error::Result;
 use crate::outcome::BlockBuildingOutcome;
 use litesvm::LiteSVM;
 use solana_sdk::fee::FeeStructure;
-use solana_sdk::pubkey::Pubkey;
+use solana_sdk::program_pack::Pack;
 use solana_sdk::rent_collector::RentCollector;
 use soon_mpt_primitives::B256;
 use soon_mpt_primitives::alloy::eips::BlockNumHash;
@@ -30,16 +33,6 @@ impl<CB: AccountsCallback> FraudExecutor<CB> {
             ..Default::default()
         }
     }
-
-    // pub fn new(accounts: &SoonAccounts) -> Result<Self> {
-    //     let mut executor = Self::default();
-    //
-    //
-    //
-    //
-    //     litesvm_import_accounts(&mut executor.litesvm, accounts)?;
-    //     Ok(executor)
-    // }
 
     pub fn execute_block(&mut self, block: SimpleBlock) -> Result<BlockBuildingOutcome> {
         // self.prepare_block(&block)?;
@@ -71,7 +64,7 @@ impl<CB: AccountsCallback> FraudExecutor<CB> {
 
     fn get_l2_block_info(&self, slot: u64, hash: B256, parent_hash: B256) -> Result<L2BlockInfo> {
         let l1_block_info = self.get_l1_block_info().unwrap_or_default();
-        let clock = self.litesvm.get_sysvar::<Clock>();
+        let clock = self.litesvm.get_sysvar::<Clock>()?;
         Ok(L2BlockInfo {
             block_info: BlockInfo::new(hash, slot, parent_hash, clock.unix_timestamp as u64),
             l1_origin: BlockNumHash::new(l1_block_info.number, l1_block_info.hash.into()),
@@ -87,14 +80,3 @@ impl<CB: AccountsCallback> FraudExecutor<CB> {
         l1_block_info
     }
 }
-
-// #[cfg(feature = "dev")]
-// impl<CB: AccountsCallback> FraudExecutor<CB> {
-//     pub fn reset_fee_collector(&mut self, fee_collector: Pubkey) {
-//         self.fee_collector = fee_collector;
-//     }
-//
-//     pub fn reset_fee_structure(&mut self, fee_structure: Option<FeeStructure>) {
-//         self.fee_structure = fee_structure;
-//     }
-// }

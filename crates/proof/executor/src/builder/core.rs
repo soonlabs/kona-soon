@@ -12,16 +12,17 @@ use kona_mpt::TrieHinter;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use solana_sdk::transaction::VersionedTransaction;
 use soon_primitives::{blocks::L2BlockInfo, rollup_config::SoonRollupConfig};
-use litesvm::accounts_callback::NoopAccountsCallback;
+use litesvm::accounts_callback::AccountsCallback;
 use litesvm::LiteSVM;
 
 /// The [`StatelessL2Builder`] is an OP Stack block builder that traverses a merkle patricia trie
 /// via the [`TrieDB`] during execution.
 #[derive(Debug)]
-pub struct StatelessL2Builder<P, H>
+pub struct StatelessL2Builder<P, H, A>
 where
     P: TrieDBProvider,
     H: TrieHinter,
+    A: AccountsCallback,
 {
     /// The [SoonRollupConfig].
     #[allow(dead_code)]
@@ -34,13 +35,15 @@ where
     #[allow(dead_code)]
     pub(crate) factory: Option<bool>,
 
-    pub(crate) accounts: SoonAccounts,
+    pub(crate) accounts_callback: A,
+    pub(crate) accounts_diff: SoonAccounts,
 }
 
-impl<P, H> StatelessL2Builder<P, H>
+impl<P, H, A> StatelessL2Builder<P, H, A>
 where
     P: TrieDBProvider,
     H: TrieHinter,
+    A: AccountsCallback,
 {
     fn convert_block(&self, attrs: OpPayloadAttributes) -> ExecutorResult<SimpleBlock> {
         Ok(SimpleBlock {
@@ -57,15 +60,15 @@ where
                     Ok(tx)
                 })
                 .collect::<ExecutorResult<Vec<VersionedTransaction>>>()?,
-            extra_accounts: Default::default(), // TODO: get extra accounts from somewhere
         })
     }
 }
 
-impl<P, H> L2BlockBuilder<P, H> for StatelessL2Builder<P, H>
+impl<P, H, A> L2BlockBuilder<P, H> for StatelessL2Builder<P, H, A>
 where
     P: TrieDBProvider,
     H: TrieHinter,
+    A: AccountsCallback + Default + Clone,
 {
     /// Creates a new [StatelessL2Builder] instance.
     fn new(
@@ -75,7 +78,14 @@ where
         parent_header: L2BlockInfo,
     ) -> Self {
         let trie_db = TrieDB::new(parent_header, provider, hinter);
-        Self { config, trie_db, factory: None, accounts: Default::default() }
+        Self {
+            config,
+            trie_db,
+            factory: None,
+            // TODO: should not use default
+            accounts_callback: Default::default(),
+            accounts_diff: SoonAccounts::default(),
+        }
     }
 
     /// Initializes the block builder.
@@ -89,15 +99,19 @@ where
 
         // Step 2. Create the executor, using the trie database.
         // TODO: import using trie db later
-        let mut executor = FraudExecutor::new(LiteSVM::<NoopAccountsCallback>::default());
+        // TODO: svm should be correctly initialized
+        let mut svm = LiteSVM::new_soon()
+            .with_accounts_callback(self.accounts_callback.clone());
+        svm.finish_init().map_err(|e| ExecutorError::FraudExecutorError(e.into()))?;
+        let mut executor = FraudExecutor::new(svm);
 
         // Step 3. Execute the block containing the transactions within the payload attributes.
         let block = self.convert_block(attrs)?;
         let l2_info = executor.execute_block(block)?;
 
         // Step 4. Store data to calculate output root
-        let accounts = executor.export_accounts();
-        self.accounts = SoonAccounts::from(accounts);
+        let accounts = executor.export_diff_accounts();
+        self.accounts_diff = SoonAccounts::from(accounts);
 
         Ok(l2_info)
     }
@@ -105,6 +119,6 @@ where
     /// Computes the current output root of the latest executed block, based on the parent header
     /// and the underlying state trie.
     fn compute_output_root(&mut self) -> ExecutorResult<B256> {
-        Ok(self.accounts.state_root())
+        Ok(self.accounts_diff.state_root())
     }
 }

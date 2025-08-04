@@ -1,5 +1,4 @@
 use std::collections::HashSet;
-use std::panic;
 
 use crate::accounts::SoonAccounts;
 use crate::error::{Error, Result};
