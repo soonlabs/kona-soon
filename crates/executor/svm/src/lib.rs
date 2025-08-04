@@ -5,7 +5,7 @@ use crate::{
     builtin::BUILTINS,
     error::LiteSVMError,
     history::TransactionHistory,
-    spl::load_spl_programs,
+    // spl::load_spl_programs,
     types::{ExecutionResult, FailedTransactionMetadata, TransactionMetadata, TransactionResult},
     utils::{create_blockhash, rent::RentState},
 };
@@ -16,32 +16,28 @@ use solana_compute_budget::{
 };
 use solana_loader_v4_program::create_program_runtime_environment_v2;
 use solana_program_runtime::{
-    invoke_context::{BuiltinFunctionWithContext, EnvironmentConfig, InvokeContext},
-    loaded_programs::{LoadProgramMetrics, ProgramCacheEntry},
+    invoke_context::{EnvironmentConfig, InvokeContext},
+    loaded_programs::ProgramCacheEntry,
     log_collector::LogCollector,
     timings::ExecuteTimings,
 };
-use solana_sdk::{account::{Account, AccountSharedData, ReadableAccount, WritableAccount}, bpf_loader, clock::Clock, epoch_schedule::EpochSchedule, feature_set, feature_set::{
+use solana_sdk::{account::{Account, AccountSharedData, ReadableAccount, WritableAccount}, feature_set, feature_set::{
     include_loaded_accounts_data_size_in_fee_calculation, remove_rounding_in_fee_calculation,
     FeatureSet,
-}, fee::FeeStructure, hash::Hash, inner_instruction::InnerInstructionsList, instruction::InstructionError, message::SanitizedMessage, native_loader, nonce::{state::DurableNonce, NONCED_TX_MARKER_IX_INDEX}, nonce_account, pubkey::Pubkey, rent::Rent, rent_collector::RentCollector, reserved_account_keys::ReservedAccountKeys, signature::Signature, slot_history::SlotHistory, stake_history::StakeHistory, system_instruction, system_program, sysvar::{Sysvar, SysvarId}, transaction::{MessageHash, SanitizedTransaction, TransactionError, VersionedTransaction}, transaction_context::{ExecutionRecord, IndexOfAccount, TransactionContext}};
+}, fee::FeeStructure, hash::Hash, inner_instruction::InnerInstructionsList, message::SanitizedMessage, native_loader, nonce::{state::DurableNonce, NONCED_TX_MARKER_IX_INDEX}, nonce_account, pubkey::Pubkey, rent::Rent, rent_collector::RentCollector, reserved_account_keys::ReservedAccountKeys, signature::Signature, sysvar::{Sysvar, SysvarId}, transaction::{MessageHash, SanitizedTransaction, TransactionError, VersionedTransaction}, transaction_context::{ExecutionRecord, IndexOfAccount, TransactionContext}};
 use solana_svm::{account_loader::collect_rent_from_account, message_processor::MessageProcessor};
 use solana_system_program::{get_system_account_kind, SystemAccountKind};
 use std::fmt::Debug;
-use std::{cell::RefCell, path::Path, rc::Rc, sync::Arc};
-use solana_program::clock::{Epoch, Slot, INITIAL_RENT_EPOCH};
-use solana_program::last_restart_slot::LastRestartSlot;
-use solana_program::slot_hashes::SlotHashes;
+use std::{cell::RefCell, rc::Rc, sync::Arc};
+use solana_program::clock::{Epoch, Slot};
 use solana_program_runtime::loaded_programs::ProgramRuntimeEnvironments;
-use solana_sdk::precompiles::get_precompiles;
-use tracing::{error, info, warn};
+use tracing::{warn, error};
 use types::SimulatedTransactionInfo;
 use utils::{
     construct_instructions_account,
     inner_instructions::inner_instructions_list_from_instruction_trace,
 };
 use accounts_callback::AccountsCallback;
-use crate::error::InvalidSysvarDataError;
 use crate::genesis::*;
 
 pub mod error;
@@ -52,7 +48,7 @@ pub mod genesis;
 mod accounts_db;
 mod builtin;
 mod history;
-mod spl;
+// mod spl;
 mod utils;
 
 // The test code doesn't actually get run because it's not
@@ -63,8 +59,6 @@ mod utils;
 pub struct ReadmeDoctests;
 
 pub struct LiteSVM<CB: AccountsCallback> {
-    slot: Slot,
-    epoch: Epoch,
     accounts: AccountsDb<CB>,
     feature_set: FeatureSet,
     latest_blockhash: Hash,
@@ -84,8 +78,6 @@ pub struct LiteSVM<CB: AccountsCallback> {
 impl<CB: AccountsCallback> Default for LiteSVM<CB> {
     fn default() -> Self {
         Self {
-            slot: 0,
-            epoch: 0,
             accounts: Default::default(),
             feature_set: Default::default(),
             latest_blockhash: create_blockhash(b"genesis"),
@@ -119,16 +111,15 @@ impl<CB: AccountsCallback> Debug for LiteSVM<CB> {
 
 impl<CB: AccountsCallback> LiteSVM<CB> {
     /// Creates the basic test environment.
-    pub fn new_soon() -> Result<Self, LiteSVMError> {
-        Ok(Self::default()
+    pub fn new_soon() -> Self {
+        Self::default()
             .with_builtins()
-            .with_precompiles()?
             // .with_sigverify(true)
             // .with_blockhash_check(true)
             .with_compute_budget(soon_compute_budget())
-            .with_rent(soon_rent())?
-            .with_epoch_schedule(soon_epoch_schedule())?
-            .with_fee_structure(Some(soon_fee_structure())))
+            .with_rent(soon_rent())
+            .with_fee_structure(Some(soon_fee_structure()))
+            .with_feature_set(soon_feature_set())
     }
 
     pub fn finish_init(&mut self) -> Result<(), LiteSVMError> {
@@ -148,19 +139,17 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         });
 
         // fill sysvars cache
-        self.accounts.fill_sysvar_cache();
+        self.accounts.fill_sysvar_cache()?;
 
-        // override slot and epoch if found clock
-        if let Ok(clock) = self.get_sysvar::<Clock>() {
-            self.slot = clock.slot;
-            self.epoch = clock.epoch;
-            self.accounts.set_slot(self.slot);
-            self.accounts.set_epoch(self.epoch);
+        // override slot and epoch in accounts db
+        if let Ok(clock) = self.accounts.sysvar_cache.get_clock() {
+            self.accounts.set_slot(clock.slot);
+            self.accounts.set_epoch(clock.epoch);
         }
 
         // fill rent collector
         self.rent_collector = RentCollector::new(
-            self.epoch,
+            self.accounts.epoch,
             self.get_sysvar()?,
             self.slots_per_year,
             self.rent.clone(),
@@ -171,8 +160,6 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
 
     /// Sets the slot and epoch for the accounts db.
     pub fn with_slot_and_epoch(mut self, slot: Slot, epoch: Epoch) -> Self {
-        self.slot = slot;
-        self.epoch = epoch;
         self.accounts.set_slot(slot);
         self.accounts.set_epoch(epoch);
         self
@@ -183,6 +170,10 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         self.accounts.set_callback(callback);
         self
     }
+
+    // pub fn with_overriding_clock(mut self, clock: Clock) -> Self {
+    //
+    // }
 
     /// Sets the compute budget.
     pub const fn with_compute_budget(mut self, compute_budget: ComputeBudget) -> Self {
@@ -218,84 +209,9 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         self
     }
 
-    pub fn with_clock(mut self, clock: Clock) -> Result<Self, LiteSVMError> {
-        // check clock consistency with accounts db
-        if clock.slot != self.accounts.slot || clock.slot != self.accounts.programs_cache.slot() {
-            return Err(LiteSVMError::InvalidSysvarData(InvalidSysvarDataError::Clock));
-        }
-        if clock.epoch < self.accounts.programs_cache.latest_root_epoch {
-            return Err(LiteSVMError::InvalidSysvarData(InvalidSysvarDataError::Clock));
-        }
-        self.set_sysvar(clock)?;
-        Ok(self)
-    }
-
-    pub fn with_slot_history(mut self, slot_history: SlotHistory) -> Result<Self, LiteSVMError> {
-        self.set_sysvar(slot_history)?;
-        Ok(self)
-    }
-
-    pub fn with_stake_history(mut self, stake_history: StakeHistory) -> Result<Self, LiteSVMError> {
-        self.set_sysvar(stake_history)?;
-        Ok(self)
-    }
-
-    pub fn with_last_restart_slot(mut self, last_restart_slot: LastRestartSlot) -> Result<Self, LiteSVMError> {
-        self.set_sysvar(last_restart_slot)?;
-        Ok(self)
-    }
-
-    pub fn with_slot_hashes(mut self, slot_hashes: SlotHashes) -> Result<Self, LiteSVMError> {
-        self.set_sysvar(slot_hashes)?;
-        Ok(self)
-    }
-
-    pub fn with_rent(mut self, rent: Rent) -> Result<Self, LiteSVMError> {
+    pub fn with_rent(mut self, rent: Rent) -> Self {
         self.rent = rent.clone();
-        self.set_sysvar(rent)?;
-        Ok(self)
-    }
-
-    pub fn with_epoch_schedule(mut self, epoch_schedule: EpochSchedule) -> Result<Self, LiteSVMError> {
-        self.set_sysvar(epoch_schedule)?;
-        Ok(self)
-    }
-
-    pub fn with_minting_to(mut self, pubkey: Pubkey, lamports: u64) -> Result<Self, LiteSVMError> {
-        self.mint_to(pubkey, lamports)?;
-        Ok(self)
-    }
-
-    fn mint_to(&mut self, pubkey: Pubkey, lamports: u64) -> Result<(), LiteSVMError> {
-        let account = if let Some(mut account) = self.accounts.get_account(&pubkey) {
-            account.checked_add_lamports(lamports)?;
-            account
-        } else {
-            if lamports < self.minimum_balance_for_rent_exemption(0) {
-                return Err(LiteSVMError::InsufficientLamports);
-            }
-            AccountSharedData::new(lamports, 0, &system_program::id())
-        };
-        self.accounts.add_account(pubkey, account)?;
-        Ok(())
-    }
-
-    pub fn with_precompiles(mut self) -> Result<Self, LiteSVMError> {
-        let mut account = AccountSharedData::default();
-        account.set_owner(native_loader::id());
-        account.set_lamports(1);
-        account.set_executable(true);
-
-        for precompile in get_precompiles() {
-            if precompile
-                .feature
-                .map_or(true, |feature_id| self.feature_set.is_active(&feature_id))
-            {
-                self.set_account(precompile.program_id, account.clone().into())?;
-            }
-        }
-
-        Ok(self)
+        self
     }
 
     /// Changes the default builtins.
@@ -309,19 +225,15 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
             let loaded_program =
                 ProgramCacheEntry::new_builtin(0, builtin.name.len(), builtin.entrypoint);
             self.accounts.programs_cache.replenish(builtin.program_id, Arc::new(loaded_program));
-            self.accounts.add_account_no_checks(
-                builtin.program_id,
-                native_loader::create_loadable_account_with_fields(builtin.name, (1, INITIAL_RENT_EPOCH)),
-            );
         });
         self
     }
 
-    /// Includes the standard SPL programs.
-    pub fn with_spl_programs(mut self) -> Self {
-        load_spl_programs(&mut self);
-        self
-    }
+    // /// Includes the standard SPL programs.
+    // pub fn with_spl_programs(mut self) -> Self {
+    //     load_spl_programs(&mut self);
+    //     self
+    // }
 
     /// Changes the capacity of the transaction history.
     /// Set this to 0 to disable transaction history and allow duplicate transactions.
@@ -335,110 +247,25 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         self
     }
 
-    /// Returns minimum balance required to make an account with specified data length rent exempt.
-    pub fn minimum_balance_for_rent_exemption(&self, data_len: usize) -> u64 {
-        1.max(self.rent.minimum_balance(data_len))
-    }
-
     /// Returns all information associated with the account of the provided pubkey.
     pub fn get_account(&self, pubkey: &Pubkey) -> Option<Account> {
         self.accounts.get_account(pubkey).map(Into::into)
-    }
-
-    /// Sets all information associated with the account of the provided pubkey.
-    pub fn set_account(&mut self, pubkey: Pubkey, data: Account) -> Result<(), LiteSVMError> {
-        self.accounts.add_account(pubkey, data.into())
     }
 
     pub fn set_rent_collector(&mut self, rent_collector: RentCollector) {
         self.rent_collector = rent_collector;
     }
 
-    /// Check if the error should be added to missing_accounts for retry
-    const fn should_retry_on_error(error: &LiteSVMError) -> bool {
-        matches!(
-            error,
-            LiteSVMError::Instruction(InstructionError::MissingAccount)
-                | LiteSVMError::Instruction(InstructionError::InvalidAccountData)
-        )
+    pub fn clear_diff_accounts(&mut self) {
+        self.accounts.clear_diff_accounts();
     }
 
-    pub fn clear_cache_accounts(&mut self) {
-        self.accounts.clear_cache_accounts();
+    pub fn export_diff_accounts(&self) -> Vec<(Pubkey, AccountSharedData)> {
+        self.accounts.export_diff_accounts()
     }
 
-    /// Import accounts from a vector of (pubkey, account) pairs.
-    pub fn import_accounts(
-        &mut self,
-        accounts: Vec<(Pubkey, AccountSharedData)>,
-    ) -> Result<(), LiteSVMError> {
-        let mut missing_accounts = Vec::new();
-        for (pubkey, account) in accounts {
-            if let Some(existing_account) = self.accounts.get_account(&pubkey) {
-                // compare the data of the existing account and the new account
-                if existing_account != account {
-                    warn!(
-                        "Account {pubkey} already exists with different data: existing: {:?}, new: {:?}",
-                        existing_account, account
-                    );
-                } else {
-                    continue;
-                }
-            }
-
-            if let Err(e) = self.accounts.add_account(pubkey, account.clone()) {
-                if Self::should_retry_on_error(&e) {
-                    missing_accounts.push((pubkey, account));
-                } else {
-                    error!("Error importing account {pubkey}: {e:?}");
-                    return Err(e);
-                }
-            }
-        }
-
-        info!("no missing accounts");
-
-        // Keep retrying until no new missing accounts are added
-        loop {
-            if missing_accounts.is_empty() {
-                break;
-            }
-
-            info!(
-                "Re-importing missing accounts: {:?}",
-                missing_accounts.iter().map(|(pubkey, _)| pubkey).collect::<Vec<&Pubkey>>()
-            );
-
-            let mut new_missing_accounts = Vec::new();
-            let current_count = missing_accounts.len();
-            for (pubkey, account) in missing_accounts {
-                if let Err(e) = self.accounts.add_account(pubkey, account.clone()) {
-                    if Self::should_retry_on_error(&e) {
-                        new_missing_accounts.push((pubkey, account));
-                    } else {
-                        error!("Error importing account {pubkey}: {e:?}");
-                        return Err(e);
-                    }
-                }
-            }
-
-            // If no progress made (same number of missing accounts), break to avoid infinite loop
-            if new_missing_accounts.len() == current_count {
-                error!(
-                    "Unable to import accounts after retries, still missing: {:?}",
-                    new_missing_accounts.iter().map(|(p, _)| p).collect::<Vec<_>>()
-                );
-                return Err(LiteSVMError::Instruction(InstructionError::MissingAccount));
-            }
-
-            missing_accounts = new_missing_accounts;
-        }
-
-        Ok(())
-    }
-
-    pub fn export_accounts(&self) -> Vec<(Pubkey, AccountSharedData)> {
-        self.accounts.all_cached_accounts()
+    pub fn feature_set(&self) -> &FeatureSet {
+        &self.feature_set
     }
 
     /// Gets the balance of the provided account pubkey.
@@ -449,20 +276,6 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     /// Gets the latest blockhash.
     pub fn latest_blockhash(&self) -> Hash {
         self.latest_blockhash
-    }
-
-    /// Sets the sysvar to the test environment.
-    pub fn set_sysvar<T>(&mut self, sysvar: T) -> Result<(), LiteSVMError>
-    where
-        T: Sysvar + SysvarId,
-    {
-        let account = AccountSharedData::new_data(
-            self.minimum_balance_for_rent_exemption(T::size_of()),
-            &sysvar,
-            &solana_sdk::sysvar::id(),
-        )?;
-        self.accounts.add_account(T::id(), account)?;
-        Ok(())
     }
 
     /// Gets a sysvar from the test environment.
@@ -480,55 +293,6 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     /// Gets a transaction from the transaction history.
     pub fn get_transaction(&self, signature: &Signature) -> Option<&TransactionResult> {
         self.history.get_transaction(signature)
-    }
-
-    /// Adds a builtin program to the test environment.
-    pub fn add_builtin(&mut self, program_id: Pubkey, entrypoint: BuiltinFunctionWithContext) {
-        let builtin = ProgramCacheEntry::new_builtin(
-            self.accounts.sysvar_cache.get_clock().unwrap_or_default().slot,
-            1,
-            entrypoint,
-        );
-
-        self.accounts.programs_cache.replenish(program_id, Arc::new(builtin));
-        self.accounts
-            .add_account(program_id, AccountSharedData::new(0, 1, &bpf_loader::id()))
-            .unwrap();
-    }
-
-    /// Adds an SBF program to the test environment from the file specified.
-    pub fn add_program_from_file(
-        &mut self,
-        program_id: Pubkey,
-        path: impl AsRef<Path>,
-    ) -> Result<(), std::io::Error> {
-        let bytes = std::fs::read(path)?;
-        self.add_program(program_id, &bytes);
-        Ok(())
-    }
-
-    /// Adds am SBF program to the test environment.
-    pub fn add_program(&mut self, program_id: Pubkey, program_bytes: &[u8]) {
-        let program_len = program_bytes.len();
-        let lamports = self.minimum_balance_for_rent_exemption(program_len);
-        let mut account = AccountSharedData::new(lamports, program_len, &bpf_loader::id());
-        account.set_executable(true);
-        account.set_data_from_slice(program_bytes);
-        let current_slot = self.accounts.sysvar_cache.get_clock().unwrap_or_default().slot;
-        let mut loaded_program = solana_bpf_loader_program::load_program_from_bytes(
-            Some(self.log_collector.clone()),
-            &mut LoadProgramMetrics::default(),
-            account.data(),
-            account.owner(),
-            account.data().len(),
-            current_slot,
-            self.accounts.programs_cache.environments.program_runtime_v1.clone(),
-            false,
-        )
-        .unwrap_or_default();
-        loaded_program.effective_slot = current_slot;
-        self.accounts.add_account(program_id, account).unwrap();
-        self.accounts.programs_cache.replenish(program_id, Arc::new(loaded_program));
     }
 
     fn create_transaction_context(
@@ -603,8 +367,6 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
             ..ComputeBudget::default()
         });
         let blockhash = tx.message().recent_blockhash();
-        //reload program cache
-        let mut program_cache_for_tx_batch = self.accounts.programs_cache.clone();
         let mut accumulated_consume_units = 0;
         let message = tx.message();
         let account_keys = message.account_keys();
@@ -613,7 +375,11 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
             |f| {
                 f.calculate_fee(
                     message,
-                    f.lamports_per_signature,
+                    if message.fee_payer() == &NO_SIG_TX_PAYER {
+                        0
+                    } else {
+                        f.lamports_per_signature
+                    },
                     &compute_budget_limits.into(),
                     self.feature_set
                         .is_active(&include_loaded_accounts_data_size_in_fee_calculation::id()),
@@ -631,7 +397,11 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
                 let account = if solana_sdk::sysvar::instructions::check_id(key) {
                     construct_instructions_account(message)
                 } else {
-                    let mut account = self.accounts.get_account(key).unwrap_or_default();
+                    let mut account = self
+                        .accounts
+                        .load_account(key)
+                        .map_err(|_| TransactionError::AccountNotFound)?
+                        .unwrap_or_default();
                     if !validated_fee_payer
                         && (!message.is_invoked(i) || message.is_instruction_account(i))
                     {
@@ -647,7 +417,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
                             key,
                             &mut account,
                             i as IndexOfAccount,
-                            &self.accounts.sysvar_cache.get_rent().unwrap(),
+                            &self.rent,
                             fee,
                         )?;
                         validated_fee_payer = true;
@@ -720,24 +490,30 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
                     .iter()
                     .any(|(key, _)| key == owner_id)
                 {
-                    let owner_account = self.get_account(owner_id).unwrap();
+                    let owner_account = self
+                        .accounts
+                        .load_account(owner_id)
+                        .map_err(|_| TransactionError::AccountNotFound)?
+                        .ok_or(TransactionError::AccountNotFound)?;
                     if !native_loader::check_id(owner_account.owner()) {
                         error!(
                             "Owner account {owner_id} is not owned by the native loader program."
                         );
                         return Err(TransactionError::InvalidProgramForExecution);
                     }
-                    if !owner_account.executable {
+                    if !owner_account.executable() {
                         error!("Owner account {owner_id} is not executable");
                         return Err(TransactionError::InvalidProgramForExecution);
                     }
-                    accounts.push((*owner_id, owner_account.into()));
+                    accounts.push((*owner_id, owner_account));
                 }
                 Ok(account_indices)
             })
             .collect::<Result<Vec<Vec<u16>>, TransactionError>>();
         match maybe_program_indices {
             Ok(program_indices) => {
+                //reload program cache
+                let mut program_cache_for_tx_batch = self.accounts.programs_cache.clone();
                 let mut context = self.create_transaction_context(compute_budget, accounts);
                 let mut tx_result = MessageProcessor::process_message(
                     tx.message(),
@@ -794,13 +570,12 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
                 let pubkey = context
                     .get_key_of_account_at_index(index as IndexOfAccount)
                     .map_err(|err| TransactionError::InstructionError(index as u8, err))?;
-                let rent = self.accounts.sysvar_cache.get_rent().unwrap_or_default();
 
                 if !account.data().is_empty() {
-                    let post_rent_state = RentState::from_account(&account, &rent);
+                    let post_rent_state = RentState::from_account(&account, &self.rent);
                     let pre_rent_state = RentState::from_account(
                         &self.accounts.get_account(pubkey).unwrap_or_default(),
-                        &rent,
+                        &self.rent,
                     );
 
                     if !post_rent_state.transition_allowed_from(&pre_rent_state) {
@@ -886,7 +661,9 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         if result.is_ok() {
             result
         } else if let Some(payer) = payer_key {
-            self.accounts.withdraw(&payer, fee).and(result)
+            self.accounts
+                .burn(false, &payer, fee)
+                .map_err(|_| TransactionError::InsufficientFundsForFee)
         } else {
             result
         }
@@ -959,10 +736,10 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
             Ok(meta) => fees += meta.fee,
             Err(err) => fees += err.meta.fee,
         });
-        let validate_fee_collector =
-            self.feature_set.is_active(&feature_set::validate_fee_collector_account::id());
-        if validate_fee_collector && fees > 0 && self.fee_collector.is_some() {
-            self.mint_to(self.fee_collector.unwrap(), fees)?;
+        if fees > 0 && self.fee_collector.is_some() {
+            let validate_fee_collector =
+                self.feature_set.is_active(&feature_set::validate_fee_collector_account::id());
+            self.accounts.mint(validate_fee_collector, &self.fee_collector.unwrap(), fees)?;
         }
 
         self.accounts.clean_zero_accounts();
@@ -1019,10 +796,23 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
             err
         } else {
             self.history.add_new_transaction(signature, Ok(meta.clone()));
-            self.accounts
-                .sync_accounts(post_accounts)
-                .expect("It shouldn't be possible to write invalid sysvars in send_transaction.");
+            for (key, mut account) in post_accounts {
+                // TODO: is putting collect rent here correct?
+                // collect rent
+                collect_rent_from_account(
+                    &self.feature_set,
+                    &self.rent_collector,
+                    &key,
+                    &mut account,
+                );
 
+                self.accounts
+                    .add_diff_account(false, key, account)
+                    .map_err(|_| FailedTransactionMetadata {
+                        err: TransactionError::InvalidRentPayingAccount,
+                        meta: meta.clone(),
+                    })?;
+            }
             Ok(meta)
         }
     }

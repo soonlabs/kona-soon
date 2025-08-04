@@ -43,13 +43,13 @@ impl<CB: AccountsCallback> FraudExecutor<CB> {
 
     pub fn execute_block(&mut self, block: SimpleBlock) -> Result<L2BlockInfo> {
         // self.prepare_block(&block)?;
-        self.litesvm.import_accounts(block.extra_accounts)?;
+        // self.litesvm.import_accounts(block.extra_accounts)?;
         let _results = self.litesvm.execute_block_transactions(block.transactions)?;
         self.get_l2_block_info(block.slot)
     }
 
-    pub fn export_accounts(&self) -> AccountPairs {
-        self.litesvm.export_accounts()
+    pub fn export_diff_accounts(&self) -> AccountPairs {
+        self.litesvm.export_diff_accounts()
     }
 
     // fn prepare_block(&mut self, _block: &SimpleBlock) -> Result<()> {

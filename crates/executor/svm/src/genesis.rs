@@ -3,11 +3,14 @@ use solana_compute_budget::compute_budget::ComputeBudget;
 use solana_program::clock::{DEFAULT_TICKS_PER_SECOND, DEFAULT_TICKS_PER_SLOT};
 use solana_program::epoch_schedule::EpochSchedule;
 use solana_program::fee_calculator::{FeeRateGovernor, DEFAULT_TARGET_SIGNATURES_PER_SLOT};
+use solana_program::pubkey::Pubkey;
 use solana_program::rent::Rent;
-use solana_program::unchecked_div_by_const;
+use solana_program::{pubkey, unchecked_div_by_const};
 use solana_sdk::feature_set::*;
 use solana_sdk::fee::{FeeBin, FeeStructure};
 use solana_sdk::timing::years_as_slots;
+
+pub const NO_SIG_TX_PAYER: Pubkey = pubkey!("NoSigTxPayer1111111111111111111111111111111");
 
 pub fn soon_compute_budget() -> ComputeBudget {
     Default::default()
