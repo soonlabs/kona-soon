@@ -2,20 +2,22 @@ use crate::alloc::string::ToString;
 use crate::{ExecutorError, ExecutorResult, L2BlockBuilder, TrieDBProvider};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
-use core::marker::PhantomData;
 use alloy_primitives::{B256, Keccak256};
+use core::marker::PhantomData;
 use fraud_executor::accounts::SoonAccounts;
 use fraud_executor::block::SimpleBlock;
 use fraud_executor::executor::FraudExecutor;
 use fraud_executor::outcome::BlockBuildingOutcome;
 use fraud_executor::utils::analyze_account_sets;
 use kona_mpt::TrieHinter;
+use litesvm::LiteSVM;
+use litesvm::accounts_callback::AccountsCallback;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
+use serde::{Deserialize, Serialize};
+use solana_sdk::pubkey::Pubkey;
 use solana_sdk::transaction::VersionedTransaction;
 use soon_primitives::blocks::L2BlockInfo;
 use soon_primitives::rollup_config::SoonRollupConfig;
-use litesvm::accounts_callback::AccountsCallback;
-use litesvm::LiteSVM;
 
 /// The [`OffchainL2Builder`] is an OP Stack block builder that uses the offchain data to build a
 /// block.
@@ -68,9 +70,22 @@ where
             self.provider.bytecode_by_hash(cal_init_accounts_hash(self.init_slot())).map_err(
                 |_| ExecutorError::FraudInitError("Failed to get init accounts code".to_string()),
             )?;
+        let svm_start_up_meta_code = self
+            .provider
+            .bytecode_by_hash(cal_svm_start_up_meta_hash(self.init_slot()))
+            .map_err(|_| {
+                ExecutorError::FraudInitError("Failed to get svm start up meta code".to_string())
+            })?;
+        let svm_start_up_meta: SvmStartUpMeta = bincode::deserialize(&svm_start_up_meta_code)
+            .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
+
         let accounts_callback: A = bincode::deserialize(&init_accounts_code)
             .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
         let mut svm = LiteSVM::new_soon()
+            .with_slot_and_epoch(self.init_slot(), svm_start_up_meta.epoch)
+            .with_fee_collector(Some(svm_start_up_meta.fee_collector))
+            .with_sigverify(false)
+            .with_blockhash_check(false)
             .with_accounts_callback(accounts_callback);
         svm.finish_init().map_err(|e| ExecutorError::FraudExecutorError(e.into()))?;
         let mut executor = FraudExecutor::new(svm);
@@ -127,7 +142,8 @@ where
                     "state root mismatch, expected: {}, actual: {}",
                     soon_state_root, litesvm_state_root
                 );
-                let (_, _, _, analyze) = analyze_account_sets(&new_block_accounts, &self.diff_accounts);
+                let (_, _, _, analyze) =
+                    analyze_account_sets(&new_block_accounts, &self.diff_accounts);
                 info!("check execution account states, analyze: {}", analyze);
             }
         }
@@ -156,7 +172,7 @@ impl<P, H, A> OffchainL2Builder<P, H, A>
 where
     P: TrieDBProvider,
     H: TrieHinter,
-    A: AccountsCallback
+    A: AccountsCallback,
 {
     const fn current_slot(&self) -> u64 {
         self.parent_header.block_info.number + 1
@@ -213,9 +229,22 @@ pub fn slot_hash_pair_hash(slot: u64) -> B256 {
     slot_spec_hash(slot, b"slot_hash_set")
 }
 
+/// Calculate the hash of the svm start up meta for the given slot.
+pub fn cal_svm_start_up_meta_hash(slot: u64) -> B256 {
+    slot_spec_hash(slot, b"svm_start_up_meta")
+}
+
 fn slot_spec_hash(slot: u64, suffix: &[u8]) -> B256 {
     let mut hasher = Keccak256::new();
     hasher.update(slot.to_be_bytes());
     hasher.update(suffix);
     hasher.finalize()
+}
+
+/// The svm start up meta data for the given slot.
+#[allow(missing_docs)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SvmStartUpMeta {
+    pub epoch: u64,
+    pub fee_collector: Pubkey,
 }

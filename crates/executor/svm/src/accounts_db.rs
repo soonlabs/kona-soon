@@ -1,7 +1,19 @@
-use solana_program::{address_lookup_table::{self, error::AddressLookupError, state::AddressLookupTable}, bpf_loader, bpf_loader_deprecated, bpf_loader_upgradeable::{self, UpgradeableLoaderState}, instruction::InstructionError, loader_v4::{self, LoaderV4State}, message::{
-    AddressLoader, AddressLoaderError,
-    v0::{LoadedAddresses, MessageAddressTableLookup},
-}, system_program};
+use crate::accounts_callback::AccountsCallback;
+use crate::error::{InvalidSysvarDataError, LiteSVMError};
+use solana_program::clock::{Epoch, Slot};
+use solana_program::{
+    address_lookup_table::{self, error::AddressLookupError, state::AddressLookupTable},
+    bpf_loader, bpf_loader_deprecated,
+    bpf_loader_upgradeable::{self, UpgradeableLoaderState},
+    instruction::InstructionError,
+    loader_v4::{self, LoaderV4State},
+    message::{
+        AddressLoader, AddressLoaderError,
+        v0::{LoadedAddresses, MessageAddressTableLookup},
+    },
+    system_program,
+};
+use solana_program_runtime::loaded_programs::ProgramRuntimeEnvironments;
 use solana_program_runtime::{
     loaded_programs::{LoadProgramMetrics, ProgramCacheEntry, ProgramCacheForTxBatch},
     sysvar_cache::SysvarCache,
@@ -13,11 +25,7 @@ use solana_sdk::{
     pubkey::Pubkey,
 };
 use std::{collections::HashMap, sync::Arc};
-use solana_program::clock::{Epoch, Slot};
-use solana_program_runtime::loaded_programs::ProgramRuntimeEnvironments;
-use tracing::{warn, error};
-use crate::accounts_callback::AccountsCallback;
-use crate::error::{InvalidSysvarDataError, LiteSVMError};
+use tracing::{error, warn};
 
 #[derive(Default)]
 pub(crate) struct AccountsDb<CB: AccountsCallback> {
@@ -56,7 +64,7 @@ impl<CB: AccountsCallback> AccountsDb<CB> {
         self.sysvar_cache.fill_missing_entries(|pubkey, set_sysvar| {
             if let Some(data) = self.accounts_diff.get(pubkey) {
                 set_sysvar(data.data());
-                return
+                return;
             }
             if let Some(data) = self.callback.get_account_data(pubkey) {
                 set_sysvar(data.data());
@@ -67,6 +75,10 @@ impl<CB: AccountsCallback> AccountsDb<CB> {
         // check clock consistency
         if let Ok(clock) = self.sysvar_cache.get_clock() {
             if clock.slot != self.slot || clock.epoch != self.epoch {
+                error!(
+                    "Clock mismatch, slot: {}, epoch: {}, actual slot: {}, actual epoch: {}",
+                    self.slot, self.epoch, clock.slot, clock.epoch
+                );
                 return Err(LiteSVMError::InvalidSysvarData(InvalidSysvarDataError::Clock));
             }
         }
@@ -74,10 +86,7 @@ impl<CB: AccountsCallback> AccountsDb<CB> {
     }
 
     pub(crate) fn get_account(&self, pubkey: &Pubkey) -> Option<AccountSharedData> {
-        self.accounts_diff
-            .get(pubkey)
-            .cloned()
-            .or_else(|| self.callback.get_account_data(pubkey))
+        self.accounts_diff.get(pubkey).cloned().or_else(|| self.callback.get_account_data(pubkey))
     }
 
     pub(crate) fn load_account(
@@ -104,7 +113,8 @@ impl<CB: AccountsCallback> AccountsDb<CB> {
         account: AccountSharedData,
     ) -> Result<(), LiteSVMError> {
         if check_rent_exemption {
-            let rent_exemption = self.sysvar_cache.get_rent()?.minimum_balance(account.data().len());
+            let rent_exemption =
+                self.sysvar_cache.get_rent()?.minimum_balance(account.data().len());
             if account.lamports() < rent_exemption {
                 return Err(LiteSVMError::InsufficientLamports);
             }
@@ -223,7 +233,8 @@ impl<CB: AccountsCallback> AccountsDb<CB> {
             .ok_or(AddressLookupError::LookupTableAccountNotFound)?;
 
         if table_account.owner() == &address_lookup_table::program::id() {
-            let slot_hashes = self.sysvar_cache.get_slot_hashes().expect("Slot hashes sysvar not found");
+            let slot_hashes =
+                self.sysvar_cache.get_slot_hashes().expect("Slot hashes sysvar not found");
             let lookup_table =
                 AddressLookupTable::deserialize(table_account.data()).map_err(|e| {
                     error!("Error loading lookup table: {:?}", e);
