@@ -85,7 +85,6 @@ where
             .with_slot_and_epoch(self.init_slot(), svm_start_up_meta.epoch)
             .with_fee_collector(Some(svm_start_up_meta.fee_collector))
             .with_sigverify(false)
-            .with_blockhash_check(false)
             .with_accounts_callback(accounts_callback);
         svm.finish_init().map_err(|e| ExecutorError::FraudExecutorError(e.into()))?;
         let mut executor = FraudExecutor::new(svm);
