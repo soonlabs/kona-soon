@@ -7,7 +7,7 @@ use crate::{
     history::TransactionHistory,
     // spl::load_spl_programs,
     types::{ExecutionResult, FailedTransactionMetadata, TransactionMetadata, TransactionResult},
-    utils::{create_blockhash, rent::RentState},
+    utils::rent::RentState,
 };
 use solana_bpf_loader_program::syscalls::create_program_runtime_environment_v1;
 use solana_compute_budget::{
@@ -21,17 +21,38 @@ use solana_program_runtime::{
     log_collector::LogCollector,
     timings::ExecuteTimings,
 };
-use solana_sdk::{account::{Account, AccountSharedData, ReadableAccount, WritableAccount}, feature_set, feature_set::{
-    include_loaded_accounts_data_size_in_fee_calculation, remove_rounding_in_fee_calculation,
-    FeatureSet,
-}, fee::FeeStructure, hash::Hash, inner_instruction::InnerInstructionsList, message::SanitizedMessage, native_loader, nonce::{state::DurableNonce, NONCED_TX_MARKER_IX_INDEX}, nonce_account, pubkey::Pubkey, rent::Rent, rent_collector::RentCollector, reserved_account_keys::ReservedAccountKeys, signature::Signature, sysvar::{Sysvar, SysvarId}, transaction::{MessageHash, SanitizedTransaction, TransactionError, VersionedTransaction}, transaction_context::{ExecutionRecord, IndexOfAccount, TransactionContext}};
+use solana_sdk::{
+    account::{Account, AccountSharedData, ReadableAccount, WritableAccount},
+    feature_set, feature_set::{
+        include_loaded_accounts_data_size_in_fee_calculation, remove_rounding_in_fee_calculation,
+        FeatureSet,
+    },
+    fee::FeeStructure,
+    inner_instruction::InnerInstructionsList,
+    message::SanitizedMessage,
+    native_loader,
+    nonce::{state::DurableNonce, NONCED_TX_MARKER_IX_INDEX},
+    nonce_account,
+    pubkey::Pubkey,
+    rent::Rent,
+    rent_collector::RentCollector,
+    reserved_account_keys::ReservedAccountKeys,
+    signature::Signature,
+    sysvar::{Sysvar, SysvarId},
+    transaction::{MessageHash, SanitizedTransaction, TransactionError, VersionedTransaction},
+    transaction_context::{ExecutionRecord, IndexOfAccount, TransactionContext},
+};
 use solana_svm::{account_loader::collect_rent_from_account, message_processor::MessageProcessor};
 use solana_system_program::{get_system_account_kind, SystemAccountKind};
 use std::fmt::Debug;
 use std::{cell::RefCell, rc::Rc, sync::Arc};
 use solana_program::clock::{Epoch, Slot};
+use solana_program::fee_calculator::FeeRateGovernor;
+use solana_program::nonce;
 use solana_program_runtime::loaded_programs::ProgramRuntimeEnvironments;
-use tracing::{warn, error};
+use solana_svm::account_loader::{CheckedTransactionDetails, TransactionCheckResult};
+use solana_svm::nonce_info::NoncePartial;
+use tracing::error;
 use types::SimulatedTransactionInfo;
 use utils::{
     construct_instructions_account,
@@ -50,6 +71,11 @@ mod builtin;
 mod history;
 // mod spl;
 mod utils;
+mod blockhash_queue;
+mod settings;
+
+pub use settings::Settings;
+pub use blockhash_queue::BlockhashQueue;
 
 // The test code doesn't actually get run because it's not
 // what doctest expects but at least it
@@ -59,17 +85,18 @@ mod utils;
 pub struct ReadmeDoctests;
 
 pub struct LiteSVM<CB: AccountsCallback> {
+    settings: Settings,
     accounts: AccountsDb<CB>,
+    blockhash_queue: Option<BlockhashQueue>,
     feature_set: FeatureSet,
-    latest_blockhash: Hash,
     log_collector: Rc<RefCell<LogCollector>>,
     history: TransactionHistory,
     compute_budget: Option<ComputeBudget>,
     sigverify: bool,
-    blockhash_check: bool,
     rent: Rent,
     slots_per_year: f64,
-    fee_structure: Option<FeeStructure>,
+    fee_rate_governor: FeeRateGovernor,
+    fee_structure: FeeStructure,
     log_bytes_limit: Option<usize>,
     rent_collector: RentCollector,
     fee_collector: Option<Pubkey>,
@@ -78,17 +105,18 @@ pub struct LiteSVM<CB: AccountsCallback> {
 impl<CB: AccountsCallback> Default for LiteSVM<CB> {
     fn default() -> Self {
         Self {
+            settings: Settings::default(),
             accounts: Default::default(),
+            blockhash_queue: None,
             feature_set: Default::default(),
-            latest_blockhash: create_blockhash(b"genesis"),
             log_collector: Default::default(),
             history: TransactionHistory::new(),
             compute_budget: None,
             sigverify: false,
-            blockhash_check: false,
             rent: soon_rent(),
             slots_per_year: soon_slots_per_year(),
-            fee_structure: None,
+            fee_rate_governor: FeeRateGovernor::default(),
+            fee_structure: Default::default(),
             log_bytes_limit: Some(10_000),
             rent_collector: Default::default(),
             fee_collector: None,
@@ -99,10 +127,8 @@ impl<CB: AccountsCallback> Default for LiteSVM<CB> {
 impl<CB: AccountsCallback> Debug for LiteSVM<CB> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "LiteSVM")?;
-        write!(f, "latest_blockhash: {}", self.latest_blockhash)?;
         write!(f, "compute_budget: {:?}", self.compute_budget)?;
         write!(f, "sigverify: {}", self.sigverify)?;
-        write!(f, "blockhash_check: {}", self.blockhash_check)?;
         write!(f, "fee_structure: {:?}", self.fee_structure)?;
         write!(f, "log_bytes_limit: {:?}", self.log_bytes_limit)?;
         Ok(())
@@ -118,7 +144,6 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
             // .with_blockhash_check(true)
             .with_compute_budget(soon_compute_budget())
             .with_rent(soon_rent())
-            .with_fee_structure(Some(soon_fee_structure()))
             .with_feature_set(soon_feature_set())
     }
 
@@ -165,9 +190,8 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         self
     }
 
-    /// Sets the accounts db callback.
-    pub fn with_accounts_callback(mut self, callback: CB) -> Self {
-        self.accounts.set_callback(callback);
+    pub const fn with_settings(mut self, settings: Settings) -> Self {
+        self.settings = settings;
         self
     }
 
@@ -187,14 +211,24 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         self
     }
 
-    /// Enables or disables the blockhash check.
-    pub const fn with_blockhash_check(mut self, check: bool) -> Self {
-        self.blockhash_check = check;
+    pub const fn with_fee_collector(mut self, collector: Option<Pubkey>) -> Self {
+        self.fee_collector = collector;
         self
     }
 
-    pub const fn with_fee_collector(mut self, collector: Option<Pubkey>) -> Self {
-        self.fee_collector = collector;
+    /// Sets the accounts db callback.
+    pub fn with_accounts_callback(mut self, callback: CB) -> Self {
+        self.accounts.set_callback(callback);
+        self
+    }
+
+    pub fn with_blockhash_queue(mut self, queue: Option<BlockhashQueue>) -> Self {
+        self.blockhash_queue = queue;
+        self
+    }
+
+    pub fn with_fee_rate_governor(mut self, governor: FeeRateGovernor) -> Self {
+        self.fee_rate_governor = governor;
         self
     }
 
@@ -204,7 +238,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         self
     }
 
-    pub fn with_fee_structure(mut self, fee_structure: Option<FeeStructure>) -> Self {
+    pub fn with_fee_structure(mut self, fee_structure: FeeStructure) -> Self {
         self.fee_structure = fee_structure;
         self
     }
@@ -268,14 +302,17 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         &self.feature_set
     }
 
+    pub fn get_lamports_per_signature(&self) -> u64 {
+        self.fee_rate_governor.lamports_per_signature
+    }
+
+    pub fn get_blockhash_queue(&self) -> Option<&BlockhashQueue> {
+        self.blockhash_queue.as_ref()
+    }
+
     /// Gets the balance of the provided account pubkey.
     pub fn get_balance(&self, pubkey: &Pubkey) -> Option<u64> {
         self.accounts.get_account(pubkey).map(|x| x.lamports())
-    }
-
-    /// Gets the latest blockhash.
-    pub fn latest_blockhash(&self) -> Hash {
-        self.latest_blockhash
     }
 
     /// Gets a sysvar from the test environment.
@@ -352,6 +389,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     fn process_transaction(
         &mut self,
         tx: &SanitizedTransaction,
+        tx_details: CheckedTransactionDetails,
         compute_budget_limits: ComputeBudgetLimits,
     ) -> (
         Result<(), TransactionError>,
@@ -361,6 +399,10 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         Option<Pubkey>,
         u64, // fee_payer_rent_debit
     ) {
+        let CheckedTransactionDetails {
+            nonce, // TODO: where should use the nonce?
+            lamports_per_signature,
+        } = tx_details;
         let compute_budget = self.compute_budget.unwrap_or_else(|| ComputeBudget {
             compute_unit_limit: u64::from(compute_budget_limits.compute_unit_limit),
             heap_size: compute_budget_limits.updated_heap_bytes,
@@ -370,22 +412,14 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         let mut accumulated_consume_units = 0;
         let message = tx.message();
         let account_keys = message.account_keys();
-        let fee = self.fee_structure.as_ref().map_or(
-            0,
-            |f| {
-                f.calculate_fee(
-                    message,
-                    if message.fee_payer() == &NO_SIG_TX_PAYER {
-                        0
-                    } else {
-                        f.lamports_per_signature
-                    },
-                    &compute_budget_limits.into(),
-                    self.feature_set
-                        .is_active(&include_loaded_accounts_data_size_in_fee_calculation::id()),
-                    self.feature_set.is_active(&remove_rounding_in_fee_calculation::id()),
-                )
-            },
+
+        let fee = self.fee_structure.calculate_fee(
+            message,
+            lamports_per_signature,
+            &compute_budget_limits.into(),
+            self.feature_set
+                .is_active(&include_loaded_accounts_data_size_in_fee_calculation::id()),
+            self.feature_set.is_active(&remove_rounding_in_fee_calculation::id()),
         );
         let mut validated_fee_payer = false;
         let mut payer_key = None;
@@ -673,11 +707,16 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         &mut self,
         sanitized_tx: &SanitizedTransaction,
     ) -> Result<CheckAndProcessTransactionSuccess, ExecutionResult> {
-        self.maybe_blockhash_check(sanitized_tx)?;
+        let tx_details = self
+            .maybe_blockhash_check(sanitized_tx)
+            .map_err(|e| ExecutionResult {
+                tx_result: Err(e),
+                ..Default::default()
+            })?;
         let compute_budget_limits = get_compute_budget_limits(sanitized_tx)?;
         self.maybe_history_check(sanitized_tx)?;
         let (result, compute_units_consumed, context, fee, payer_key, fee_payer_rent_debit) =
-            self.process_transaction(sanitized_tx, compute_budget_limits);
+            self.process_transaction(sanitized_tx, tx_details, compute_budget_limits);
         Ok(CheckAndProcessTransactionSuccess {
             core: {
                 CheckAndProcessTransactionSuccessCore {
@@ -708,11 +747,17 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     fn maybe_blockhash_check(
         &self,
         sanitized_tx: &SanitizedTransaction,
-    ) -> Result<(), ExecutionResult> {
-        if self.blockhash_check {
-            self.check_transaction_age(sanitized_tx)?;
+    ) -> TransactionCheckResult {
+        if let Some(blockhash_queue) = self.blockhash_queue.as_ref() {
+            let last_blockhash = blockhash_queue.last_hash();
+            let next_durable_nonce = DurableNonce::from_blockhash(&last_blockhash);
+            self.check_transaction_age(blockhash_queue, sanitized_tx, &next_durable_nonce)
+        } else {
+            Ok(CheckedTransactionDetails {
+                nonce: None,
+                lamports_per_signature: self.get_lamports_per_signature(),
+            })
         }
-        Ok(())
     }
 
     fn execute_transaction_readonly(&mut self, tx: VersionedTransaction) -> ExecutionResult {
@@ -866,53 +911,64 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         self.feature_set.clone()
     }
 
-    fn check_transaction_age(&self, tx: &SanitizedTransaction) -> Result<(), ExecutionResult> {
-        self.check_transaction_age_inner(tx)
-            .map_err(|e| ExecutionResult { tx_result: Err(e), ..Default::default() })
-    }
+    // fn check_transaction_age(&self, tx: &SanitizedTransaction) -> Result<(), ExecutionResult> {
+    //     self.check_transaction_age_inner(tx)
+    //         .map_err(|e| ExecutionResult { tx_result: Err(e), ..Default::default() })
+    // }
 
-    fn check_transaction_age_inner(
+    fn check_transaction_age(
         &self,
+        blockhash_queue: &BlockhashQueue,
         tx: &SanitizedTransaction,
-    ) -> solana_sdk::transaction::Result<()> {
+        next_durable_nonce: &DurableNonce,
+    ) -> TransactionCheckResult {
         let recent_blockhash = tx.message().recent_blockhash();
-        if recent_blockhash == &self.latest_blockhash
-            || self.check_transaction_for_nonce(
-                tx,
-                &DurableNonce::from_blockhash(&self.latest_blockhash),
-            )
+        if let Some(hash_info) = blockhash_queue.get_hash_info_if_valid(recent_blockhash, self.settings.max_age) {
+            Ok(CheckedTransactionDetails {
+                nonce: None,
+                lamports_per_signature: hash_info.lamports_per_signature(),
+            })
+        } else if let Some((nonce, nonce_data)) =
+            self.check_and_load_message_nonce_account(tx.message(), next_durable_nonce)
         {
-            Ok(())
+            Ok(CheckedTransactionDetails {
+                nonce: Some(nonce),
+                lamports_per_signature: nonce_data.get_lamports_per_signature(),
+            })
+        } else if tx.message().fee_payer() == &NO_SIG_TX_PAYER {
+            // TODO: should use native transaction verification logic, only use fee payer is not correct
+            // Native transaction do not pay fees
+            Ok(CheckedTransactionDetails {
+                nonce: None,
+                lamports_per_signature: 0,
+            })
         } else {
-            error!(
-                "Blockhash {} not found. Expected blockhash {}",
-                recent_blockhash, self.latest_blockhash
-            );
             Err(TransactionError::BlockhashNotFound)
         }
     }
 
-    fn check_message_for_nonce(&self, message: &SanitizedMessage) -> bool {
-        message
-            .get_durable_nonce()
-            .and_then(|nonce_address| self.accounts.get_account(nonce_address))
-            .and_then(|nonce_account| {
-                nonce_account::verify_nonce_account(&nonce_account, message.recent_blockhash())
-            })
-            .is_some_and(|nonce_data| {
-                message
-                    .get_ix_signers(NONCED_TX_MARKER_IX_INDEX as usize)
-                    .any(|signer| signer == &nonce_data.authority)
-            })
-    }
-
-    fn check_transaction_for_nonce(
+    fn check_and_load_message_nonce_account(
         &self,
-        tx: &SanitizedTransaction,
+        message: &SanitizedMessage,
         next_durable_nonce: &DurableNonce,
-    ) -> bool {
-        let nonce_is_advanceable = tx.message().recent_blockhash() != next_durable_nonce.as_hash();
-        nonce_is_advanceable && self.check_message_for_nonce(tx.message())
+    ) -> Option<(NoncePartial, nonce::state::Data)> {
+        if message.recent_blockhash() == next_durable_nonce.as_hash() {
+            return None;
+        }
+
+        let nonce_address = message.get_durable_nonce()?;
+        let nonce_account = self.accounts.get_account(nonce_address)?;
+        let nonce_data =
+            nonce_account::verify_nonce_account(&nonce_account, message.recent_blockhash())?;
+
+        let nonce_is_authorized = message
+            .get_ix_signers(NONCED_TX_MARKER_IX_INDEX as usize)
+            .any(|signer| signer == &nonce_data.authority);
+        if !nonce_is_authorized {
+            return None;
+        }
+
+        Some((NoncePartial::new(*nonce_address, nonce_account), nonce_data))
     }
 }
 

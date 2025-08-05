@@ -7,7 +7,6 @@ use solana_program::pubkey::Pubkey;
 use solana_program::rent::Rent;
 use solana_program::{pubkey, unchecked_div_by_const};
 use solana_sdk::feature_set::*;
-use solana_sdk::fee::{FeeBin, FeeStructure};
 use solana_sdk::timing::years_as_slots;
 
 pub const NO_SIG_TX_PAYER: Pubkey = pubkey!("NoSigTxPayer1111111111111111111111111111111");
@@ -18,18 +17,6 @@ pub fn soon_compute_budget() -> ComputeBudget {
 
 pub fn soon_epoch_schedule() -> EpochSchedule {
     EpochSchedule::custom(432000, 432000, false)
-}
-
-pub fn soon_fee_structure() -> FeeStructure {
-    const DEFAULT_TARGET_LAMPORTS_PER_SIGNATURE: u64 = 500;
-    FeeStructure {
-        lamports_per_signature: DEFAULT_TARGET_LAMPORTS_PER_SIGNATURE,
-        lamports_per_write_lock: 0,
-        compute_fee_bins: vec![FeeBin {
-            limit: 1_400_000,
-            fee: 0,
-        }],
-    }
 }
 
 pub fn soon_fee_rate_governor() -> FeeRateGovernor {
