@@ -1,5 +1,5 @@
-use std::collections::HashMap;
-use std::fmt::Debug;
+use crate::builtin::BUILTINS;
+use serde::{Deserialize, Serialize};
 use solana_program::clock::INITIAL_RENT_EPOCH;
 use solana_program::pubkey::Pubkey;
 use solana_program::rent::Rent;
@@ -8,8 +8,9 @@ use solana_sdk::account::{AccountSharedData, WritableAccount};
 use solana_sdk::feature_set::FeatureSet;
 use solana_sdk::native_loader;
 use solana_sdk::precompiles::get_precompiles;
+use std::collections::HashMap;
+use std::fmt::Debug;
 use tracing::debug;
-use crate::builtin::BUILTINS;
 
 /// Fetch account data for a given public key at a specific slot.
 pub trait AccountsCallback: Debug + Default {
@@ -19,7 +20,7 @@ pub trait AccountsCallback: Debug + Default {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct MemoryAccountsCallback {
     accounts: HashMap<Pubkey, AccountSharedData>,
 }
@@ -36,10 +37,7 @@ impl MemoryAccountsCallback {
         account.set_executable(true);
 
         for precompile in get_precompiles() {
-            if precompile
-                .feature
-                .map_or(true, |feature_id| feature_set.is_active(&feature_id))
-            {
+            if precompile.feature.map_or(true, |feature_id| feature_set.is_active(&feature_id)) {
                 self.insert(precompile.program_id, account.clone());
             }
         }
@@ -57,7 +55,10 @@ impl MemoryAccountsCallback {
             }
             self.insert(
                 builtin.program_id,
-                native_loader::create_loadable_account_with_fields(builtin.name, (1, INITIAL_RENT_EPOCH)),
+                native_loader::create_loadable_account_with_fields(
+                    builtin.name,
+                    (1, INITIAL_RENT_EPOCH),
+                ),
             );
         }
         self
@@ -129,7 +130,11 @@ impl MemoryAccountsCallback {
         Ok(self)
     }
 
-    fn add_sysvar<T: Sysvar + SysvarId>(&mut self, rent: &Rent, sysvar: T) -> Result<(), bincode::Error> {
+    fn add_sysvar<T: Sysvar + SysvarId>(
+        &mut self,
+        rent: &Rent,
+        sysvar: T,
+    ) -> Result<(), bincode::Error> {
         let account = AccountSharedData::new_data(
             rent.minimum_balance(T::size_of()),
             &sysvar,

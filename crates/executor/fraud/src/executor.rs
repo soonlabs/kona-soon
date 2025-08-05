@@ -1,19 +1,20 @@
-use l1_block_info::state::L1BlockInfo;
-use solana_sdk::account::ReadableAccount;
-use solana_sdk::clock::Clock;
-use solana_sdk::epoch_schedule::EpochSchedule;
+use crate::accounts::AccountPairs;
 use crate::block::SimpleBlock;
 use crate::error::Result;
 use crate::outcome::BlockBuildingOutcome;
+use l1_block_info::state::L1BlockInfo;
 use litesvm::LiteSVM;
+use solana_sdk::account::ReadableAccount;
+use solana_sdk::clock::Clock;
+use solana_sdk::epoch_schedule::EpochSchedule;
 use solana_sdk::fee::FeeStructure;
 use solana_sdk::program_pack::Pack;
 use solana_sdk::rent_collector::RentCollector;
 use soon_mpt_primitives::B256;
 use soon_mpt_primitives::alloy::eips::BlockNumHash;
 use soon_primitives::blocks::{BlockInfo, L2BlockInfo};
-use litesvm::accounts_callback::AccountsCallback;
-use crate::accounts::AccountPairs;
+
+pub use litesvm::accounts_callback::{AccountsCallback, MemoryAccountsCallback};
 
 #[derive(Debug, Default)]
 pub struct FraudExecutor<CB: AccountsCallback> {
@@ -28,10 +29,7 @@ pub struct FraudExecutor<CB: AccountsCallback> {
 
 impl<CB: AccountsCallback> FraudExecutor<CB> {
     pub fn new(litesvm: LiteSVM<CB>) -> Self {
-        Self {
-            litesvm,
-            ..Default::default()
-        }
+        Self { litesvm, ..Default::default() }
     }
 
     pub fn execute_block(&mut self, block: SimpleBlock) -> Result<BlockBuildingOutcome> {
