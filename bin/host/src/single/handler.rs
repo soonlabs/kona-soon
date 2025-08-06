@@ -153,24 +153,24 @@ impl HintHandler for SingleChainHintHandler {
                     Ok::<(), anyhow::Error>(())
                 })?;
             }
-            HintType::L2AccountStorageProof => {
-                ensure!(hint.data.len() == 8 + 32, "Invalid hint data length");
+            // HintType::L2AccountStorageProof => {
+            //     ensure!(hint.data.len() == 8 + 32, "Invalid hint data length");
 
-                let block_number = u64::from_be_bytes(hint.data.as_ref()[..8].try_into()?);
-                let account = B256::from_slice(&hint.data.as_ref()[8..40]);
+            //     let block_number = u64::from_be_bytes(hint.data.as_ref()[..8].try_into()?);
+            //     let account = B256::from_slice(&hint.data.as_ref()[8..40]);
 
-                let proof_response =
-                    providers.l2.get_storage_node_proof(account, block_number).await?;
+            //     let proof_response =
+            //         providers.l2.get_storage_node_proof(account, block_number).await?;
 
-                // Write the account proof nodes to the key-value store.
-                let mut kv_lock = kv.write().await;
-                proof_response.into_iter().try_for_each(|node| {
-                    let node_hash = keccak256::<&[u8]>(node.as_ref());
-                    let key = PreimageKey::new_keccak256(*node_hash);
-                    kv_lock.set(key.into(), node.into())?;
-                    Ok::<(), anyhow::Error>(())
-                })?;
-            }
+            //     // Write the account proof nodes to the key-value store.
+            //     let mut kv_lock = kv.write().await;
+            //     proof_response.into_iter().try_for_each(|node| {
+            //         let node_hash = keccak256::<&[u8]>(node.as_ref());
+            //         let key = PreimageKey::new_keccak256(*node_hash);
+            //         kv_lock.set(key.into(), node.into())?;
+            //         Ok::<(), anyhow::Error>(())
+            //     })?;
+            // }
             HintType::L2BlockData => {
                 ensure!(hint.data.len() == 8, "Invalid hint data length");
 
