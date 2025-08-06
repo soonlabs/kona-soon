@@ -21,6 +21,7 @@ fraud-executor.workspace = true
 
 # Soon & solana
 solana-transaction-status.workspace = true
+solana-sdk.workspace = true
 soon-derive.workspace = true
 soon-primitives.workspace = true
 l1-block-info.workspace = true

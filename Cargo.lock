@@ -5689,6 +5689,7 @@ dependencies = [
  "serde",
  "serde_json",
  "solana-sdk",
+ "soon-mpt-primitives",
  "soon-primitives",
  "tempfile",
  "thiserror 2.0.12",
@@ -5759,6 +5760,7 @@ dependencies = [
  "rand 0.9.1",
  "reqwest 0.12.22",
  "serde",
+ "solana-sdk",
  "thiserror 2.0.12",
  "tokio",
 ]
@@ -5809,6 +5811,7 @@ dependencies = [
  "rstest",
  "serde",
  "serde_json",
+ "solana-sdk",
  "solana-transaction-status",
  "soon-da-provider",
  "soon-derive",

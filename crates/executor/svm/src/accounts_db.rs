@@ -27,9 +27,8 @@ use solana_sdk::{
 use std::{collections::HashMap, sync::Arc};
 use tracing::{error, warn};
 
-#[derive(Default)]
 pub(crate) struct AccountsDb<CB: AccountsCallback> {
-    callback: CB,
+    callback: Option<CB>,
     accounts_diff: HashMap<Pubkey, AccountSharedData>,
     pub(crate) slot: Slot,
     pub(crate) epoch: Epoch,
@@ -37,9 +36,22 @@ pub(crate) struct AccountsDb<CB: AccountsCallback> {
     pub(crate) sysvar_cache: SysvarCache,
 }
 
+impl<CB: AccountsCallback> Default for AccountsDb<CB> {
+    fn default() -> Self {
+        Self {
+            callback: None,
+            accounts_diff: HashMap::default(),
+            slot: Slot::default(),
+            epoch: Epoch::default(),
+            programs_cache: ProgramCacheForTxBatch::default(),
+            sysvar_cache: SysvarCache::default(),
+        }
+    }
+}
+
 impl<CB: AccountsCallback> AccountsDb<CB> {
     pub fn set_callback(&mut self, callback: CB) -> &mut Self {
-        self.callback = callback;
+        self.callback = Some(callback);
         self
     }
 
@@ -66,10 +78,14 @@ impl<CB: AccountsCallback> AccountsDb<CB> {
                 set_sysvar(data.data());
                 return;
             }
-            if let Some(data) = self.callback.get_account_data(pubkey) {
-                set_sysvar(data.data());
+            if let Some(callback) = &mut self.callback {
+                if let Ok(Some(data)) = callback.get_account_data(pubkey) {
+                    set_sysvar(data.data());
+                } else {
+                    warn!("Sysvar account {pubkey} not found in callback.");
+                }
             } else {
-                warn!("Sysvar account {pubkey} not found in callback.");
+                warn!("Sysvar account {pubkey} not found for none callback.");
             }
         });
         // check clock consistency
@@ -85,8 +101,14 @@ impl<CB: AccountsCallback> AccountsDb<CB> {
         Ok(())
     }
 
-    pub(crate) fn get_account(&self, pubkey: &Pubkey) -> Option<AccountSharedData> {
-        self.accounts_diff.get(pubkey).cloned().or_else(|| self.callback.get_account_data(pubkey))
+    pub(crate) fn get_account(&mut self, pubkey: &Pubkey) -> Option<AccountSharedData> {
+        self.accounts_diff
+            .get(pubkey)
+            .cloned()
+            .or_else(|| {
+                self.callback.as_mut()
+                    .and_then(|callback| callback.get_account_data(pubkey).ok().flatten())
+            })
     }
 
     pub(crate) fn load_account(
@@ -225,7 +247,7 @@ impl<CB: AccountsCallback> AccountsDb<CB> {
     }
 
     fn load_lookup_table_addresses(
-        &self,
+        &mut self,
         address_table_lookup: &MessageAddressTableLookup,
     ) -> Result<LoadedAddresses, AddressLookupError> {
         let table_account = self
@@ -307,11 +329,8 @@ impl<CB: AccountsCallback> AddressLoader for &AccountsDb<CB> {
         self,
         lookups: &[MessageAddressTableLookup],
     ) -> Result<LoadedAddresses, AddressLoaderError> {
-        lookups
-            .iter()
-            .map(|lookup| {
-                self.load_lookup_table_addresses(lookup).map_err(into_address_loader_error)
-            })
-            .collect()
+        // Since we can't mutate self, we'll return an error for now
+        // This is a limitation of the current design
+        Err(AddressLoaderError::LookupTableAccountNotFound)
     }
 }

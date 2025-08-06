@@ -12,17 +12,15 @@ use kona_mpt::TrieHinter;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use solana_sdk::transaction::VersionedTransaction;
 use soon_primitives::{blocks::L2BlockInfo, rollup_config::SoonRollupConfig};
-use litesvm::accounts_callback::AccountsCallback;
 use litesvm::LiteSVM;
 
 /// The [`StatelessL2Builder`] is an OP Stack block builder that traverses a merkle patricia trie
 /// via the [`TrieDB`] during execution.
 #[derive(Debug)]
-pub struct StatelessL2Builder<P, H, A>
+pub struct StatelessL2Builder<P, H>
 where
-    P: TrieDBProvider,
-    H: TrieHinter,
-    A: AccountsCallback,
+    P: TrieDBProvider + Clone,
+    H: TrieHinter + Clone,
 {
     /// The [SoonRollupConfig].
     #[allow(dead_code)]
@@ -35,15 +33,13 @@ where
     #[allow(dead_code)]
     pub(crate) factory: Option<bool>,
 
-    pub(crate) accounts_callback: A,
     pub(crate) accounts_diff: SoonAccounts,
 }
 
-impl<P, H, A> StatelessL2Builder<P, H, A>
+impl<P, H> StatelessL2Builder<P, H>
 where
-    P: TrieDBProvider,
-    H: TrieHinter,
-    A: AccountsCallback,
+    P: TrieDBProvider + Clone,
+    H: TrieHinter + Clone,
 {
     fn convert_block(&self, attrs: OpPayloadAttributes) -> ExecutorResult<SimpleBlock> {
         Ok(SimpleBlock {
@@ -64,11 +60,10 @@ where
     }
 }
 
-impl<P, H, A> L2BlockBuilder<P, H> for StatelessL2Builder<P, H, A>
+impl<P, H> L2BlockBuilder<P, H> for StatelessL2Builder<P, H>
 where
-    P: TrieDBProvider,
-    H: TrieHinter,
-    A: AccountsCallback + Default + Clone,
+    P: TrieDBProvider + Clone,
+    H: TrieHinter + Clone,
 {
     /// Creates a new [StatelessL2Builder] instance.
     fn new(
@@ -82,8 +77,6 @@ where
             config,
             trie_db,
             factory: None,
-            // TODO: should not use default
-            accounts_callback: Default::default(),
             accounts_diff: SoonAccounts::default(),
         }
     }
@@ -101,7 +94,7 @@ where
         // TODO: import using trie db later
         // TODO: svm should be correctly initialized
         let mut svm = LiteSVM::new_soon()
-            .with_accounts_callback(self.accounts_callback.clone());
+            .with_accounts_callback(self.trie_db.clone());
         svm.finish_init().map_err(|e| ExecutorError::FraudExecutorError(e.into()))?;
         let mut executor = FraudExecutor::new(svm);
 

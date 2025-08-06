@@ -21,6 +21,7 @@ serde = { workspace = true, features = ["derive"] }
 
 # Soon
 soon-primitives.workspace = true
+soon-mpt-primitives.workspace = true
 solana-sdk.workspace = true
 
 # Alloy

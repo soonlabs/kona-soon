@@ -13,10 +13,12 @@ use std::fmt::Debug;
 use tracing::debug;
 
 /// Fetch account data for a given public key at a specific slot.
-pub trait AccountsCallback: Debug + Default {
+pub trait AccountsCallback {
+    /// The error type for the AccountsCallback.
+    type Error;
     /// Get account data for a specific slot and public key.
-    fn get_account_data(&self, _pubkey: &Pubkey) -> Option<AccountSharedData> {
-        None
+    fn get_account_data(&mut self, _pubkey: &Pubkey) -> Result<Option<AccountSharedData>, Self::Error> {
+        Ok(None)
     }
 }
 
@@ -156,7 +158,8 @@ impl<I: IntoIterator<Item = (Pubkey, AccountSharedData)>> From<I> for MemoryAcco
 }
 
 impl AccountsCallback for MemoryAccountsCallback {
-    fn get_account_data(&self, pubkey: &Pubkey) -> Option<AccountSharedData> {
-        self.accounts.get(pubkey).cloned()
+    type Error = ();
+    fn get_account_data(&mut self, pubkey: &Pubkey) -> Result<Option<AccountSharedData>, Self::Error> {
+        Ok(self.accounts.get(pubkey).cloned())
     }
 }

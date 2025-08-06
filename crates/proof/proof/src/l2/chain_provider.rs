@@ -18,6 +18,7 @@ use soon_primitives::l2blocks::L2Block;
 use soon_primitives::rollup_config::SoonRollupConfig;
 use soon_primitives::system::SystemConfig;
 use spin::RwLock;
+use solana_sdk::pubkey::Pubkey;
 
 /// Trait for setting a pipeline cursor.
 pub trait CursorSetter {
@@ -224,29 +225,10 @@ impl<T: CommsClient> TrieHinter for OracleL2ChainProvider<T> {
         })
     }
 
-    fn hint_account_proof(&self, address: Address, block_number: u64) -> Result<(), Self::Error> {
+    fn hint_account_proof(&self, pubkey: &Pubkey, block_number: u64) -> Result<(), Self::Error> {
         crate::block_on(async move {
             HintType::L2AccountProof
-                .with_data(&[block_number.to_be_bytes().as_ref(), address.as_slice()])
-                .with_data(self.chain_id.map_or_else(Vec::new, |id| id.to_be_bytes().to_vec()))
-                .send(self.oracle.as_ref())
-                .await
-        })
-    }
-
-    fn hint_storage_proof(
-        &self,
-        address: alloy_primitives::Address,
-        slot: alloy_primitives::U256,
-        block_number: u64,
-    ) -> Result<(), Self::Error> {
-        crate::block_on(async move {
-            HintType::L2AccountStorageProof
-                .with_data(&[
-                    block_number.to_be_bytes().as_ref(),
-                    address.as_slice(),
-                    slot.to_be_bytes::<32>().as_ref(),
-                ])
+                .with_data(&[block_number.to_be_bytes().as_ref(), pubkey.as_ref()])
                 .with_data(self.chain_id.map_or_else(Vec::new, |id| id.to_be_bytes().to_vec()))
                 .send(self.oracle.as_ref())
                 .await
