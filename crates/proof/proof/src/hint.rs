@@ -100,6 +100,7 @@ pub enum HintType {
     /// A hint that specifies the state node in the L2 state trie.
     L2StateNode,
     /// A hint that specifies the proof on the path to an account in the L2 state trie.
+    /// Soon Ext: Get raw account && proof in one request.
     L2AccountProof,
     /// A hint that specifies the proof on the path to a storage slot in an account within in the
     /// L2 state trie.

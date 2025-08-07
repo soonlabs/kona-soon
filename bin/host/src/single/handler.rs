@@ -119,34 +119,38 @@ impl HintHandler for SingleChainHintHandler {
                 )?;
             }
             HintType::L2StateNode => {
-                ensure!(hint.data.len() == 32, "Invalid hint data length");
-
-                let hash: B256 = hint.data.as_ref().try_into()?;
-
-                warn!(target: "single_hint_handler", "L2StateNode hint was sent for node hash: {}", hash);
-                warn!(
-                    target: "single_hint_handler",
-                    "`debug_executePayload` failed to return a complete witness."
-                );
-
-                // Fetch the preimage from the L2 chain provider.
-                let preimage = providers.l2.get_trie_node(hash).await?;
-
-                let mut kv_write_lock = kv.write().await;
-                kv_write_lock.set(PreimageKey::new_keccak256(*hash).into(), preimage)?;
+                unreachable!("should not get l2 state node")
+                // ensure!(hint.data.len() == 32, "Invalid hint data length");
+                // let hash: B256 = hint.data.as_ref().try_into()?;
+                // warn!(target: "single_hint_handler", "L2StateNode hint was sent for node hash: {}", hash);
+                // warn!(
+                //     target: "single_hint_handler",
+                //     "`debug_executePayload` failed to return a complete witness."
+                // );
+                // let kv_read_lock = kv.read().await?;
+                // let preimage =
+                // // Fetch the preimage from the L2 chain provider.
+                // let preimage = providers.l2.get_trie_node(hash).await?;
+                // let mut kv_write_lock = kv.write().await;
+                // kv_write_lock.set(PreimageKey::new_keccak256(*hash).into(), preimage)?;
             }
             HintType::L2AccountProof => {
-                ensure!(hint.data.len() == 8 + 32, "Invalid hint data length");
-
+                // block number + hashed address<b256>
+                ensure!(hint.data.len() == 8 + 32, "Invalid hint req for L2AccountProof");
                 let block_number = u64::from_be_bytes(hint.data.as_ref()[..8].try_into()?);
-                let account = B256::from_slice(&hint.data.as_ref()[8..40]);
+                let hashed_address = B256::from_slice(&hint.data.as_ref()[8..40]);
 
-                let proof_response =
-                    providers.l2.get_account_node_proof(account, block_number).await?;
-
-                // Write the account proof nodes to the key-value store.
+                let tried_account =
+                    providers.l2.get_tried_account_proof(hashed_address, block_number).await?;
+                // need to write account + trie proof node into kv.
+                let mut out_buf = BytesMut::default();
+                Encodable::encode(&tried_account.account, &mut out_buf);
                 let mut kv_lock = kv.write().await;
-                proof_response.into_iter().try_for_each(|node| {
+                kv_lock.set(
+                    PreimageKey::new_keccak256(hashed_address.into()).into(),
+                    out_buf.into(),
+                )?;
+                tried_account.proofs.into_iter().try_for_each(|node| {
                     let node_hash = keccak256::<&[u8]>(node.as_ref());
                     let key = PreimageKey::new_keccak256(*node_hash);
                     kv_lock.set(key.into(), node.into())?;
