@@ -19,7 +19,7 @@ pub trait TrieDBProvider: TrieProvider {
     /// - Err(Self::Error): If the bytecode hash could not be fetched.
     ///
     /// [TrieDB]: crate::TrieDB
-    fn bytecode_by_hash(&self, code_hash: B256) -> Result<Bytes, Self::Error>;
+    fn data_by_hash(&self, code_hash: B256) -> Result<Bytes, Self::Error>;
 }
 
 /// The default, no-op implementation of the [TrieDBProvider] trait, used for testing.
@@ -35,7 +35,7 @@ impl TrieProvider for NoopTrieDBProvider {
 }
 
 impl TrieDBProvider for NoopTrieDBProvider {
-    fn bytecode_by_hash(&self, _code_hash: B256) -> Result<Bytes, Self::Error> {
+    fn data_by_hash(&self, _code_hash: B256) -> Result<Bytes, Self::Error> {
         Ok(Bytes::default())
     }
 }
