@@ -55,6 +55,13 @@ impl<CB: AccountsCallback> AccountsDb<CB> {
         self
     }
 
+    pub fn set_init_accounts(&mut self, init_accounts: Vec<(Pubkey, AccountSharedData)>) -> &mut Self {
+        for (pubkey, account) in init_accounts {
+            self.accounts_diff.insert(pubkey, account);
+        }
+        self
+    }
+
     pub fn set_slot(&mut self, slot: Slot) -> &mut Self {
         self.slot = slot;
         self.programs_cache.set_slot_for_tests(slot);

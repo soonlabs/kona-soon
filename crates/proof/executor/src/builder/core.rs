@@ -99,7 +99,8 @@ where
         // TODO: import using trie db later
         // TODO: svm should be correctly initialized
         let mut svm = LiteSVM::new_soon()
-            .with_accounts_callback(self.trie_db.clone());
+            .with_accounts_callback(self.trie_db.clone())
+            .with_init_account(self.last_accounts_diff.accounts.clone());
         svm.finish_init().map_err(|e| ExecutorError::FraudExecutorError(e.into()))?;
         let mut executor = FraudExecutor::new(svm);
 

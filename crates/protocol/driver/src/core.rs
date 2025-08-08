@@ -123,7 +123,8 @@ where
             let origin = self.pipeline.origin().ok_or(PipelineError::MissingOrigin.crit())?;
             let tip_cursor = TipCursor::new(
                 outcome.block_info,
-                self.executor.compute_output_root().map_err(DriverError::Executor)?,
+                outcome.state_root,
+                //self.executor.compute_output_root().map_err(DriverError::Executor)?,
             );
 
             // Advance the derivation pipeline cursor

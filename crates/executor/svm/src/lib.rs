@@ -222,6 +222,11 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         self
     }
 
+    pub fn with_init_account(mut self, init_accounts: Vec<(Pubkey, AccountSharedData)>) -> Self {
+        self.accounts.set_init_accounts(init_accounts);
+        self
+    }
+
     pub fn with_blockhash_queue(mut self, queue: Option<BlockhashQueue>) -> Self {
         self.blockhash_queue = queue;
         self
