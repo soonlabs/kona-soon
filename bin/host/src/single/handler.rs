@@ -14,7 +14,6 @@ use async_trait::async_trait;
 use kona_preimage::{PreimageKey, PreimageKeyType};
 use kona_proof::{Hint, HintType};
 use soon_primitives::output_root::OutputRoot;
-use tracing::warn;
 
 /// The [HintHandler] for the [SingleChainHost].
 #[derive(Debug, Clone, Copy)]

@@ -11321,6 +11321,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "futures 0.3.31",
+ "hex",
  "jsonrpsee",
  "l1-block-info",
  "lru 0.12.5",

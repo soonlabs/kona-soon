@@ -2,12 +2,13 @@
 //! incremental updates through fetching node preimages on the fly during execution.
 
 use crate::errors::{TrieDBError, TrieDBResult};
-use alloc::{string::ToString, vec::Vec};
+use alloc::{format, string::ToString, vec::Vec};
 use alloy_consensus::{EMPTY_ROOT_HASH, Header, Sealed};
 use alloy_primitives::{Address, B256, U256, keccak256};
 use alloy_rlp::{Decodable, Encodable};
 use alloy_trie::TrieAccount;
 use kona_mpt::{Nibbles, TrieHinter, TrieNode, TrieNodeError};
+use litesvm::accounts_callback::AccountsCallback;
 use revm::{
     database::{BundleState, states::StorageSlot},
     primitives::{BLOCK_HASH_HISTORY, HashMap},
@@ -15,12 +16,11 @@ use revm::{
 };
 use solana_sdk::account::AccountSharedData;
 use solana_sdk::pubkey::Pubkey;
-use soon_primitives::blocks::L2BlockInfo;
-use litesvm::accounts_callback::AccountsCallback;
+use soon_primitives::{blocks::L2BlockInfo, mpt::WrappedSolanaAccount};
 
 mod traits;
-pub use traits::{NoopTrieDBProvider, TrieDBProvider};
 use soon_mpt_primitives::account::{TrieSolanaAccount, TrieSolanaPubkey};
+pub use traits::{NoopTrieDBProvider, TrieDBProvider};
 
 /// A Trie DB that caches open state in-memory.
 ///
@@ -220,17 +220,20 @@ where
     H: TrieHinter,
 {
     type Error = TrieDBError;
-    fn get_account_data(&mut self, pubkey: &Pubkey) -> Result<Option<AccountSharedData>, Self::Error> {
-        // Fetch the account from the trie.
-        let Some(trie_account) =
-            self.get_trie_account(pubkey, self.parent_block_header.block_info.number)?
-        else {
-            // If the account does not exist in the trie, return `Ok(None)`.
-            return Ok(None)
-        };
-
-        // Return a partial DB account. The storage and code are not loaded out-right, and are
-        Ok(Some(AccountSharedData::default()))
+    fn get_account_data(
+        &mut self,
+        pubkey: &Pubkey,
+    ) -> Result<Option<AccountSharedData>, Self::Error> {
+        self.hinter
+            .hint_account_proof(pubkey, self.parent_block_header.block_info.number)
+            .map_err(|e| TrieDBError::Provider(e.to_string()))?;
+        let account_bytes = self
+            .fetcher
+            .bytecode_by_hash(keccak256(pubkey))
+            .map_err(|e| TrieDBError::MissingAccountInfo)?;
+        let account: WrappedSolanaAccount = Decodable::decode(&mut account_bytes.as_ref())
+            .map_err(|e| TrieDBError::Provider(format!("fail to parse solana account: {}", e)))?;
+        Ok(Some(account.0))
     }
 }
 
