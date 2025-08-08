@@ -118,7 +118,9 @@ impl HintHandler for SingleChainHintHandler {
                 )?;
             }
             HintType::L2StateNode => {
-                unreachable!("should not get l2 state node")
+                // all trie node is loaded into oracel with account proof hint.
+                // we can just skip hint this type.
+                return Ok(());
                 // ensure!(hint.data.len() == 32, "Invalid hint data length");
                 // let hash: B256 = hint.data.as_ref().try_into()?;
                 // warn!(target: "single_hint_handler", "L2StateNode hint was sent for node hash: {}", hash);
