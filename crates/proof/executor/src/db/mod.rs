@@ -3,23 +3,16 @@
 
 use crate::errors::{TrieDBError, TrieDBResult};
 use alloc::{format, string::ToString, vec::Vec};
-use alloy_consensus::{EMPTY_ROOT_HASH, Header, Sealed};
-use alloy_primitives::{Address, B256, U256, keccak256};
+use alloy_primitives::{B256, keccak256};
 use alloy_rlp::{Decodable, Encodable};
-use alloy_trie::TrieAccount;
 use kona_mpt::{Nibbles, TrieHinter, TrieNode, TrieNodeError};
 use litesvm::accounts_callback::AccountsCallback;
-use revm::{
-    database::{BundleState, states::StorageSlot},
-    primitives::{BLOCK_HASH_HISTORY, HashMap},
-    state::{AccountInfo, Bytecode},
-};
-use solana_sdk::account::AccountSharedData;
+use solana_sdk::account::{AccountSharedData, ReadableAccount};
 use solana_sdk::pubkey::Pubkey;
 use soon_primitives::{blocks::L2BlockHeader, mpt::WrappedSolanaAccount};
 
 mod traits;
-use soon_mpt_primitives::account::{TrieSolanaAccount, TrieSolanaPubkey};
+use soon_mpt_primitives::account::TrieSolanaAccount;
 pub use traits::{NoopTrieDBProvider, TrieDBProvider};
 use fraud_executor::accounts::SoonAccounts;
 
@@ -171,46 +164,32 @@ where
     /// - `Ok(())` if the accounts were successfully updated.
     /// - `Err(_)` if the accounts could not be updated.
     fn update_accounts(&mut self, account_diff: &SoonAccounts) -> TrieDBResult<()> {
-        unimplemented!()
-        // Sort the storage keys prior to applying the changeset, to ensure that the order of
+        // Sort the account keys prior to applying the changeset, to ensure that the order of
         // application is deterministic between runs.
-        // let mut sorted_state =
-        //     bundle.state().iter().map(|(k, v)| (k, keccak256(*k), v)).collect::<Vec<_>>();
-        // sorted_state.sort_by_key(|(_, hashed_addr, _)| *hashed_addr);
-        //
-        // for (address, hashed_address, bundle_account) in sorted_state {
-        //     if bundle_account.status.is_not_modified() {
-        //         continue;
-        //     }
-        //
-        //     // Compute the path to the account in the trie.
-        //     let account_path = Nibbles::unpack(hashed_address.as_slice());
-        //
-        //     // If the account was destroyed, delete it from the trie.
-        //     if bundle_account.was_destroyed() {
-        //         self.root_node.delete(&account_path, &self.fetcher, &self.hinter)?;
-        //         continue;
-        //     }
-        //
-        //     let account_info =
-        //         bundle_account.account_info().ok_or(TrieDBError::MissingAccountInfo)?;
-        //
-        //     let mut trie_account = TrieSolanaAccount {
-        //         balance: account_info.balance,
-        //         nonce: account_info.nonce,
-        //         code_hash: account_info.code_hash,
-        //         ..Default::default()
-        //     };
-        //
-        //     // RLP encode the trie account for insertion.
-        //     let mut account_buf = Vec::with_capacity(trie_account.length());
-        //     trie_account.encode(&mut account_buf);
-        //
-        //     // Insert or update the account in the trie.
-        //     self.root_node.insert(&account_path, account_buf.into(), &self.fetcher)?;
-        // }
-        //
-        // Ok(())
+        let mut sorted_state =
+            account_diff.accounts.iter().map(|(k, v)| (k, keccak256(*k), v)).collect::<Vec<_>>();
+        sorted_state.sort_by_key(|(_, hashed_addr, _)| *hashed_addr);
+
+        for (_pubkey, hashed_address, bundle_account) in sorted_state {
+            // Compute the path to the account in the trie.
+            let account_path = Nibbles::unpack(hashed_address.as_slice());
+
+            // If the account was destroyed, delete it from the trie.
+            if bundle_account.lamports() == 0 {
+                self.root_node.delete(&account_path, &self.fetcher, &self.hinter)?;
+                continue;
+            }
+
+            // RLP encode the trie account for insertion.
+            let wrapped_account = WrappedSolanaAccount(bundle_account.clone());
+            let mut account_buf = Vec::with_capacity(wrapped_account.length());
+            wrapped_account.encode(&mut account_buf);
+
+            // Insert or update the account in the trie.
+            self.root_node.insert(&account_path, account_buf.into(), &self.fetcher)?;
+        }
+
+        Ok(())
     }
 }
 

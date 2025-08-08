@@ -4,7 +4,6 @@
 use alloc::string::String;
 use alloy_primitives::{B256, Bytes};
 use kona_mpt::{TrieNode, TrieProvider};
-use soon_primitives::blocks::L2BlockInfo;
 
 /// The [TrieDBProvider] trait defines the synchronous interface for fetching EVM bytecode hash
 /// preimages as well as [Header] preimages.

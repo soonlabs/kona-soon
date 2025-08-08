@@ -2,9 +2,7 @@
 
 use crate::{DriverError, DriverPipeline, DriverResult, Executor, PipelineCursor, TipCursor};
 use alloc::{sync::Arc, vec::Vec};
-use alloy_consensus::Header;
-use alloy_primitives::{B256, Bytes, Sealable};
-use core::default::Default;
+use alloy_primitives::{B256, Bytes};
 use core::fmt::Debug;
 use fraud_executor::outcome::BlockBuildingOutcome;
 use soon_derive::{
