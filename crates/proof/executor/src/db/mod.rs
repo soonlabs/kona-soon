@@ -16,11 +16,12 @@ use revm::{
 };
 use solana_sdk::account::AccountSharedData;
 use solana_sdk::pubkey::Pubkey;
-use soon_primitives::{blocks::L2BlockInfo, mpt::WrappedSolanaAccount};
+use soon_primitives::{blocks::L2BlockHeader, mpt::WrappedSolanaAccount};
 
 mod traits;
 use soon_mpt_primitives::account::{TrieSolanaAccount, TrieSolanaPubkey};
 pub use traits::{NoopTrieDBProvider, TrieDBProvider};
+use fraud_executor::accounts::SoonAccounts;
 
 /// A Trie DB that caches open state in-memory.
 ///
@@ -55,8 +56,8 @@ where
 {
     /// The [`TrieNode`] representation of the root node.
     root_node: TrieNode,
-    /// The parent block hash of the current block.
-    parent_block_header: L2BlockInfo,
+    /// The parent block header of the current block.
+    parent_block_header: L2BlockHeader,
     /// The [`TrieDBProvider`]
     pub fetcher: F,
     /// The [`TrieHinter`]
@@ -69,10 +70,9 @@ where
     H: TrieHinter,
 {
     /// Creates a new [TrieDB] with the given root node.
-    pub fn new(parent_block_header: L2BlockInfo, fetcher: F, hinter: H) -> Self {
+    pub fn new(parent_block_header: L2BlockHeader, fetcher: F, hinter: H) -> Self {
         Self {
-            //TODO apply real state root
-            root_node: TrieNode::new_blinded(B256::ZERO),
+            root_node: TrieNode::new_blinded(parent_block_header.account_root),
             parent_block_header,
             fetcher,
             hinter,
@@ -90,7 +90,7 @@ where
     }
 
     /// Returns a reference to the current parent block header of the trie DB.
-    pub const fn parent_block_header(&self) -> &L2BlockInfo {
+    pub const fn parent_block_header(&self) -> &L2BlockHeader {
         &self.parent_block_header
     }
 
@@ -99,7 +99,7 @@ where
     ///
     /// ## Takes
     /// - `parent_block_header`: The parent block header of the current block.
-    pub fn set_parent_block_header(&mut self, parent_block_header: L2BlockInfo) {
+    pub fn set_parent_block_header(&mut self, parent_block_header: L2BlockHeader) {
         self.parent_block_header = parent_block_header;
     }
 
@@ -111,11 +111,11 @@ where
     /// ## Returns
     /// - `Ok(B256)`: The new state root hash of the trie DB.
     /// - `Err(_)`: If the state root hash could not be computed.
-    pub fn state_root(&mut self, bundle: &BundleState) -> TrieDBResult<B256> {
+    pub fn state_root(&mut self, account_diff: &SoonAccounts) -> TrieDBResult<B256> {
         debug!(target: "client_executor", "Recomputing state root");
 
         // Update the accounts in the trie with the changeset.
-        self.update_accounts(bundle)?;
+        self.update_accounts(account_diff)?;
 
         // Recompute the root hash of the trie.
         let root = self.root_node.blind();
@@ -170,7 +170,7 @@ where
     /// ## Returns
     /// - `Ok(())` if the accounts were successfully updated.
     /// - `Err(_)` if the accounts could not be updated.
-    fn update_accounts(&mut self, bundle: &BundleState) -> TrieDBResult<()> {
+    fn update_accounts(&mut self, account_diff: &SoonAccounts) -> TrieDBResult<()> {
         unimplemented!()
         // Sort the storage keys prior to applying the changeset, to ensure that the order of
         // application is deterministic between runs.

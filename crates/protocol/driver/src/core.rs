@@ -11,7 +11,7 @@ use soon_derive::{
     errors::{PipelineError, PipelineErrorKind},
     traits::{Pipeline, SignalReceiver},
 };
-use soon_primitives::blocks::L2BlockInfo;
+use soon_primitives::blocks::{L2BlockHeader, L2BlockInfo};
 use soon_primitives::derive::OpAttributesWithParent;
 use soon_primitives::rollup_config::SoonRollupConfig;
 use spin::RwLock;
@@ -80,7 +80,7 @@ where
             if let Some(tb) = target {
                 if tip_cursor.l2_safe_head.block_info.number >= tb {
                     info!(target: "client", "Derivation complete, reached L2 safe head.");
-                    return Ok((tip_cursor.l2_safe_head, tip_cursor.l2_safe_head_output_root));
+                    return Ok((tip_cursor.l2_safe_head, tip_cursor.l2_safe_head_state_root));
                 }
             }
 
@@ -108,7 +108,10 @@ where
             };
 
             self.executor
-                .update_safe_head(tip_cursor.l2_safe_head)
+                .update_safe_head(L2BlockHeader {
+                    block_info: tip_cursor.l2_safe_head.block_info,
+                    account_root: tip_cursor.l2_safe_head_state_root,
+                })
                 .map_err(DriverError::Executor)?;
             let outcome = match self.executor.execute_payload(attributes.clone()).await {
                 Ok(outcome) => outcome,
@@ -121,7 +124,7 @@ where
             // Get the pipeline origin and update the tip cursor.
             let origin = self.pipeline.origin().ok_or(PipelineError::MissingOrigin.crit())?;
             let tip_cursor = TipCursor::new(
-                outcome.header,
+                outcome.block_info,
                 self.executor.compute_output_root().map_err(DriverError::Executor)?,
             );
 

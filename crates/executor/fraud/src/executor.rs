@@ -42,8 +42,10 @@ impl<CB: AccountsCallback> FraudExecutor<CB> {
         // self.litesvm.import_accounts(block.extra_accounts)?;
         let execution_result = self.litesvm.execute_block_transactions(block.transactions)?;
 
+        let l2_block_info = self.get_l2_block_info(block.slot, block.hash, block.parent_hash)?;
         Ok(BlockBuildingOutcome {
-            header: self.get_l2_block_info(block.slot, block.hash, block.parent_hash)?,
+            block_info: l2_block_info,
+            state_root: B256::ZERO,
             execution_result,
         })
     }

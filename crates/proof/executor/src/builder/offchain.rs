@@ -16,7 +16,7 @@ use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use serde::{Deserialize, Serialize};
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::transaction::VersionedTransaction;
-use soon_primitives::blocks::L2BlockInfo;
+use soon_primitives::blocks::{L2BlockHeader, L2BlockInfo};
 use soon_primitives::rollup_config::SoonRollupConfig;
 
 /// The [`OffchainL2Builder`] is an OP Stack block builder that uses the offchain data to build a
@@ -31,7 +31,7 @@ where
     pub(crate) _config: Arc<SoonRollupConfig>,
     pub(crate) provider: P,
     pub(crate) _hinter: H,
-    pub(crate) parent_header: L2BlockInfo,
+    pub(crate) parent_header: L2BlockHeader,
     pub(crate) diff_accounts: SoonAccounts,
     _a: PhantomData<A>,
 }
@@ -46,7 +46,8 @@ where
         config: Arc<SoonRollupConfig>,
         provider: P,
         hinter: H,
-        parent_header: L2BlockInfo,
+        parent_header: L2BlockHeader,
+        _last_accounts_diff: SoonAccounts,
     ) -> Self {
         Self {
             _config: config,
@@ -164,6 +165,10 @@ where
         } else {
             Ok(self.diff_accounts.state_root())
         }
+    }
+
+    fn account_diff(&self) -> SoonAccounts {
+        return self.diff_accounts.clone()
     }
 }
 

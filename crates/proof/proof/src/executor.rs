@@ -9,7 +9,8 @@ use kona_executor::TrieDBProvider;
 pub use kona_executor::{L2BlockBuilder, OffchainL2Builder, StatelessL2Builder};
 use kona_mpt::TrieHinter;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
-use soon_primitives::{blocks::L2BlockInfo, rollup_config::SoonRollupConfig};
+use soon_primitives::{blocks::L2BlockHeader, rollup_config::SoonRollupConfig};
+use fraud_executor::accounts::SoonAccounts;
 
 /// An executor wrapper type.
 #[derive(Debug)]
@@ -65,12 +66,21 @@ where
     ///
     /// Since the L2 block executor is stateless, on an update to the safe head,
     /// a new executor is created with the updated header.
-    fn update_safe_head(&mut self, header: L2BlockInfo) -> Result<(), Self::Error> {
+    fn update_safe_head(&mut self, header: L2BlockHeader) -> Result<(), Self::Error> {
+        let last_account_diff = match &self.inner {
+            None => {
+                SoonAccounts::default()
+            }
+            Some(builder) => {
+                builder.account_diff()
+            }
+        };
         let mut executor = E::new(
             self.rollup_config.clone(),
             self.trie_provider.clone(),
             self.trie_hinter.clone(),
             header,
+            last_account_diff,
         );
         executor.init()?;
         self.inner = Some(executor);

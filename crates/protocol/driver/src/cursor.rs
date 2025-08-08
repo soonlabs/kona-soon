@@ -51,9 +51,9 @@ impl PipelineCursor {
         &self.tip().l2_safe_head
     }
 
-    /// Returns the output root of the L2 safe head.
-    pub fn l2_safe_head_output_root(&self) -> &B256 {
-        &self.tip().l2_safe_head_output_root
+    /// Returns the state root of the L2 safe head.
+    pub fn l2_safe_head_state_root(&self) -> &B256 {
+        &self.tip().l2_safe_head_state_root
     }
 
     /// Get the current L2 tip
