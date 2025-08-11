@@ -46,9 +46,14 @@ use solana_svm::{account_loader::collect_rent_from_account, message_processor::M
 use solana_system_program::{get_system_account_kind, SystemAccountKind};
 use std::fmt::Debug;
 use std::{cell::RefCell, rc::Rc, sync::Arc};
-use solana_program::clock::{Epoch, Slot};
+use std::collections::BinaryHeap;
+use solana_program::clock::{Clock, Epoch, Slot, INITIAL_RENT_EPOCH};
+use solana_program::epoch_schedule::EpochSchedule;
 use solana_program::fee_calculator::FeeRateGovernor;
+use solana_program::hash::Hash;
 use solana_program::nonce;
+use solana_program::sysvar;
+use solana_program::sysvar::recent_blockhashes::IntoIterSorted;
 use solana_program_runtime::loaded_programs::ProgramRuntimeEnvironments;
 use solana_svm::account_loader::{CheckedTransactionDetails, TransactionCheckResult};
 use solana_svm::nonce_info::NoncePartial;
@@ -73,9 +78,11 @@ mod history;
 mod utils;
 mod blockhash_queue;
 mod settings;
+mod parent;
 
 pub use settings::Settings;
 pub use blockhash_queue::BlockhashQueue;
+pub use parent::ParentState;
 
 // The test code doesn't actually get run because it's not
 // what doctest expects but at least it
@@ -87,16 +94,27 @@ pub struct ReadmeDoctests;
 pub struct LiteSVM<CB: AccountsCallback> {
     settings: Settings,
     accounts: AccountsDb<CB>,
-    blockhash_queue: Option<BlockhashQueue>,
     feature_set: FeatureSet,
     log_collector: Rc<RefCell<LogCollector>>,
     history: TransactionHistory,
     compute_budget: Option<ComputeBudget>,
     sigverify: bool,
-    rent: Rent,
+    blockhash_verify: bool,
+
     slots_per_year: f64,
     fee_rate_governor: FeeRateGovernor,
     fee_structure: FeeStructure,
+    epoch_schedule: EpochSchedule,
+    rent: Rent,
+
+    slot: Slot,
+    epoch: Epoch,
+
+    clock_timestamp: i64,
+    // TODO: blockhash should be computed by: transactions -> data entries -> blockhash
+    blockhash: Hash,
+    parent_state: ParentState,
+
     log_bytes_limit: Option<usize>,
     rent_collector: RentCollector,
     fee_collector: Option<Pubkey>,
@@ -107,13 +125,19 @@ impl<CB: AccountsCallback> Default for LiteSVM<CB> {
         Self {
             settings: Settings::default(),
             accounts: Default::default(),
-            blockhash_queue: None,
             feature_set: Default::default(),
             log_collector: Default::default(),
             history: TransactionHistory::new(),
             compute_budget: None,
             sigverify: false,
-            rent: soon_rent(),
+            blockhash_verify: false,
+            epoch_schedule: Default::default(),
+            rent: Default::default(),
+            slot: 0,
+            epoch: 0,
+            clock_timestamp: 0,
+            blockhash: Default::default(),
+            parent_state: ParentState::default(),
             slots_per_year: soon_slots_per_year(),
             fee_rate_governor: FeeRateGovernor::default(),
             fee_structure: Default::default(),
@@ -141,13 +165,30 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         Self::default()
             .with_builtins()
             // .with_sigverify(true)
-            // .with_blockhash_check(true)
             .with_compute_budget(soon_compute_budget())
             .with_rent(soon_rent())
             .with_feature_set(soon_feature_set())
     }
 
+    pub fn new_soon_from_parent(parent: ParentState) -> Self {
+        Self::default()
+            .with_builtins()
+            // .with_sigverify(true)
+            .with_compute_budget(soon_compute_budget())
+            .with_rent(soon_rent())
+            .with_feature_set(soon_feature_set())
+            .with_parent_state(parent)
+    }
+
     pub fn finish_init(&mut self) -> Result<(), LiteSVMError> {
+        // set slot and epoch from parent
+        self.slot = self.parent_state.new_slot();
+        self.epoch = self.parent_state.new_epoch();
+        self.accounts.set_slot(self.slot);
+        self.accounts.set_epoch(self.epoch);
+        // update fee rate governer
+        self.fee_rate_governor = self.parent_state.new_fee_rate_governor();
+
         // create environments
         let program_runtime_v1 = create_program_runtime_environment_v1(
             &self.feature_set,
@@ -163,19 +204,18 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
             program_runtime_v2: Arc::new(program_runtime_v2),
         });
 
+        // update sysvars
+        self.update_slot_hashes()?;
+        self.update_clock()?;
+        self.update_slot_history()?;
+
         // fill sysvars cache
         self.accounts.fill_sysvar_cache()?;
 
-        // override slot and epoch in accounts db
-        if let Ok(clock) = self.accounts.sysvar_cache.get_clock() {
-            self.accounts.set_slot(clock.slot);
-            self.accounts.set_epoch(clock.epoch);
-        }
-
         // fill rent collector
         self.rent_collector = RentCollector::new(
-            self.accounts.epoch,
-            self.get_sysvar()?,
+            self.epoch,
+            self.epoch_schedule.clone(),
             self.slots_per_year,
             self.rent.clone(),
         );
@@ -185,8 +225,25 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
 
     /// Sets the slot and epoch for the accounts db.
     pub fn with_slot_and_epoch(mut self, slot: Slot, epoch: Epoch) -> Self {
+        self.slot = slot;
+        self.epoch = epoch;
         self.accounts.set_slot(slot);
         self.accounts.set_epoch(epoch);
+        self
+    }
+
+    pub fn with_parent_state(mut self, parent: ParentState) -> Self {
+        self.parent_state = parent;
+        self
+    }
+
+    pub fn with_clock_timestamp(mut self, timestamp: i64) -> Self {
+        self.clock_timestamp = timestamp;
+        self
+    }
+
+    pub fn with_blockhash(mut self, blockhash: Hash) -> Self {
+        self.blockhash = blockhash;
         self
     }
 
@@ -194,10 +251,6 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         self.settings = settings;
         self
     }
-
-    // pub fn with_overriding_clock(mut self, clock: Clock) -> Self {
-    //
-    // }
 
     /// Sets the compute budget.
     pub const fn with_compute_budget(mut self, compute_budget: ComputeBudget) -> Self {
@@ -211,6 +264,11 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         self
     }
 
+    pub const fn with_blockhash_verify(mut self, blockhash_verify: bool) -> Self {
+        self.blockhash_verify = blockhash_verify;
+        self
+    }
+
     pub const fn with_fee_collector(mut self, collector: Option<Pubkey>) -> Self {
         self.fee_collector = collector;
         self
@@ -219,16 +277,6 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     /// Sets the accounts db callback.
     pub fn with_accounts_callback(mut self, callback: CB) -> Self {
         self.accounts.set_callback(callback);
-        self
-    }
-
-    pub fn with_blockhash_queue(mut self, queue: Option<BlockhashQueue>) -> Self {
-        self.blockhash_queue = queue;
-        self
-    }
-
-    pub fn with_fee_rate_governor(mut self, governor: FeeRateGovernor) -> Self {
-        self.fee_rate_governor = governor;
         self
     }
 
@@ -306,8 +354,8 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         self.fee_rate_governor.lamports_per_signature
     }
 
-    pub fn get_blockhash_queue(&self) -> Option<&BlockhashQueue> {
-        self.blockhash_queue.as_ref()
+    pub fn get_blockhash_queue(&self) -> &BlockhashQueue {
+        &self.parent_state.blockhash_queue
     }
 
     /// Gets the balance of the provided account pubkey.
@@ -325,6 +373,23 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
             .get_account(&T::id())
             .ok_or(LiteSVMError::MissingAccount(T::id()))?;
         bincode::deserialize(account.data()).map_err(|e| LiteSVMError::Bincode(e))
+    }
+
+    fn update_sysvar<T>(&mut self, sysvar: T) -> Result<(), LiteSVMError>
+    where
+        T: Sysvar + SysvarId,
+    {
+        let mut account = Account::new(
+            self.rent.minimum_balance(T::size_of()),
+            T::size_of(),
+            &sysvar::id(),
+        );
+        solana_sdk::account::to_account::<_, Account>(&sysvar, &mut account).unwrap();
+        account.rent_epoch = INITIAL_RENT_EPOCH;
+
+        // add to accounts db
+        self.accounts.add_diff_account(false, T::id(), account.into())?;
+        Ok(())
     }
 
     /// Gets a transaction from the transaction history.
@@ -428,7 +493,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
             .iter()
             .enumerate()
             .map(|(i, key)| {
-                let account = if solana_sdk::sysvar::instructions::check_id(key) {
+                let account = if sysvar::instructions::check_id(key) {
                     construct_instructions_account(message)
                 } else {
                     let mut account = self
@@ -748,7 +813,8 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         &self,
         sanitized_tx: &SanitizedTransaction,
     ) -> TransactionCheckResult {
-        if let Some(blockhash_queue) = self.blockhash_queue.as_ref() {
+        if self.blockhash_verify {
+            let blockhash_queue = self.get_blockhash_queue();
             let last_blockhash = blockhash_queue.last_hash();
             let next_durable_nonce = DurableNonce::from_blockhash(&last_blockhash);
             self.check_transaction_age(blockhash_queue, sanitized_tx, &next_durable_nonce)
@@ -788,6 +854,9 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         }
 
         self.accounts.clean_zero_accounts();
+        self.update_slot_history()?;
+        self.register_recent_blockhash()?;
+
         Ok(())
     }
 
@@ -797,7 +866,8 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     ) -> Result<Vec<TransactionResult>, LiteSVMError> {
         let mut results = Vec::with_capacity(txs.len());
         for tx in txs {
-            results.push(self.send_transaction(tx));
+            let res = self.send_transaction(tx.into());
+            results.push(res);
         }
         self.seal_block(&results)?;
         Ok(results)
@@ -969,6 +1039,58 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         }
 
         Some((NoncePartial::new(*nonce_address, nonce_account), nonce_data))
+    }
+
+    fn update_clock(&mut self) -> Result<(), LiteSVMError> {
+        let epoch_start_timestamp = if self.parent_state.epoch != self.epoch {
+            todo!("Epoch change not supported yet")
+        } else {
+            let clock: Clock = self.get_sysvar()?;
+            clock.epoch_start_timestamp
+        };
+
+        let clock = Clock {
+            slot: self.slot,
+            epoch: self.epoch,
+            leader_schedule_epoch: self.epoch_schedule.get_leader_schedule_epoch(self.slot),
+            unix_timestamp: self.clock_timestamp,
+            epoch_start_timestamp,
+        };
+        self.update_sysvar(clock)?;
+        Ok(())
+    }
+
+    fn update_slot_history(&mut self) -> Result<(), LiteSVMError> {
+        let mut slot_history: solana_program::slot_history::SlotHistory = self.get_sysvar().unwrap_or_default();
+        slot_history.add(self.slot);
+        self.update_sysvar(slot_history)?;
+        Ok(())
+    }
+
+    fn update_slot_hashes(&mut self) -> Result<(), LiteSVMError> {
+        let mut slot_hashes: solana_program::slot_hashes::SlotHashes = self.get_sysvar().unwrap_or_default();
+        slot_hashes.add(self.parent_state.slot, self.parent_state.hash);
+        self.update_sysvar(slot_hashes)?;
+        Ok(())
+    }
+
+    #[allow(deprecated)]
+    fn update_recent_blockhashes_locked(&mut self) -> Result<(), LiteSVMError> {
+        let recent_blockhash_iter = self.get_blockhash_queue().get_recent_blockhashes();
+        let sorted = BinaryHeap::from_iter(recent_blockhash_iter);
+        let recent_blockhashes: sysvar::recent_blockhashes::RecentBlockhashes = IntoIterSorted::new(sorted)
+            .take(sysvar::recent_blockhashes::MAX_ENTRIES)
+            .collect();
+        self.update_sysvar(recent_blockhashes)?;
+        Ok(())
+    }
+
+    fn register_recent_blockhash(&mut self) -> Result<(), LiteSVMError> {
+        self.parent_state
+            .blockhash_queue
+            .register_hash(self.blockhash, self.fee_rate_governor.lamports_per_signature);
+        self.update_recent_blockhashes_locked()?;
+        Ok(())
     }
 }
 
