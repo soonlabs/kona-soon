@@ -3,8 +3,9 @@
 
 use crate::{TrieHinter, TrieNode, TrieProvider};
 use alloc::string::String;
-use alloy_primitives::{Address, B256, U256};
+use alloy_primitives::B256;
 use core::fmt::Debug;
+use solana_sdk::pubkey::Pubkey;
 
 /// The default, no-op implementation of the [TrieProvider] trait, used for testing.
 #[derive(Debug, Clone, Copy)]
@@ -29,16 +30,7 @@ impl TrieHinter for NoopTrieHinter {
         Ok(())
     }
 
-    fn hint_account_proof(&self, _address: Address, _block_number: u64) -> Result<(), Self::Error> {
-        Ok(())
-    }
-
-    fn hint_storage_proof(
-        &self,
-        _address: Address,
-        _slot: U256,
-        _block_number: u64,
-    ) -> Result<(), Self::Error> {
+    fn hint_account_proof(&self, _pubkey: &Pubkey, _block_number: u64) -> Result<(), Self::Error> {
         Ok(())
     }
 }

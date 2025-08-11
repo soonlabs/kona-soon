@@ -1,3 +1,4 @@
+use soon_mpt_primitives::B256;
 use litesvm::types::TransactionResult;
 use soon_primitives::blocks::L2BlockInfo;
 
@@ -6,13 +7,15 @@ use soon_primitives::blocks::L2BlockInfo;
 #[derive(Debug, Clone, Default)]
 pub struct BlockBuildingOutcome {
     /// The block header.
-    pub header: L2BlockInfo,
+    pub block_info: L2BlockInfo,
+    /// The state root
+    pub state_root: B256,
     /// The block execution result.
     pub execution_result: Vec<TransactionResult>,
 }
 
-impl From<(L2BlockInfo, Vec<TransactionResult>)> for BlockBuildingOutcome {
-    fn from((header, execution_result): (L2BlockInfo, Vec<TransactionResult>)) -> Self {
-        Self { header, execution_result }
+impl From<(L2BlockInfo, B256, Vec<TransactionResult>)> for BlockBuildingOutcome {
+    fn from((block_info, state_root, execution_result): (L2BlockInfo, B256, Vec<TransactionResult>)) -> Self {
+        Self { block_info, state_root, execution_result }
     }
 }

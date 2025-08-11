@@ -280,6 +280,11 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         self
     }
 
+    pub fn with_init_account(mut self, init_accounts: Vec<(Pubkey, AccountSharedData)>) -> Self {
+        self.accounts.set_init_accounts(init_accounts);
+        self
+    }
+
     /// Sets the feature set for the test environment.
     pub fn with_feature_set(mut self, feature_set: FeatureSet) -> Self {
         self.feature_set = feature_set;
@@ -330,7 +335,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     }
 
     /// Returns all information associated with the account of the provided pubkey.
-    pub fn get_account(&self, pubkey: &Pubkey) -> Option<Account> {
+    pub fn get_account(&mut self, pubkey: &Pubkey) -> Option<Account> {
         self.accounts.get_account(pubkey).map(Into::into)
     }
 
@@ -359,12 +364,12 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     }
 
     /// Gets the balance of the provided account pubkey.
-    pub fn get_balance(&self, pubkey: &Pubkey) -> Option<u64> {
+    pub fn get_balance(&mut self, pubkey: &Pubkey) -> Option<u64> {
         self.accounts.get_account(pubkey).map(|x| x.lamports())
     }
 
     /// Gets a sysvar from the test environment.
-    pub fn get_sysvar<T>(&self) -> Result<T, LiteSVMError>
+    pub fn get_sysvar<T>(&mut self) -> Result<T, LiteSVMError>
     where
         T: Sysvar + SysvarId,
     {
@@ -411,7 +416,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     }
 
     fn sanitize_transaction_no_verify_inner(
-        &self,
+        &mut self,
         tx: VersionedTransaction,
     ) -> Result<SanitizedTransaction, TransactionError> {
         SanitizedTransaction::try_create(
@@ -424,7 +429,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     }
 
     fn sanitize_transaction_no_verify(
-        &self,
+        &mut self,
         tx: VersionedTransaction,
     ) -> Result<SanitizedTransaction, ExecutionResult> {
         self.sanitize_transaction_no_verify_inner(tx)
@@ -432,7 +437,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     }
 
     fn sanitize_transaction(
-        &self,
+        &mut self,
         tx: VersionedTransaction,
     ) -> Result<SanitizedTransaction, ExecutionResult> {
         self.sanitize_transaction_inner(tx)
@@ -440,7 +445,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     }
 
     fn sanitize_transaction_inner(
-        &self,
+        &mut self,
         tx: VersionedTransaction,
     ) -> Result<SanitizedTransaction, TransactionError> {
         let tx = self.sanitize_transaction_no_verify_inner(tx)?;
@@ -656,7 +661,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     }
 
     fn check_accounts_rent(
-        &self,
+        &mut self,
         tx: &SanitizedTransaction,
         context: &TransactionContext,
     ) -> Result<(), TransactionError> {
@@ -689,15 +694,17 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     }
 
     fn execute_transaction_no_verify(&mut self, tx: VersionedTransaction) -> ExecutionResult {
-        map_sanitize_result(self.sanitize_transaction_no_verify(tx), |s_tx| {
-            self.execute_sanitized_transaction(s_tx)
-        })
+        match self.sanitize_transaction_no_verify(tx) {
+            Ok(sanitized_tx) => self.execute_sanitized_transaction(sanitized_tx),
+            Err(execution_result) => execution_result,
+        }
     }
 
     fn execute_transaction(&mut self, tx: VersionedTransaction) -> ExecutionResult {
-        map_sanitize_result(self.sanitize_transaction(tx), |s_tx| {
-            self.execute_sanitized_transaction(s_tx)
-        })
+        match self.sanitize_transaction(tx) {
+            Ok(sanitized_tx) => self.execute_sanitized_transaction(sanitized_tx),
+            Err(execution_result) => execution_result,
+        }
     }
 
     fn execute_sanitized_transaction(
@@ -810,7 +817,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     }
 
     fn maybe_blockhash_check(
-        &self,
+        &mut self,
         sanitized_tx: &SanitizedTransaction,
     ) -> TransactionCheckResult {
         if self.blockhash_verify {
@@ -827,15 +834,17 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     }
 
     fn execute_transaction_readonly(&mut self, tx: VersionedTransaction) -> ExecutionResult {
-        map_sanitize_result(self.sanitize_transaction(tx), |s_tx| {
-            self.execute_sanitized_transaction_readonly(s_tx)
-        })
+        match self.sanitize_transaction(tx) {
+            Ok(sanitized_tx) => self.execute_sanitized_transaction_readonly(sanitized_tx),
+            Err(execution_result) => execution_result,
+        }
     }
 
     fn execute_transaction_no_verify_readonly(&mut self, tx: VersionedTransaction) -> ExecutionResult {
-        map_sanitize_result(self.sanitize_transaction_no_verify(tx), |s_tx| {
-            self.execute_sanitized_transaction_readonly(s_tx)
-        })
+        match self.sanitize_transaction_no_verify(tx) {
+            Ok(sanitized_tx) => self.execute_sanitized_transaction_readonly(sanitized_tx),
+            Err(execution_result) => execution_result,
+        }
     }
 
     pub fn seal_block(
@@ -987,7 +996,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     // }
 
     fn check_transaction_age(
-        &self,
+        &mut self,
         blockhash_queue: &BlockhashQueue,
         tx: &SanitizedTransaction,
         next_durable_nonce: &DurableNonce,
@@ -1018,7 +1027,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     }
 
     fn check_and_load_message_nonce_account(
-        &self,
+        &mut self,
         message: &SanitizedMessage,
         next_durable_nonce: &DurableNonce,
     ) -> Option<(NoncePartial, nonce::state::Data)> {

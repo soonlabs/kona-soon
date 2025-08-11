@@ -29,7 +29,12 @@ pub struct FraudExecutor<CB: AccountsCallback> {
 
 impl<CB: AccountsCallback> FraudExecutor<CB> {
     pub fn new(litesvm: LiteSVM<CB>) -> Self {
-        Self { litesvm, ..Default::default() }
+        Self {
+            litesvm,
+            epoch_schedule: EpochSchedule::default(),
+            rent_collector: RentCollector::default(),
+            fee_structure: None,
+        }
     }
 
     pub fn execute_block(&mut self, block: SimpleBlock) -> Result<BlockBuildingOutcome> {
@@ -37,8 +42,10 @@ impl<CB: AccountsCallback> FraudExecutor<CB> {
         // self.litesvm.import_accounts(block.extra_accounts)?;
         let execution_result = self.litesvm.execute_block_transactions(block.transactions)?;
 
+        let l2_block_info = self.get_l2_block_info(block.slot, block.hash, block.parent_hash)?;
         Ok(BlockBuildingOutcome {
-            header: self.get_l2_block_info(block.slot, block.hash, block.parent_hash)?,
+            block_info: l2_block_info,
+            state_root: B256::ZERO,
             execution_result,
         })
     }
@@ -60,7 +67,7 @@ impl<CB: AccountsCallback> FraudExecutor<CB> {
     //     self.litesvm.set_rent_collector(None);
     // }
 
-    fn get_l2_block_info(&self, slot: u64, hash: B256, parent_hash: B256) -> Result<L2BlockInfo> {
+    fn get_l2_block_info(&mut self, slot: u64, hash: B256, parent_hash: B256) -> Result<L2BlockInfo> {
         let l1_block_info = self.get_l1_block_info().unwrap_or_default();
         let clock = self.litesvm.get_sysvar::<Clock>()?;
         Ok(L2BlockInfo {
@@ -70,7 +77,7 @@ impl<CB: AccountsCallback> FraudExecutor<CB> {
         })
     }
 
-    fn get_l1_block_info(&self) -> Option<L1BlockInfo> {
+    fn get_l1_block_info(&mut self) -> Option<L1BlockInfo> {
         let l1_info_account = l1_block_info::pda::l1_block_info_pubkey();
         let l1_data = self.litesvm.get_account(&l1_info_account);
         let l1_block_info = l1_data

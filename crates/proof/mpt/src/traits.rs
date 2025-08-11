@@ -2,9 +2,9 @@
 //! headers.
 
 use crate::TrieNode;
-use alloy_primitives::{Address, B256, U256};
+use alloy_primitives::B256;
 use core::fmt::Display;
-use op_alloy_rpc_types_engine::OpPayloadAttributes;
+use solana_sdk::pubkey::Pubkey;
 
 /// The [TrieProvider] trait defines the synchronous interface for fetching trie node preimages.
 pub trait TrieProvider {
@@ -40,29 +40,11 @@ pub trait TrieHinter {
     /// Hints the host to fetch the trie node preimages on the path to the given address.
     ///
     /// ## Takes
-    /// - `address` - The address of the contract whose trie node preimages are to be fetched.
+    /// - `pubkey` - The pubkey of the account whose trie node preimages are to be fetched.
     /// - `block_number` - The block number at which the trie node preimages are to be fetched.
     ///
     /// ## Returns
     /// - Ok(()): If the hint was successful.
     /// - Err(Self::Error): If the hint was unsuccessful.
-    fn hint_account_proof(&self, address: Address, block_number: u64) -> Result<(), Self::Error>;
-
-    /// Hints the host to fetch the trie node preimages on the path to the storage slot within the
-    /// given account's storage trie.
-    ///
-    /// ## Takes
-    /// - `address` - The address of the contract whose trie node preimages are to be fetched.
-    /// - `slot` - The storage slot whose trie node preimages are to be fetched.
-    /// - `block_number` - The block number at which the trie node preimages are to be fetched.
-    ///
-    /// ## Returns
-    /// - Ok(()): If the hint was successful.
-    /// - Err(Self::Error): If the hint was unsuccessful.
-    fn hint_storage_proof(
-        &self,
-        address: Address,
-        slot: U256,
-        block_number: u64,
-    ) -> Result<(), Self::Error>;
+    fn hint_account_proof(&self, pubkey: &Pubkey, block_number: u64) -> Result<(), Self::Error>;
 }

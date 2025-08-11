@@ -12,6 +12,7 @@ use kona_executor::TrieDBProvider;
 use kona_mpt::{TrieHinter, TrieNode, TrieProvider};
 use kona_preimage::{CommsClient, PreimageKey, PreimageKeyType};
 use l1_block_info::instruction::L1BlockInfoInstruction;
+use solana_sdk::pubkey::Pubkey;
 use soon_derive::traits::L2ChainProvider;
 use soon_primitives::blocks::{BlockInfo, L2BlockInfo, str_block_hash_to};
 use soon_primitives::l2blocks::L2Block;
@@ -200,7 +201,7 @@ impl<T: CommsClient> TrieProvider for OracleL2ChainProvider<T> {
 }
 
 impl<T: CommsClient> TrieDBProvider for OracleL2ChainProvider<T> {
-    fn bytecode_by_hash(&self, hash: B256) -> Result<Bytes, OracleProviderError> {
+    fn data_by_hash(&self, hash: B256) -> Result<Bytes, OracleProviderError> {
         crate::block_on(async move {
             self.oracle
                 .get(PreimageKey::new(*hash, PreimageKeyType::Keccak256))
@@ -224,30 +225,12 @@ impl<T: CommsClient> TrieHinter for OracleL2ChainProvider<T> {
         })
     }
 
-    fn hint_account_proof(&self, address: Address, block_number: u64) -> Result<(), Self::Error> {
+    fn hint_account_proof(&self, pubkey: &Pubkey, block_number: u64) -> Result<(), Self::Error> {
         crate::block_on(async move {
+            let hashed_address = keccak256(pubkey.as_ref());
             HintType::L2AccountProof
-                .with_data(&[block_number.to_be_bytes().as_ref(), address.as_slice()])
-                .with_data(self.chain_id.map_or_else(Vec::new, |id| id.to_be_bytes().to_vec()))
-                .send(self.oracle.as_ref())
-                .await
-        })
-    }
-
-    fn hint_storage_proof(
-        &self,
-        address: alloy_primitives::Address,
-        slot: alloy_primitives::U256,
-        block_number: u64,
-    ) -> Result<(), Self::Error> {
-        crate::block_on(async move {
-            HintType::L2AccountStorageProof
-                .with_data(&[
-                    block_number.to_be_bytes().as_ref(),
-                    address.as_slice(),
-                    slot.to_be_bytes::<32>().as_ref(),
-                ])
-                .with_data(self.chain_id.map_or_else(Vec::new, |id| id.to_be_bytes().to_vec()))
+                .with_data(&[block_number.to_be_bytes().as_ref(), pubkey.as_ref()])
+                .with_data(hashed_address)
                 .send(self.oracle.as_ref())
                 .await
         })

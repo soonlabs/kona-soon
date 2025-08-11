@@ -100,10 +100,11 @@ pub enum HintType {
     /// A hint that specifies the state node in the L2 state trie.
     L2StateNode,
     /// A hint that specifies the proof on the path to an account in the L2 state trie.
+    /// Soon Ext: Get raw account && proof in one request.
     L2AccountProof,
     /// A hint that specifies the proof on the path to a storage slot in an account within in the
     /// L2 state trie.
-    L2AccountStorageProof,
+    /// L2AccountStorageProof,
     /// A hint that specifies loading the block data for an SOON block.
     L2BlockData,
 }
@@ -135,7 +136,7 @@ impl FromStr for HintType {
             "starting-l2-output" => Ok(Self::StartingL2Output),
             "l2-state-node" => Ok(Self::L2StateNode),
             "l2-account-proof" => Ok(Self::L2AccountProof),
-            "l2-account-storage-proof" => Ok(Self::L2AccountStorageProof),
+            // "l2-account-storage-proof" => Ok(Self::L2AccountStorageProof),
             "l2-block-data" => Ok(Self::L2BlockData),
             _ => Err(HintParsingError(value.to_string())),
         }
@@ -154,7 +155,7 @@ impl From<HintType> for &str {
             HintType::StartingL2Output => "starting-l2-output",
             HintType::L2StateNode => "l2-state-node",
             HintType::L2AccountProof => "l2-account-proof",
-            HintType::L2AccountStorageProof => "l2-account-storage-proof",
+            // HintType::L2AccountStorageProof => "l2-account-storage-proof",
             HintType::L2BlockData => "l2-block-data",
         }
     }

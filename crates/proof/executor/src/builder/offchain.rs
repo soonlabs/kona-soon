@@ -16,7 +16,7 @@ use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use serde::{Deserialize, Serialize};
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::transaction::VersionedTransaction;
-use soon_primitives::blocks::L2BlockInfo;
+use soon_primitives::blocks::{L2BlockHeader, L2BlockInfo};
 use soon_primitives::rollup_config::SoonRollupConfig;
 
 /// The [`OffchainL2Builder`] is an OP Stack block builder that uses the offchain data to build a
@@ -31,7 +31,7 @@ where
     pub(crate) _config: Arc<SoonRollupConfig>,
     pub(crate) provider: P,
     pub(crate) _hinter: H,
-    pub(crate) parent_header: L2BlockInfo,
+    pub(crate) parent_header: L2BlockHeader,
     pub(crate) diff_accounts: SoonAccounts,
     _a: PhantomData<A>,
 }
@@ -46,7 +46,8 @@ where
         config: Arc<SoonRollupConfig>,
         provider: P,
         hinter: H,
-        parent_header: L2BlockInfo,
+        parent_header: L2BlockHeader,
+        _last_accounts_diff: SoonAccounts,
     ) -> Self {
         Self {
             _config: config,
@@ -67,12 +68,12 @@ where
 
         // Step 2. Create the executor, using the trie database.
         let init_accounts_code =
-            self.provider.bytecode_by_hash(cal_init_accounts_hash(self.init_slot())).map_err(
+            self.provider.data_by_hash(cal_init_accounts_hash(self.init_slot())).map_err(
                 |_| ExecutorError::FraudInitError("Failed to get init accounts code".to_string()),
             )?;
         let svm_start_up_meta_code = self
             .provider
-            .bytecode_by_hash(cal_svm_start_up_meta_hash(self.init_slot()))
+            .data_by_hash(cal_svm_start_up_meta_hash(self.init_slot()))
             .map_err(|_| {
                 ExecutorError::FraudInitError("Failed to get svm start up meta code".to_string())
             })?;
@@ -93,7 +94,7 @@ where
         {
             let init_state_root = self
                 .provider
-                .bytecode_by_hash(cal_init_state_root_hash(self.init_slot()))
+                .data_by_hash(cal_init_state_root_hash(self.init_slot()))
                 .map_err(|_| {
                     ExecutorError::FraudInitError("Failed to get init state root".to_string())
                 })?;
@@ -126,7 +127,7 @@ where
         {
             let new_accounts_data = self
                 .provider
-                .bytecode_by_hash(cal_init_accounts_hash(self.current_slot()))
+                .data_by_hash(cal_init_accounts_hash(self.current_slot()))
                 .map_err(|_| {
                     ExecutorError::FraudInitError("Failed to get init state root".to_string())
                 })?;
@@ -154,7 +155,7 @@ where
         if self.diff_accounts.accounts.len() == 0 {
             let init_accounts_code = self
                 .provider
-                .bytecode_by_hash(cal_init_accounts_hash(self.init_slot()))
+                .data_by_hash(cal_init_accounts_hash(self.init_slot()))
                 .map_err(|_| {
                     ExecutorError::FraudInitError("Failed to get init accounts code".to_string())
                 })?;
@@ -164,6 +165,10 @@ where
         } else {
             Ok(self.diff_accounts.state_root())
         }
+    }
+
+    fn account_diff(&self) -> SoonAccounts {
+        return self.diff_accounts.clone()
     }
 }
 
@@ -205,7 +210,7 @@ where
     fn fetch_slot_hash_pair(&self, slot: u64) -> ExecutorResult<(B256, B256)> {
         let data = self
             .provider
-            .bytecode_by_hash(slot_hash_pair_hash(slot))
+            .data_by_hash(slot_hash_pair_hash(slot))
             .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
         let slot_hash_pair: (B256, B256) = bincode::deserialize(&data)
             .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;

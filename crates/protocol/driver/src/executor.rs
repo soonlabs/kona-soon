@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use core::error::Error;
 use fraud_executor::outcome::BlockBuildingOutcome;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
-use soon_primitives::blocks::L2BlockInfo;
+use soon_primitives::blocks::L2BlockHeader;
 
 /// Executor
 ///
@@ -20,7 +20,7 @@ pub trait Executor {
     async fn wait_until_ready(&mut self);
 
     /// Updates the safe header.
-    fn update_safe_head(&mut self, safe_head: L2BlockInfo) -> Result<(), Self::Error>;
+    fn update_safe_head(&mut self, safe_head: L2BlockHeader) -> Result<(), Self::Error>;
 
     /// Execute the gicen [OpPayloadAttributes].
     async fn execute_payload(

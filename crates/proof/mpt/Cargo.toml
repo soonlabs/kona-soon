@@ -15,6 +15,7 @@ workspace = true
 # General
 thiserror.workspace = true
 serde = { workspace = true, optional = true, features = ["derive", "alloc"] }
+solana-sdk.workspace = true
 
 # Revm + Alloy
 alloy-rlp.workspace = true
