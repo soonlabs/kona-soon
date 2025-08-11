@@ -31,6 +31,7 @@ solana-stake-program.workspace = true
 solana-svm.workspace = true
 solana-system-program.workspace = true
 solana-vote-program.workspace = true
+solana-entry.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]

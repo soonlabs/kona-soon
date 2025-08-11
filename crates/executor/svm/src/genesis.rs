@@ -10,6 +10,7 @@ use solana_sdk::feature_set::*;
 use solana_sdk::timing::years_as_slots;
 
 pub const NO_SIG_TX_PAYER: Pubkey = pubkey!("NoSigTxPayer1111111111111111111111111111111");
+pub const HASHES_PER_TICK: u64 = 0;
 
 pub fn soon_compute_budget() -> ComputeBudget {
     Default::default()

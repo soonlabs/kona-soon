@@ -6095,6 +6095,7 @@ dependencies = [
  "solana-compute-budget",
  "solana-compute-budget-program",
  "solana-config-program",
+ "solana-entry",
  "solana-loader-v4-program",
  "solana-program",
  "solana-program-runtime",

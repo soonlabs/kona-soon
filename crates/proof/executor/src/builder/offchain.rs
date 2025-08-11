@@ -10,7 +10,7 @@ use fraud_executor::executor::FraudExecutor;
 use fraud_executor::outcome::BlockBuildingOutcome;
 use fraud_executor::utils::analyze_account_sets;
 use kona_mpt::TrieHinter;
-use litesvm::LiteSVM;
+use litesvm::{LiteSVM, ParentState};
 use litesvm::accounts_callback::AccountsCallback;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use serde::{Deserialize, Serialize};
@@ -68,21 +68,25 @@ where
 
         // Step 2. Create the executor, using the trie database.
         let init_accounts_code =
-            self.provider.data_by_hash(cal_init_accounts_hash(self.init_slot())).map_err(
+            self.provider.data_by_hash(cal_init_accounts_hash(self.parent_slot())).map_err(
                 |_| ExecutorError::FraudInitError("Failed to get init accounts code".to_string()),
             )?;
         let svm_start_up_meta_code = self
             .provider
-            .data_by_hash(cal_svm_start_up_meta_hash(self.init_slot()))
+            .data_by_hash(cal_svm_parent_state(self.parent_slot()))
             .map_err(|_| {
                 ExecutorError::FraudInitError("Failed to get svm start up meta code".to_string())
             })?;
-        let svm_start_up_meta: SvmStartUpMeta = bincode::deserialize(&svm_start_up_meta_code)
+        let svm_: SvmStartUpMeta = bincode::deserialize(&svm_start_up_meta_code)
             .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
 
         let accounts_callback: A = bincode::deserialize(&init_accounts_code)
             .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
         let mut svm = LiteSVM::new_soon()
+            .with_parent_state(ParentState {
+
+            })
+
             .with_slot_and_epoch(self.init_slot(), svm_start_up_meta.epoch)
             .with_fee_collector(Some(svm_start_up_meta.fee_collector))
             .with_sigverify(false)
@@ -155,7 +159,7 @@ where
         if self.diff_accounts.accounts.len() == 0 {
             let init_accounts_code = self
                 .provider
-                .data_by_hash(cal_init_accounts_hash(self.init_slot()))
+                .data_by_hash(cal_init_accounts_hash(self.parent_slot()))
                 .map_err(|_| {
                     ExecutorError::FraudInitError("Failed to get init accounts code".to_string())
                 })?;
@@ -182,7 +186,7 @@ where
         self.parent_header.block_info.number + 1
     }
 
-    const fn init_slot(&self) -> u64 {
+    const fn parent_slot(&self) -> u64 {
         self.parent_header.block_info.number
     }
 
@@ -233,9 +237,12 @@ pub fn slot_hash_pair_hash(slot: u64) -> B256 {
     slot_spec_hash(slot, b"slot_hash_set")
 }
 
-/// Calculate the hash of the svm start up meta for the given slot.
-pub fn cal_svm_start_up_meta_hash(slot: u64) -> B256 {
-    slot_spec_hash(slot, b"svm_start_up_meta")
+pub fn cal_svm_clock_timestamp(slot: u64) -> B256 {
+    slot_spec_hash(slot, b"svm_clock_timestamp")
+}
+
+pub fn cal_svm_state(slot: u64) -> B256 {
+    slot_spec_hash(slot, b"svm_state")
 }
 
 fn slot_spec_hash(slot: u64, suffix: &[u8]) -> B256 {
@@ -243,12 +250,4 @@ fn slot_spec_hash(slot: u64, suffix: &[u8]) -> B256 {
     hasher.update(slot.to_be_bytes());
     hasher.update(suffix);
     hasher.finalize()
-}
-
-/// The svm start up meta data for the given slot.
-#[allow(missing_docs)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SvmStartUpMeta {
-    pub epoch: u64,
-    pub fee_collector: Pubkey,
 }

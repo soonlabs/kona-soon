@@ -238,6 +238,7 @@ solana-stake-program = { git = "https://github.com/soonlabs/agave", branch = "fe
 solana-svm = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
 solana-system-program = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
 solana-vote-program = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
+solana-entry = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
 spl-token = "=6.0.0"
 hex = "0.4.3"
 

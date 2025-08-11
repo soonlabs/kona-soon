@@ -124,6 +124,6 @@ where
     }
 
     fn account_diff(&self) -> SoonAccounts {
-        return self.accounts_diff.clone()
+        self.accounts_diff.clone()
     }
 }
