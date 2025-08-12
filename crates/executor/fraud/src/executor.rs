@@ -15,7 +15,7 @@ use crate::block::SimpleBlock;
 
 #[derive(Debug, Default)]
 pub struct FraudExecutor<CB: AccountsCallback> {
-    svm: LiteSVM<CB>,
+    pub svm: LiteSVM<CB>,
 }
 
 impl<CB: AccountsCallback> FraudExecutor<CB> {
