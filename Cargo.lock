@@ -4088,6 +4088,7 @@ dependencies = [
  "l1-block-info",
  "litesvm",
  "serde",
+ "solana-program",
  "solana-sdk",
  "soon-mpt-primitives",
  "soon-mpt-trie",

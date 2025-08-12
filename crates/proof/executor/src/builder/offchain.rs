@@ -10,13 +10,13 @@ use fraud_executor::executor::FraudExecutor;
 use fraud_executor::outcome::BlockBuildingOutcome;
 use fraud_executor::utils::analyze_account_sets;
 use kona_mpt::TrieHinter;
-use litesvm::{LiteSVM, ParentState};
+use litesvm::{LiteSVM, ParentInfo};
 use litesvm::accounts_callback::AccountsCallback;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use serde::{Deserialize, Serialize};
-use solana_sdk::pubkey::Pubkey;
+use solana_sdk::hash::Hash;
 use solana_sdk::transaction::VersionedTransaction;
-use soon_primitives::blocks::{L2BlockHeader, L2BlockInfo};
+use soon_primitives::blocks::L2BlockHeader;
 use soon_primitives::rollup_config::SoonRollupConfig;
 
 /// The [`OffchainL2Builder`] is an OP Stack block builder that uses the offchain data to build a
@@ -71,26 +71,30 @@ where
             self.provider.data_by_hash(cal_init_accounts_hash(self.parent_slot())).map_err(
                 |_| ExecutorError::FraudInitError("Failed to get init accounts code".to_string()),
             )?;
-        let svm_start_up_meta_code = self
+        let parent_info = self
             .provider
-            .data_by_hash(cal_svm_parent_state(self.parent_slot()))
+            .data_by_hash(cal_svm_parent_info(self.parent_slot()))
             .map_err(|_| {
-                ExecutorError::FraudInitError("Failed to get svm start up meta code".to_string())
+                ExecutorError::FraudInitError("Failed to get svm parent info code".to_string())
             })?;
-        let svm_: SvmStartUpMeta = bincode::deserialize(&svm_start_up_meta_code)
+        let parent_info: ParentInfo = bincode::deserialize(&parent_info)
+            .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
+        let current_info = self
+            .provider
+            .data_by_hash(cal_svm_current_info(self.current_slot()))
+            .map_err(|_| ExecutorError::FraudInitError("Failed to get clock timestamp".to_string()))?;
+        let current_info: CurrentInfo = bincode::deserialize(&current_info)
             .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
 
         let accounts_callback: A = bincode::deserialize(&init_accounts_code)
             .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
         let mut svm = LiteSVM::new_soon()
-            .with_parent_state(ParentState {
-
-            })
-
-            .with_slot_and_epoch(self.init_slot(), svm_start_up_meta.epoch)
-            .with_fee_collector(Some(svm_start_up_meta.fee_collector))
+            .with_parent_info(parent_info)
+            .with_leader_schedule(None.into())
             .with_sigverify(false)
-            .with_accounts_callback(accounts_callback);
+            .with_accounts_callback(accounts_callback)
+            .with_clock_timestamp(current_info.clock_timestamp)
+            .with_bank_hash(current_info.bank_hash);
         svm.finish_init().map_err(|e| ExecutorError::FraudExecutorError(e.into()))?;
         let mut executor = FraudExecutor::new(svm);
 
@@ -98,7 +102,7 @@ where
         {
             let init_state_root = self
                 .provider
-                .data_by_hash(cal_init_state_root_hash(self.init_slot()))
+                .data_by_hash(cal_init_state_root_hash(self.current_slot()))
                 .map_err(|_| {
                     ExecutorError::FraudInitError("Failed to get init state root".to_string())
                 })?;
@@ -191,13 +195,7 @@ where
     }
 
     fn convert_block(&self, attrs: OpPayloadAttributes) -> ExecutorResult<SimpleBlock> {
-        let slot = self.current_slot();
-        let (hash, parent_hash) = self.fetch_slot_hash_pair(slot)?;
-
         Ok(SimpleBlock {
-            slot,
-            hash,
-            parent_hash,
             transactions: attrs
                 .transactions
                 .unwrap_or_default()
@@ -209,16 +207,6 @@ where
                 })
                 .collect::<ExecutorResult<Vec<VersionedTransaction>>>()?,
         })
-    }
-
-    fn fetch_slot_hash_pair(&self, slot: u64) -> ExecutorResult<(B256, B256)> {
-        let data = self
-            .provider
-            .data_by_hash(slot_hash_pair_hash(slot))
-            .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
-        let slot_hash_pair: (B256, B256) = bincode::deserialize(&data)
-            .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
-        Ok(slot_hash_pair)
     }
 }
 
@@ -232,17 +220,14 @@ pub fn cal_init_state_root_hash(slot: u64) -> B256 {
     slot_spec_hash(slot, b"init_state_root")
 }
 
-/// Calculate the hash of the slot hash pair for the given slot.
-pub fn slot_hash_pair_hash(slot: u64) -> B256 {
-    slot_spec_hash(slot, b"slot_hash_set")
+/// Calculate the hash of the SVM parent info for the given slot.
+pub fn cal_svm_parent_info(slot: u64) -> B256 {
+    slot_spec_hash(slot, b"svm_parent_info")
 }
 
-pub fn cal_svm_clock_timestamp(slot: u64) -> B256 {
-    slot_spec_hash(slot, b"svm_clock_timestamp")
-}
-
-pub fn cal_svm_state(slot: u64) -> B256 {
-    slot_spec_hash(slot, b"svm_state")
+/// Calculate the hash of the SVM current info for the given slot.
+pub fn cal_svm_current_info(slot: u64) -> B256 {
+    slot_spec_hash(slot, b"svm_current_info")
 }
 
 fn slot_spec_hash(slot: u64, suffix: &[u8]) -> B256 {
@@ -250,4 +235,11 @@ fn slot_spec_hash(slot: u64, suffix: &[u8]) -> B256 {
     hasher.update(slot.to_be_bytes());
     hasher.update(suffix);
     hasher.finalize()
+}
+
+/// Represents the current information of the SVM, including the clock timestamp and bank hash.
+#[derive(Debug, Default, PartialEq, Eq, Clone, Serialize, Deserialize)]
+pub struct CurrentInfo {
+    pub clock_timestamp: i64,
+    pub bank_hash: Hash,
 }

@@ -7,6 +7,7 @@ use solana_program::hash::Hash;
 pub struct ParentInfo {
     pub slot: Slot,
     pub bank_hash: Hash,
+    pub blockhash: Hash,
     pub fee_rate_governor: FeeRateGovernor,
     pub signature_count: u64,
 }

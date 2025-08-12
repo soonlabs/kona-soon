@@ -154,7 +154,7 @@ impl<CB: AccountsCallback> Default for LiteSVM<CB> {
             signature_count: 0,
             tick_height: 0,
             clock_timestamp: 0,
-            bank_hash: Hash::default(),
+            bank_hash: Default::default(),
             blockhash: Default::default(),
             blockhash_queue: Default::default(),
             parent_info: ParentInfo::default(),
@@ -230,15 +230,6 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         );
 
         Ok(())
-    }
-
-    pub fn next_parent_info(&self) -> ParentInfo {
-        ParentInfo {
-            slot: self.slot,
-            bank_hash: self.bank_hash,
-            fee_rate_governor: self.fee_rate_governor.clone(),
-            signature_count: self.signature_count,
-        }
     }
 
     pub fn with_log_collector(mut self, log_collector: Option<Rc<RefCell<LogCollector>>>) -> Self {
@@ -365,8 +356,32 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         self.accounts.export_diff_accounts()
     }
 
+    pub fn slot(&self) -> Slot {
+        self.slot
+    }
+
+    pub fn epoch(&self) -> Epoch {
+        self.epoch
+    }
+
+    pub fn blockhash(&self) -> Hash {
+        self.blockhash
+    }
+    
+    pub fn parent_blockhash(&self) -> Hash {
+        self.parent_info.blockhash
+    }
+
     pub fn feature_set(&self) -> &FeatureSet {
         &self.feature_set
+    }
+
+    pub fn fee_rate_governor(&self) -> &FeeRateGovernor {
+        &self.fee_rate_governor
+    }
+
+    pub fn signature_count(&self) -> u64 {
+        self.signature_count
     }
 
     pub fn get_lamports_per_signature(&self) -> u64 {
@@ -738,7 +753,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
             let tx_result = self.check_tx_result(result, payer_key, fee);
             execution_result_if_context(sanitized_tx, ctx, tx_result, compute_units_consumed, fee)
         } else {
-            ExecutionResult::result_and_compute_units(result, compute_units_consumed, fee)
+            ExecutionResult::result_and_compute_units(sanitized_tx, result, compute_units_consumed, fee)
         }
     }
 
@@ -763,7 +778,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         if let Some(ctx) = context {
             execution_result_if_context(sanitized_tx, ctx, result, compute_units_consumed, fee)
         } else {
-            ExecutionResult::result_and_compute_units(result, compute_units_consumed, fee)
+            ExecutionResult::result_and_compute_units(sanitized_tx, result, compute_units_consumed, fee)
         }
     }
 
@@ -879,21 +894,46 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
 
     pub fn execute_block_transactions(
         &mut self,
-        txs: Vec<impl Into<VersionedTransaction>>,
+        txs: Vec<VersionedTransaction>,
     ) -> Result<Vec<TransactionResult>, LiteSVMError> {
-        let mut results = Vec::with_capacity(txs.len());
-        for tx in txs {
-            let res = self.send_transaction(tx.into());
-            results.push(res);
-        }
-        self.seal_block(&results)?;
-        Ok(results)
+        let res = txs.into_iter()
+            .map(|tx| self.send_transaction(tx))
+            .collect::<Vec<_>>();
+        self.seal_block(&res)?;
+        Ok(res)
+    }
+
+    // pub fn execute_block_transactions(
+    //     &mut self,
+    //     block_txs: Vec<Vec<VersionedTransaction>>,
+    // ) -> Result<Vec<TransactionResult>, LiteSVMError> {
+    //     let mut results = Vec::with_capacity(block_txs.len());
+    //     for tx_batch in &block_txs {
+    //         results.push(self.execute_batch_transactions(tx_batch));
+    //     }
+    // 
+    //     // process entries
+    //     self.batches_to_data_entries(&results, &block_txs)?;
+    // 
+    //     self.seal_block(&results)?;
+    //     Ok(results)
+    // }
+
+    pub fn execute_batch_transactions(
+        &mut self,
+        batch_txs: &[VersionedTransaction],
+    ) -> Vec<TransactionResult> {
+        // TODO: verify batch txs conflict or not?
+        batch_txs
+            .iter()
+            .map(|tx| self.send_transaction(tx.clone()))
+            .collect()
     }
 
     /// Submits a signed transaction.
-    pub fn send_transaction(&mut self, tx: impl Into<VersionedTransaction>) -> TransactionResult {
-        let vtx: VersionedTransaction = tx.into();
+    pub fn send_transaction(&mut self, tx: VersionedTransaction) -> TransactionResult {
         let ExecutionResult {
+            sanitized_tx: _,
             post_accounts,
             tx_result,
             signature,
@@ -904,9 +944,9 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
             included,
             fee,
         } = if self.sigverify {
-            self.execute_transaction(vtx)
+            self.execute_transaction(tx)
         } else {
-            self.execute_transaction_no_verify(vtx)
+            self.execute_transaction_no_verify(tx)
         };
 
         // add signature
@@ -1138,21 +1178,21 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     // fn complete_entries(&self, mut data_entries: Vec<Entry>) -> Result<Vec<Entry>, LiteSVMError> {
     //     let last_entry = data_entries.last().ok_or(Error::NoEntries)?;
     //     let mut start_hash = last_entry.hash;
-    //
+    // 
     //     let tick_count = self
     //         .max_tick_height
     //         .saturating_sub(self.tick_height)
     //         .saturating_sub(data_entries.iter().filter(|entry| entry.is_tick()).count() as u64);
-    //
+    // 
     //     for _ in 0..tick_count {
     //         let entry = new_entry(&start_hash, self.hashes_per_tick, vec![]);
     //         start_hash = entry.hash;
     //         data_entries.push(entry);
     //     }
-    //
+    // 
     //     Ok(data_entries)
     // }
-    //
+    // 
     // fn batches_to_data_entries(
     //     &self,
     //     results: &[Vec<TransactionResult>],
@@ -1209,8 +1249,9 @@ fn execution_result_if_context(
     fee: u64,
 ) -> ExecutionResult {
     let (signature, signature_count, return_data, inner_instructions, post_accounts) =
-        execute_tx_helper(sanitized_tx, ctx);
+        execute_tx_helper(&sanitized_tx, ctx);
     ExecutionResult {
+        sanitized_tx: Some(sanitized_tx),
         tx_result: result,
         signature,
         signature_count,
@@ -1224,7 +1265,7 @@ fn execution_result_if_context(
 }
 
 fn execute_tx_helper(
-    sanitized_tx: SanitizedTransaction,
+    sanitized_tx: &SanitizedTransaction,
     ctx: TransactionContext,
 ) -> (
     Signature,

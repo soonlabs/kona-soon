@@ -1,3 +1,4 @@
+use solana_program::fee_calculator::FeeRateGovernor;
 use soon_mpt_primitives::B256;
 use litesvm::types::TransactionResult;
 use soon_primitives::blocks::L2BlockInfo;
@@ -12,10 +13,8 @@ pub struct BlockBuildingOutcome {
     pub state_root: B256,
     /// The block execution result.
     pub execution_result: Vec<TransactionResult>,
-}
-
-impl From<(L2BlockInfo, B256, Vec<TransactionResult>)> for BlockBuildingOutcome {
-    fn from((block_info, state_root, execution_result): (L2BlockInfo, B256, Vec<TransactionResult>)) -> Self {
-        Self { block_info, state_root, execution_result }
-    }
+    /// The number of signatures in the block.
+    pub signature_count: u64,
+    /// The fee rate governor for the block.
+    pub fee_rate_governor: FeeRateGovernor,
 }

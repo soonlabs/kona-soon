@@ -12,12 +12,6 @@ impl LeaderSchedule {
     pub fn new(leaders: Vec<(Slot, Pubkey)>) -> Self {
         Self::from_iter(leaders)
     }
-    
-    pub fn one(leader: Pubkey) -> Self {
-        Self {
-            leaders: vec![(0, leader)],
-        }
-    }
 
     pub fn leader_at_slot(&self, slot: Slot) -> Option<Pubkey> {
         match self.leaders.binary_search_by_key(&slot, |(s, _)| *s) {
@@ -38,5 +32,25 @@ impl FromIterator<(Slot, Pubkey)> for LeaderSchedule {
         let mut leaders = iter.into_iter().unique_by(|(slot, _)| *slot).collect::<Vec<_>>();
         leaders.sort_unstable_by_key(|(s, _)| *s);
         Self { leaders }
+    }
+}
+
+impl From<Option<Pubkey>> for LeaderSchedule {
+    fn from(value: Option<Pubkey>) -> Self {
+        if let Some(pubkey) = value {
+            Self {
+                leaders: vec![(0, pubkey)], // Default to slot 0 with the given pubkey
+            }
+        } else {
+            Self::default() // Return an empty schedule if no pubkey is provided
+        }
+    }
+}
+
+impl From<Pubkey> for LeaderSchedule {
+    fn from(pubkey: Pubkey) -> Self {
+        Self {
+            leaders: vec![(0, pubkey)], // Default to slot 0 with the given pubkey
+        }
     }
 }

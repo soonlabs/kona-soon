@@ -24,6 +24,7 @@ hex.workspace = true
 serde.workspace = true
 
 solana-sdk.workspace = true
+solana-program.workspace = true
 
 [lints]
 workspace = true

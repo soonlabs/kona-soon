@@ -4,14 +4,13 @@ use crate::ExecutorError;
 use crate::{ExecutorResult, TrieDB, TrieDBProvider, builder::L2BlockBuilder};
 use alloc::string::ToString;
 use alloc::sync::Arc;
-use alloc::vec::Vec;
 use alloy_primitives::B256;
 use fraud_executor::outcome::BlockBuildingOutcome;
 use fraud_executor::{accounts::SoonAccounts, block::SimpleBlock, executor::FraudExecutor};
 use kona_mpt::TrieHinter;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use solana_sdk::transaction::VersionedTransaction;
-use soon_primitives::{blocks::L2BlockInfo, rollup_config::SoonRollupConfig};
+use soon_primitives::rollup_config::SoonRollupConfig;
 use soon_primitives::blocks::L2BlockHeader;
 use litesvm::LiteSVM;
 
@@ -46,9 +45,6 @@ where
 {
     fn convert_block(&self, attrs: OpPayloadAttributes) -> ExecutorResult<SimpleBlock> {
         Ok(SimpleBlock {
-            hash: B256::ZERO,        // TODO: get hash from oracle
-            parent_hash: B256::ZERO, // TODO: get parent hash from oracle
-            slot: 0,                 // TODO: get current slot
             transactions: attrs
                 .transactions
                 .unwrap_or_default()
@@ -58,7 +54,7 @@ where
                         .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
                     Ok(tx)
                 })
-                .collect::<ExecutorResult<Vec<VersionedTransaction>>>()?,
+                .collect::<ExecutorResult<_>>()?,
         })
     }
 }
