@@ -43,7 +43,7 @@ impl<CB: AccountsCallback> FraudExecutor<CB> {
         let l1_block_info = self.get_l1_block_info().unwrap_or_default();
         let clock = self.svm.get_sysvar::<Clock>()?;
         let slot = self.svm.slot();
-        let parent_hash = self.svm.parent_blockhash().to_bytes();
+        let parent_hash = self.svm.parent_blockhash()?.to_bytes();
         let hash = self.svm.blockhash().to_bytes();
         Ok(L2BlockInfo {
             block_info: BlockInfo::new(hash.into(), slot, parent_hash.into(), clock.unix_timestamp as u64),

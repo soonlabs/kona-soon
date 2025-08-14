@@ -12,7 +12,7 @@ use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use solana_sdk::transaction::VersionedTransaction;
 use soon_primitives::rollup_config::SoonRollupConfig;
 use soon_primitives::blocks::L2BlockHeader;
-use litesvm::LiteSVM;
+use litesvm::{LiteSVM, ParentInfo};
 
 /// The [`StatelessL2Builder`] is an OP Stack block builder that traverses a merkle patricia trie
 /// via the [`TrieDB`] during execution.
@@ -93,10 +93,13 @@ where
 
         // Step 2. Create the executor, using the trie database.
         // TODO: import using trie db later
-        // TODO: svm should be correctly initialized
         let mut svm = LiteSVM::new_soon()
             .with_accounts_callback(self.trie_db.clone())
             .with_init_account(self.last_accounts_diff.accounts.clone());
+            // TODO: how to fetch the following data from trie db?
+            // .with_parent_info()
+            // .with_bank_hash()
+            // .with_clock_timestamp();
         svm.finish_init().map_err(|e| ExecutorError::FraudExecutorError(e.into()))?;
         let mut executor = FraudExecutor::new(svm);
 

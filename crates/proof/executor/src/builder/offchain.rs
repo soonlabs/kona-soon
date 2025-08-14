@@ -13,7 +13,6 @@ use kona_mpt::TrieHinter;
 use litesvm::{LiteSVM, ParentInfo};
 use litesvm::accounts_callback::AccountsCallback;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
-use serde::{Deserialize, Serialize};
 use solana_sdk::hash::Hash;
 use solana_sdk::transaction::VersionedTransaction;
 use soon_primitives::blocks::L2BlockHeader;
@@ -79,11 +78,19 @@ where
             })?;
         let parent_info: ParentInfo = bincode::deserialize(&parent_info)
             .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
-        let current_info = self
+        
+        let clock_timestamp = self
             .provider
-            .data_by_hash(cal_svm_current_info(self.current_slot()))
+            .data_by_hash(cal_svm_clock_timestamp(self.current_slot()))
             .map_err(|_| ExecutorError::FraudInitError("Failed to get clock timestamp".to_string()))?;
-        let current_info: CurrentInfo = bincode::deserialize(&current_info)
+        let clock_timestamp: i64 = bincode::deserialize(&clock_timestamp)
+            .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
+
+        let bankhash = self
+            .provider
+            .data_by_hash(cal_svm_bank_hash(self.current_slot()))
+            .map_err(|_| ExecutorError::FraudInitError("Failed to get bank hash".to_string()))?;
+        let bankhash: Hash = bincode::deserialize(&bankhash)
             .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
 
         let accounts_callback: A = bincode::deserialize(&init_accounts_code)
@@ -93,8 +100,8 @@ where
             .with_leader_schedule(None.into())
             .with_sigverify(false)
             .with_accounts_callback(accounts_callback)
-            .with_clock_timestamp(current_info.clock_timestamp)
-            .with_bank_hash(current_info.bank_hash);
+            .with_clock_timestamp(clock_timestamp)
+            .with_bank_hash(bankhash);
         svm.finish_init().map_err(|e| ExecutorError::FraudExecutorError(e.into()))?;
         let mut executor = FraudExecutor::new(svm);
 
@@ -225,9 +232,14 @@ pub fn cal_svm_parent_info(slot: u64) -> B256 {
     slot_spec_hash(slot, b"svm_parent_info")
 }
 
-/// Calculate the hash of the SVM current info for the given slot.
-pub fn cal_svm_current_info(slot: u64) -> B256 {
-    slot_spec_hash(slot, b"svm_current_info")
+/// Calculate the hash of the SVM clock timestamp for the given slot.
+pub fn cal_svm_clock_timestamp(slot: u64) -> B256 {
+    slot_spec_hash(slot, b"svm_clock_timestamp")
+}
+
+/// Calculate the hash of the SVM bank hash for the given slot.
+pub fn cal_svm_bank_hash(slot: u64) -> B256 {
+    slot_spec_hash(slot, b"svm_bank_hash")
 }
 
 fn slot_spec_hash(slot: u64, suffix: &[u8]) -> B256 {
@@ -235,11 +247,4 @@ fn slot_spec_hash(slot: u64, suffix: &[u8]) -> B256 {
     hasher.update(slot.to_be_bytes());
     hasher.update(suffix);
     hasher.finalize()
-}
-
-/// Represents the current information of the SVM, including the clock timestamp and bank hash.
-#[derive(Debug, Default, PartialEq, Eq, Clone, Serialize, Deserialize)]
-pub struct CurrentInfo {
-    pub clock_timestamp: i64,
-    pub bank_hash: Hash,
 }

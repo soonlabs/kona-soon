@@ -84,6 +84,7 @@ mod leader_schedule;
 pub use blockhash_queue::BlockhashQueue;
 pub use parent_info::ParentInfo;
 pub use leader_schedule::LeaderSchedule;
+use crate::error::InvalidSysvarDataError;
 
 // The test code doesn't actually get run because it's not
 // what doctest expects but at least it
@@ -367,9 +368,13 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     pub fn blockhash(&self) -> Hash {
         self.blockhash
     }
-    
-    pub fn parent_blockhash(&self) -> Hash {
-        self.parent_info.blockhash
+
+    pub fn parent_blockhash(&mut self) -> Result<Hash, LiteSVMError> {
+        let slot_hashes: sysvar::slot_hashes::SlotHashes = self.get_sysvar()?;
+        let bankhash = slot_hashes
+            .get(&self.parent_info.slot)
+            .ok_or(LiteSVMError::InvalidSysvarData(InvalidSysvarDataError::SlotHashes))?;
+        Ok(*bankhash)
     }
 
     pub fn feature_set(&self) -> &FeatureSet {
