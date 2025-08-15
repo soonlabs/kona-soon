@@ -3,6 +3,7 @@
 use alloc::{boxed::Box, sync::Arc};
 use alloy_primitives::B256;
 use async_trait::async_trait;
+use fraud_executor::accounts::SoonAccounts;
 use fraud_executor::outcome::BlockBuildingOutcome;
 use kona_driver::Executor;
 use kona_executor::TrieDBProvider;
@@ -10,7 +11,6 @@ pub use kona_executor::{L2BlockBuilder, OffchainL2Builder, StatelessL2Builder};
 use kona_mpt::TrieHinter;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use soon_primitives::{blocks::L2BlockHeader, rollup_config::SoonRollupConfig};
-use fraud_executor::accounts::SoonAccounts;
 
 /// An executor wrapper type.
 #[derive(Debug)]
@@ -68,12 +68,8 @@ where
     /// a new executor is created with the updated header.
     fn update_safe_head(&mut self, header: L2BlockHeader) -> Result<(), Self::Error> {
         let last_account_diff = match &self.inner {
-            None => {
-                SoonAccounts::default()
-            }
-            Some(builder) => {
-                builder.account_diff()
-            }
+            None => SoonAccounts::default(),
+            Some(builder) => builder.account_diff(),
         };
         let mut executor = E::new(
             self.rollup_config.clone(),

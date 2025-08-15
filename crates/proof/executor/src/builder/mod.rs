@@ -3,8 +3,8 @@ use alloc::sync::Arc;
 use alloy_primitives::B256;
 use kona_mpt::TrieHinter;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
-use soon_primitives::rollup_config::SoonRollupConfig;
 use soon_primitives::blocks::L2BlockHeader;
+use soon_primitives::rollup_config::SoonRollupConfig;
 
 mod core;
 pub use core::StatelessL2Builder;
@@ -13,8 +13,8 @@ use fraud_executor::outcome::BlockBuildingOutcome;
 
 mod offchain;
 pub use offchain::{
-    OffchainL2Builder, cal_init_accounts_hash, cal_init_state_root_hash, cal_svm_parent_info,
-    cal_svm_clock_timestamp, cal_svm_bank_hash
+    OffchainL2Builder, cal_init_accounts_hash, cal_init_state_root_hash, cal_svm_bank_hash,
+    cal_svm_clock_timestamp, cal_svm_parent_info,
 };
 
 use crate::{ExecutorResult, TrieDBProvider};

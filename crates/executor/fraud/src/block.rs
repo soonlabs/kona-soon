@@ -1,5 +1,4 @@
 use solana_sdk::transaction::VersionedTransaction;
-use soon_mpt_primitives::B256;
 use soon_primitives::blocks::RawBlock;
 
 #[derive(Debug)]

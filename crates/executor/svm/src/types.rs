@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use solana_sdk::transaction::SanitizedTransaction;
 use solana_sdk::{
     account::AccountSharedData,
     inner_instruction::InnerInstructionsList,
@@ -9,7 +10,6 @@ use solana_sdk::{
     transaction::{Result, TransactionError},
     transaction_context::TransactionReturnData,
 };
-use solana_sdk::transaction::SanitizedTransaction;
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct TransactionMetadata {

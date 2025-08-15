@@ -28,7 +28,7 @@ impl LeaderSchedule {
 }
 
 impl FromIterator<(Slot, Pubkey)> for LeaderSchedule {
-    fn from_iter<T: IntoIterator<Item=(Slot, Pubkey)>>(iter: T) -> Self {
+    fn from_iter<T: IntoIterator<Item = (Slot, Pubkey)>>(iter: T) -> Self {
         let mut leaders = iter.into_iter().unique_by(|(slot, _)| *slot).collect::<Vec<_>>();
         leaders.sort_unstable_by_key(|(s, _)| *s);
         Self { leaders }

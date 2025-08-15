@@ -1,5 +1,6 @@
 #![allow(missing_docs)]
 
+use crate::genesis::*;
 use crate::{
     accounts_db::AccountsDb,
     builtin::BUILTINS,
@@ -9,12 +10,22 @@ use crate::{
     types::{ExecutionResult, FailedTransactionMetadata, TransactionMetadata, TransactionResult},
     utils::rent::RentState,
 };
+use accounts_callback::AccountsCallback;
 use solana_bpf_loader_program::syscalls::create_program_runtime_environment_v1;
 use solana_compute_budget::{
     compute_budget::ComputeBudget,
-    compute_budget_processor::{process_compute_budget_instructions, ComputeBudgetLimits},
+    compute_budget_processor::{ComputeBudgetLimits, process_compute_budget_instructions},
 };
+use solana_entry::entry::{Entry, next_hash};
 use solana_loader_v4_program::create_program_runtime_environment_v2;
+use solana_program::clock::{Clock, Epoch, INITIAL_RENT_EPOCH, MAX_PROCESSING_AGE, Slot};
+use solana_program::epoch_schedule::EpochSchedule;
+use solana_program::fee_calculator::FeeRateGovernor;
+use solana_program::hash::Hash;
+use solana_program::nonce;
+use solana_program::sysvar;
+use solana_program::sysvar::recent_blockhashes::IntoIterSorted;
+use solana_program_runtime::loaded_programs::ProgramRuntimeEnvironments;
 use solana_program_runtime::{
     invoke_context::{EnvironmentConfig, InvokeContext},
     loaded_programs::ProgramCacheEntry,
@@ -23,15 +34,16 @@ use solana_program_runtime::{
 };
 use solana_sdk::{
     account::{Account, AccountSharedData, ReadableAccount, WritableAccount},
-    feature_set, feature_set::{
-        include_loaded_accounts_data_size_in_fee_calculation, remove_rounding_in_fee_calculation,
-        FeatureSet,
+    feature_set,
+    feature_set::{
+        FeatureSet, include_loaded_accounts_data_size_in_fee_calculation,
+        remove_rounding_in_fee_calculation,
     },
     fee::FeeStructure,
     inner_instruction::InnerInstructionsList,
     message::SanitizedMessage,
     native_loader,
-    nonce::{state::DurableNonce, NONCED_TX_MARKER_IX_INDEX},
+    nonce::{NONCED_TX_MARKER_IX_INDEX, state::DurableNonce},
     nonce_account,
     pubkey::Pubkey,
     rent::Rent,
@@ -42,49 +54,38 @@ use solana_sdk::{
     transaction::{MessageHash, SanitizedTransaction, TransactionError, VersionedTransaction},
     transaction_context::{ExecutionRecord, IndexOfAccount, TransactionContext},
 };
-use solana_svm::{account_loader::collect_rent_from_account, message_processor::MessageProcessor};
-use solana_system_program::{get_system_account_kind, SystemAccountKind};
-use std::fmt::Debug;
-use std::{cell::RefCell, rc::Rc, sync::Arc};
-use std::collections::BinaryHeap;
-use solana_entry::entry::{next_hash, Entry};
-use solana_program::clock::{Clock, Epoch, Slot, INITIAL_RENT_EPOCH, MAX_PROCESSING_AGE};
-use solana_program::epoch_schedule::EpochSchedule;
-use solana_program::fee_calculator::FeeRateGovernor;
-use solana_program::hash::Hash;
-use solana_program::nonce;
-use solana_program::sysvar;
-use solana_program::sysvar::recent_blockhashes::IntoIterSorted;
-use solana_program_runtime::loaded_programs::ProgramRuntimeEnvironments;
 use solana_svm::account_loader::{CheckedTransactionDetails, TransactionCheckResult};
 use solana_svm::nonce_info::NoncePartial;
+use solana_svm::{account_loader::collect_rent_from_account, message_processor::MessageProcessor};
+use solana_system_program::{SystemAccountKind, get_system_account_kind};
+use std::collections::BinaryHeap;
+use std::fmt::Debug;
+use std::{cell::RefCell, rc::Rc, sync::Arc};
 use tracing::error;
 use types::SimulatedTransactionInfo;
 use utils::{
     construct_instructions_account,
     inner_instructions::inner_instructions_list_from_instruction_trace,
 };
-use accounts_callback::AccountsCallback;
-use crate::genesis::*;
 
-pub mod error;
-pub mod types;
 pub mod accounts_callback;
+pub mod error;
 pub mod genesis;
+pub mod types;
 
 mod accounts_db;
 mod builtin;
 mod history;
 // mod spl;
-mod utils;
 mod blockhash_queue;
-mod parent_info;
 mod leader_schedule;
+mod parent_info;
+mod utils;
 
-pub use blockhash_queue::BlockhashQueue;
-pub use parent_info::ParentInfo;
-pub use leader_schedule::LeaderSchedule;
 use crate::error::InvalidSysvarDataError;
+pub use blockhash_queue::BlockhashQueue;
+pub use leader_schedule::LeaderSchedule;
+pub use parent_info::ParentInfo;
 
 // The test code doesn't actually get run because it's not
 // what doctest expects but at least it
@@ -202,8 +203,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
             false,
         )
         .unwrap();
-        let program_runtime_v2 =
-            create_program_runtime_environment_v2(&self.compute_budget, false);
+        let program_runtime_v2 = create_program_runtime_environment_v2(&self.compute_budget, false);
         self.accounts.set_environments(ProgramRuntimeEnvironments {
             program_runtime_v1: Arc::new(program_runtime_v1),
             program_runtime_v2: Arc::new(program_runtime_v2),
@@ -407,10 +407,8 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     where
         T: Sysvar + SysvarId,
     {
-        let account = self
-            .accounts
-            .get_account(&T::id())
-            .ok_or(LiteSVMError::MissingAccount(T::id()))?;
+        let account =
+            self.accounts.get_account(&T::id()).ok_or(LiteSVMError::MissingAccount(T::id()))?;
         bincode::deserialize(account.data()).map_err(|e| LiteSVMError::Bincode(e))
     }
 
@@ -418,11 +416,8 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     where
         T: Sysvar + SysvarId,
     {
-        let mut account = Account::new(
-            self.rent.minimum_balance(T::size_of()),
-            T::size_of(),
-            &sysvar::id(),
-        );
+        let mut account =
+            Account::new(self.rent.minimum_balance(T::size_of()), T::size_of(), &sysvar::id());
         solana_sdk::account::to_account::<_, Account>(&sysvar, &mut account).unwrap();
         account.rent_epoch = INITIAL_RENT_EPOCH;
 
@@ -516,8 +511,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
             message,
             lamports_per_signature,
             &compute_budget_limits.into(),
-            self.feature_set
-                .is_active(&include_loaded_accounts_data_size_in_fee_calculation::id()),
+            self.feature_set.is_active(&include_loaded_accounts_data_size_in_fee_calculation::id()),
             self.feature_set.is_active(&remove_rounding_in_fee_calculation::id()),
         );
         let mut validated_fee_payer = false;
@@ -758,7 +752,12 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
             let tx_result = self.check_tx_result(result, payer_key, fee);
             execution_result_if_context(sanitized_tx, ctx, tx_result, compute_units_consumed, fee)
         } else {
-            ExecutionResult::result_and_compute_units(sanitized_tx, result, compute_units_consumed, fee)
+            ExecutionResult::result_and_compute_units(
+                sanitized_tx,
+                result,
+                compute_units_consumed,
+                fee,
+            )
         }
     }
 
@@ -783,7 +782,12 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         if let Some(ctx) = context {
             execution_result_if_context(sanitized_tx, ctx, result, compute_units_consumed, fee)
         } else {
-            ExecutionResult::result_and_compute_units(sanitized_tx, result, compute_units_consumed, fee)
+            ExecutionResult::result_and_compute_units(
+                sanitized_tx,
+                result,
+                compute_units_consumed,
+                fee,
+            )
         }
     }
 
@@ -810,10 +814,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     ) -> Result<CheckAndProcessTransactionSuccess, ExecutionResult> {
         let tx_details = self
             .maybe_blockhash_check(sanitized_tx)
-            .map_err(|e| ExecutionResult {
-                tx_result: Err(e),
-                ..Default::default()
-            })?;
+            .map_err(|e| ExecutionResult { tx_result: Err(e), ..Default::default() })?;
         let compute_budget_limits = get_compute_budget_limits(sanitized_tx)?;
         self.maybe_history_check(sanitized_tx)?;
         let (result, compute_units_consumed, context, fee, payer_key, fee_payer_rent_debit) =
@@ -868,17 +869,17 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         }
     }
 
-    fn execute_transaction_no_verify_readonly(&mut self, tx: VersionedTransaction) -> ExecutionResult {
+    fn execute_transaction_no_verify_readonly(
+        &mut self,
+        tx: VersionedTransaction,
+    ) -> ExecutionResult {
         match self.sanitize_transaction_no_verify(tx) {
             Ok(sanitized_tx) => self.execute_sanitized_transaction_readonly(sanitized_tx),
             Err(execution_result) => execution_result,
         }
     }
 
-    pub fn seal_block(
-        &mut self,
-        results: &[TransactionResult],
-    ) -> Result<(), LiteSVMError> {
+    pub fn seal_block(&mut self, results: &[TransactionResult]) -> Result<(), LiteSVMError> {
         let mut fees = 0;
         results.iter().for_each(|r| match r {
             Ok(meta) => fees += meta.fee,
@@ -901,9 +902,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         &mut self,
         txs: Vec<VersionedTransaction>,
     ) -> Result<Vec<TransactionResult>, LiteSVMError> {
-        let res = txs.into_iter()
-            .map(|tx| self.send_transaction(tx))
-            .collect::<Vec<_>>();
+        let res = txs.into_iter().map(|tx| self.send_transaction(tx)).collect::<Vec<_>>();
         self.seal_block(&res)?;
         Ok(res)
     }
@@ -916,10 +915,10 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     //     for tx_batch in &block_txs {
     //         results.push(self.execute_batch_transactions(tx_batch));
     //     }
-    // 
+    //
     //     // process entries
     //     self.batches_to_data_entries(&results, &block_txs)?;
-    // 
+    //
     //     self.seal_block(&results)?;
     //     Ok(results)
     // }
@@ -929,10 +928,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         batch_txs: &[VersionedTransaction],
     ) -> Vec<TransactionResult> {
         // TODO: verify batch txs conflict or not?
-        batch_txs
-            .iter()
-            .map(|tx| self.send_transaction(tx.clone()))
-            .collect()
+        batch_txs.iter().map(|tx| self.send_transaction(tx.clone())).collect()
     }
 
     /// Submits a signed transaction.
@@ -963,13 +959,11 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
                 .as_ref()
                 .map(|log_collector| {
                     log_collector
-                        .replace_with(|old| {
-                            LogCollector {
-                                messages: Vec::new(),
-                                bytes_written: old.bytes_written,
-                                bytes_limit: old.bytes_limit,
-                                limit_warning: old.limit_warning,
-                            }
+                        .replace_with(|old| LogCollector {
+                            messages: Vec::new(),
+                            bytes_written: old.bytes_written,
+                            bytes_limit: old.bytes_limit,
+                            limit_warning: old.limit_warning,
                         })
                         .into_messages()
                 })
@@ -999,12 +993,12 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
                     &mut account,
                 );
 
-                self.accounts
-                    .add_diff_account(false, key, account)
-                    .map_err(|_| FailedTransactionMetadata {
+                self.accounts.add_diff_account(false, key, account).map_err(|_| {
+                    FailedTransactionMetadata {
                         err: TransactionError::InvalidRentPayingAccount,
                         meta: meta.clone(),
-                    })?;
+                    }
+                })?;
             }
             Ok(meta)
         }
@@ -1037,13 +1031,11 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
                 .as_ref()
                 .map(|log_collector| {
                     log_collector
-                        .replace_with(|old| {
-                            LogCollector {
-                                messages: Vec::new(),
-                                bytes_written: old.bytes_written,
-                                bytes_limit: old.bytes_limit,
-                                limit_warning: old.limit_warning,
-                            }
+                        .replace_with(|old| LogCollector {
+                            messages: Vec::new(),
+                            bytes_written: old.bytes_written,
+                            bytes_limit: old.bytes_limit,
+                            limit_warning: old.limit_warning,
                         })
                         .into_messages()
                 })
@@ -1082,7 +1074,9 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         next_durable_nonce: &DurableNonce,
     ) -> TransactionCheckResult {
         let recent_blockhash = tx.message().recent_blockhash();
-        if let Some(hash_info) = self.get_blockhash_queue().get_hash_info_if_valid(recent_blockhash, MAX_PROCESSING_AGE) {
+        if let Some(hash_info) =
+            self.get_blockhash_queue().get_hash_info_if_valid(recent_blockhash, MAX_PROCESSING_AGE)
+        {
             Ok(CheckedTransactionDetails {
                 nonce: None,
                 lamports_per_signature: hash_info.lamports_per_signature(),
@@ -1097,10 +1091,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         } else if tx.message().fee_payer() == &NO_SIG_TX_PAYER {
             // TODO: should use native transaction verification logic, only use fee payer is not correct
             // Native transaction do not pay fees
-            Ok(CheckedTransactionDetails {
-                nonce: None,
-                lamports_per_signature: 0,
-            })
+            Ok(CheckedTransactionDetails { nonce: None, lamports_per_signature: 0 })
         } else {
             Err(TransactionError::BlockhashNotFound)
         }
@@ -1131,12 +1122,13 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     }
 
     fn update_clock(&mut self) -> Result<(), LiteSVMError> {
-        let epoch_start_timestamp = if self.epoch_schedule.get_epoch(self.parent_info.slot) != self.epoch {
-            todo!("Epoch change not supported yet")
-        } else {
-            let clock: Clock = self.get_sysvar()?;
-            clock.epoch_start_timestamp
-        };
+        let epoch_start_timestamp =
+            if self.epoch_schedule.get_epoch(self.parent_info.slot) != self.epoch {
+                todo!("Epoch change not supported yet")
+            } else {
+                let clock: Clock = self.get_sysvar()?;
+                clock.epoch_start_timestamp
+            };
 
         let clock = Clock {
             slot: self.slot,
@@ -1150,14 +1142,16 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     }
 
     fn update_slot_history(&mut self) -> Result<(), LiteSVMError> {
-        let mut slot_history: solana_program::slot_history::SlotHistory = self.get_sysvar().unwrap_or_default();
+        let mut slot_history: solana_program::slot_history::SlotHistory =
+            self.get_sysvar().unwrap_or_default();
         slot_history.add(self.slot);
         self.update_sysvar(slot_history)?;
         Ok(())
     }
 
     fn update_slot_hashes(&mut self) -> Result<(), LiteSVMError> {
-        let mut slot_hashes: solana_program::slot_hashes::SlotHashes = self.get_sysvar().unwrap_or_default();
+        let mut slot_hashes: solana_program::slot_hashes::SlotHashes =
+            self.get_sysvar().unwrap_or_default();
         slot_hashes.add(self.parent_info.slot, self.parent_info.bank_hash);
         self.update_sysvar(slot_hashes)?;
         Ok(())
@@ -1167,15 +1161,15 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     fn update_recent_blockhashes_locked(&mut self) -> Result<(), LiteSVMError> {
         let recent_blockhash_iter = self.get_blockhash_queue().get_recent_blockhashes();
         let sorted = BinaryHeap::from_iter(recent_blockhash_iter);
-        let recent_blockhashes: sysvar::recent_blockhashes::RecentBlockhashes = IntoIterSorted::new(sorted)
-            .take(sysvar::recent_blockhashes::MAX_ENTRIES)
-            .collect();
+        let recent_blockhashes: sysvar::recent_blockhashes::RecentBlockhashes =
+            IntoIterSorted::new(sorted).take(sysvar::recent_blockhashes::MAX_ENTRIES).collect();
         self.update_sysvar(recent_blockhashes)?;
         Ok(())
     }
 
     fn register_recent_blockhash(&mut self) -> Result<(), LiteSVMError> {
-        self.blockhash_queue.register_hash(self.blockhash, self.fee_rate_governor.lamports_per_signature);
+        self.blockhash_queue
+            .register_hash(self.blockhash, self.fee_rate_governor.lamports_per_signature);
         self.update_recent_blockhashes_locked()?;
         Ok(())
     }
@@ -1183,21 +1177,21 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     // fn complete_entries(&self, mut data_entries: Vec<Entry>) -> Result<Vec<Entry>, LiteSVMError> {
     //     let last_entry = data_entries.last().ok_or(Error::NoEntries)?;
     //     let mut start_hash = last_entry.hash;
-    // 
+    //
     //     let tick_count = self
     //         .max_tick_height
     //         .saturating_sub(self.tick_height)
     //         .saturating_sub(data_entries.iter().filter(|entry| entry.is_tick()).count() as u64);
-    // 
+    //
     //     for _ in 0..tick_count {
     //         let entry = new_entry(&start_hash, self.hashes_per_tick, vec![]);
     //         start_hash = entry.hash;
     //         data_entries.push(entry);
     //     }
-    // 
+    //
     //     Ok(data_entries)
     // }
-    // 
+    //
     // fn batches_to_data_entries(
     //     &self,
     //     results: &[Vec<TransactionResult>],
@@ -1227,7 +1221,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     ) -> Result<Entry, LiteSVMError> {
         let start_hash = match start_hash {
             Some(start_hash) => start_hash,
-            None => self.blockhash_queue.last_hash()
+            None => self.blockhash_queue.last_hash(),
         };
         Ok(new_entry(&start_hash, self.hashes_per_tick, transactions))
     }
@@ -1293,7 +1287,13 @@ fn execute_tx_helper(
         .enumerate()
         .filter_map(|(idx, pair)| msg.is_writable(idx).then_some(pair))
         .collect();
-    (signature, msg.header().num_required_signatures, return_data, inner_instructions, post_accounts)
+    (
+        signature,
+        msg.header().num_required_signatures,
+        return_data,
+        inner_instructions,
+        post_accounts,
+    )
 }
 
 fn get_compute_budget_limits(
@@ -1387,9 +1387,5 @@ fn new_entry(
     }
 
     let hash = next_hash(prev_hash, num_hashes, &transactions);
-    Entry {
-        num_hashes,
-        hash,
-        transactions,
-    }
+    Entry { num_hashes, hash, transactions }
 }

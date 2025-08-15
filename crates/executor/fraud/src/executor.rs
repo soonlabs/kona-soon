@@ -10,8 +10,8 @@ use soon_mpt_primitives::B256;
 use soon_mpt_primitives::alloy::eips::BlockNumHash;
 use soon_primitives::blocks::{BlockInfo, L2BlockInfo};
 
-use litesvm::accounts_callback::AccountsCallback;
 use crate::block::SimpleBlock;
+use litesvm::accounts_callback::AccountsCallback;
 
 #[derive(Debug, Default)]
 pub struct FraudExecutor<CB: AccountsCallback> {
@@ -46,7 +46,12 @@ impl<CB: AccountsCallback> FraudExecutor<CB> {
         let parent_hash = self.svm.parent_blockhash()?.to_bytes();
         let hash = self.svm.blockhash().to_bytes();
         Ok(L2BlockInfo {
-            block_info: BlockInfo::new(hash.into(), slot, parent_hash.into(), clock.unix_timestamp as u64),
+            block_info: BlockInfo::new(
+                hash.into(),
+                slot,
+                parent_hash.into(),
+                clock.unix_timestamp as u64,
+            ),
             l1_origin: BlockNumHash::new(l1_block_info.number, l1_block_info.hash.into()),
             seq_num: l1_block_info.sequence_number,
         })

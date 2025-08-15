@@ -55,7 +55,10 @@ impl<CB: AccountsCallback> AccountsDb<CB> {
         self
     }
 
-    pub fn set_init_accounts(&mut self, init_accounts: Vec<(Pubkey, AccountSharedData)>) -> &mut Self {
+    pub fn set_init_accounts(
+        &mut self,
+        init_accounts: Vec<(Pubkey, AccountSharedData)>,
+    ) -> &mut Self {
         for (pubkey, account) in init_accounts {
             self.accounts_diff.insert(pubkey, account);
         }
@@ -109,13 +112,11 @@ impl<CB: AccountsCallback> AccountsDb<CB> {
     }
 
     pub(crate) fn get_account(&mut self, pubkey: &Pubkey) -> Option<AccountSharedData> {
-        self.accounts_diff
-            .get(pubkey)
-            .cloned()
-            .or_else(|| {
-                self.callback.as_mut()
-                    .and_then(|callback| callback.get_account_data(pubkey).ok().flatten())
-            })
+        self.accounts_diff.get(pubkey).cloned().or_else(|| {
+            self.callback
+                .as_mut()
+                .and_then(|callback| callback.get_account_data(pubkey).ok().flatten())
+        })
     }
 
     pub(crate) fn load_account(

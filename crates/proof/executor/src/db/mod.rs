@@ -12,9 +12,9 @@ use solana_sdk::pubkey::Pubkey;
 use soon_primitives::{blocks::L2BlockHeader, mpt::WrappedSolanaAccount};
 
 mod traits;
+use fraud_executor::accounts::SoonAccounts;
 use soon_mpt_primitives::account::TrieSolanaAccount;
 pub use traits::{NoopTrieDBProvider, TrieDBProvider};
-use fraud_executor::accounts::SoonAccounts;
 
 /// A Trie DB that caches open state in-memory.
 ///

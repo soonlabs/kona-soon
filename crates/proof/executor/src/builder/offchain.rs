@@ -10,8 +10,8 @@ use fraud_executor::executor::FraudExecutor;
 use fraud_executor::outcome::BlockBuildingOutcome;
 use fraud_executor::utils::analyze_account_sets;
 use kona_mpt::TrieHinter;
-use litesvm::{LiteSVM, ParentInfo};
 use litesvm::accounts_callback::AccountsCallback;
+use litesvm::{LiteSVM, ParentInfo};
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use solana_sdk::hash::Hash;
 use solana_sdk::transaction::VersionedTransaction;
@@ -70,19 +70,17 @@ where
             self.provider.data_by_hash(cal_init_accounts_hash(self.parent_slot())).map_err(
                 |_| ExecutorError::FraudInitError("Failed to get init accounts code".to_string()),
             )?;
-        let parent_info = self
-            .provider
-            .data_by_hash(cal_svm_parent_info(self.parent_slot()))
-            .map_err(|_| {
+        let parent_info =
+            self.provider.data_by_hash(cal_svm_parent_info(self.parent_slot())).map_err(|_| {
                 ExecutorError::FraudInitError("Failed to get svm parent info code".to_string())
             })?;
         let parent_info: ParentInfo = bincode::deserialize(&parent_info)
             .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
-        
-        let clock_timestamp = self
-            .provider
-            .data_by_hash(cal_svm_clock_timestamp(self.current_slot()))
-            .map_err(|_| ExecutorError::FraudInitError("Failed to get clock timestamp".to_string()))?;
+
+        let clock_timestamp =
+            self.provider.data_by_hash(cal_svm_clock_timestamp(self.current_slot())).map_err(
+                |_| ExecutorError::FraudInitError("Failed to get clock timestamp".to_string()),
+            )?;
         let clock_timestamp: i64 = bincode::deserialize(&clock_timestamp)
             .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
 
@@ -107,12 +105,10 @@ where
 
         // check state root
         {
-            let init_state_root = self
-                .provider
-                .data_by_hash(cal_init_state_root_hash(self.current_slot()))
-                .map_err(|_| {
-                    ExecutorError::FraudInitError("Failed to get init state root".to_string())
-                })?;
+            let init_state_root =
+                self.provider.data_by_hash(cal_init_state_root_hash(self.current_slot())).map_err(
+                    |_| ExecutorError::FraudInitError("Failed to get init state root".to_string()),
+                )?;
             let init_state_root = B256::try_from(init_state_root.to_vec().as_slice()).unwrap();
             let diff_accounts = executor.export_diff_accounts();
             let actual_state_root = SoonAccounts::from(diff_accounts).state_root();
@@ -140,12 +136,10 @@ where
 
         // check execution account states
         {
-            let new_accounts_data = self
-                .provider
-                .data_by_hash(cal_init_accounts_hash(self.current_slot()))
-                .map_err(|_| {
-                    ExecutorError::FraudInitError("Failed to get init state root".to_string())
-                })?;
+            let new_accounts_data =
+                self.provider.data_by_hash(cal_init_accounts_hash(self.current_slot())).map_err(
+                    |_| ExecutorError::FraudInitError("Failed to get init state root".to_string()),
+                )?;
             let new_block_accounts: SoonAccounts = bincode::deserialize(&new_accounts_data)
                 .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
             let soon_state_root = new_block_accounts.state_root();
@@ -183,7 +177,7 @@ where
     }
 
     fn account_diff(&self) -> SoonAccounts {
-        return self.diff_accounts.clone()
+        return self.diff_accounts.clone();
     }
 }
 

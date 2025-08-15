@@ -1,9 +1,9 @@
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use solana_program::clock::MAX_RECENT_BLOCKHASHES;
 use solana_program::fee_calculator::FeeCalculator;
 use solana_program::hash::Hash;
 use solana_program::sysvar;
+use std::collections::HashMap;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BlockhashQueue {
@@ -18,12 +18,7 @@ pub struct BlockhashQueue {
 
 impl BlockhashQueue {
     pub fn new(max_age: usize) -> Self {
-        Self {
-            hashes: HashMap::new(),
-            last_hash_index: 0,
-            last_hash: None,
-            max_age,
-        }
+        Self { hashes: HashMap::new(), last_hash_index: 0, last_hash: None, max_age }
     }
 
     pub fn last_hash(&self) -> Hash {
@@ -31,9 +26,7 @@ impl BlockhashQueue {
     }
 
     pub fn get_lamports_per_signature(&self, hash: &Hash) -> Option<u64> {
-        self.hashes
-            .get(hash)
-            .map(|hash_age| hash_age.fee_calculator.lamports_per_signature)
+        self.hashes.get(hash).map(|hash_age| hash_age.fee_calculator.lamports_per_signature)
     }
 
     /// Check if the age of the hash is within the specified age
@@ -50,9 +43,7 @@ impl BlockhashQueue {
     }
 
     pub fn get_hash_age(&self, hash: &Hash) -> Option<u64> {
-        self.hashes
-            .get(hash)
-            .map(|info| self.last_hash_index - info.hash_index)
+        self.hashes.get(hash).map(|info| self.last_hash_index - info.hash_index)
     }
 
     pub(crate) fn register_hash(&mut self, hash: Hash, lamports_per_signature: u64) {
@@ -76,9 +67,15 @@ impl BlockhashQueue {
     }
 
     #[allow(deprecated)]
-    pub(crate) fn get_recent_blockhashes(&self) -> impl Iterator<Item = sysvar::recent_blockhashes::IterItem<'_>> {
+    pub(crate) fn get_recent_blockhashes(
+        &self,
+    ) -> impl Iterator<Item = sysvar::recent_blockhashes::IterItem<'_>> {
         self.hashes.iter().map(|(k, v)| {
-            sysvar::recent_blockhashes::IterItem(v.hash_index, k, v.fee_calculator.lamports_per_signature)
+            sysvar::recent_blockhashes::IterItem(
+                v.hash_index,
+                k,
+                v.fee_calculator.lamports_per_signature,
+            )
         })
     }
 
@@ -94,13 +91,16 @@ impl From<sysvar::recent_blockhashes::RecentBlockhashes> for BlockhashQueue {
         let hashes = recent_blockhashes
             .iter()
             .enumerate()
-            .map(|(index, entry)| (
-                entry.blockhash,
-                HashInfo {
-                    fee_calculator: entry.fee_calculator,
-                    hash_index: len - index as u64, // This will be set later
-                    timestamp: 0, // This will be set later
-                }))
+            .map(|(index, entry)| {
+                (
+                    entry.blockhash,
+                    HashInfo {
+                        fee_calculator: entry.fee_calculator,
+                        hash_index: len - index as u64, // This will be set later
+                        timestamp: 0,                   // This will be set later
+                    },
+                )
+            })
             .collect::<HashMap<_, _>>();
         BlockhashQueue {
             hashes,
