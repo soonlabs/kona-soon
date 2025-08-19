@@ -126,7 +126,6 @@ pub struct LiteSVM<CB: AccountsCallback> {
 
     // witness variables
     clock_timestamp: i64,
-    bank_hash: Hash,
     parent_info: ParentInfo,
 }
 
@@ -153,7 +152,6 @@ impl<CB: AccountsCallback> Default for LiteSVM<CB> {
             rent_collector: Default::default(),
             signature_count: 0,
             clock_timestamp: 0,
-            bank_hash: Default::default(),
             blockhash: None,
             blockhash_queue: Default::default(),
             parent_info: ParentInfo::default(),
@@ -237,11 +235,6 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
 
     pub fn with_parent_info(mut self, parent: ParentInfo) -> Self {
         self.parent_info = parent;
-        self
-    }
-
-    pub const fn with_bank_hash(mut self, bank_hash: Hash) -> Self {
-        self.bank_hash = bank_hash;
         self
     }
 
