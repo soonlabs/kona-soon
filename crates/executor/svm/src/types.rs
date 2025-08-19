@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use solana_sdk::transaction::SanitizedTransaction;
 use solana_sdk::{
     account::AccountSharedData,
     inner_instruction::InnerInstructionsList,
@@ -55,8 +54,6 @@ pub(crate) struct ExecutionResult {
     pub(crate) compute_units_consumed: u64,
     pub(crate) inner_instructions: InnerInstructionsList,
     pub(crate) return_data: TransactionReturnData,
-    /// Whether the transaction can be included in a block
-    pub(crate) included: bool,
     pub(crate) fee: u64,
 }
 
@@ -70,7 +67,6 @@ impl Default for ExecutionResult {
             compute_units_consumed: Default::default(),
             inner_instructions: Default::default(),
             return_data: Default::default(),
-            included: false,
             fee: 0,
         }
     }

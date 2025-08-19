@@ -1,12 +1,10 @@
 #![allow(missing_docs)]
 
-use crate::genesis::*;
 use crate::{
     accounts_db::AccountsDb,
     builtin::BUILTINS,
     error::LiteSVMError,
-    history::TransactionHistory,
-    // spl::load_spl_programs,
+    genesis::*,
     types::{ExecutionResult, FailedTransactionMetadata, TransactionMetadata, TransactionResult},
     utils::rent::RentState,
 };
@@ -75,7 +73,6 @@ pub mod types;
 
 mod accounts_db;
 mod builtin;
-mod history;
 // mod spl;
 mod block;
 mod blockhash_queue;
@@ -99,9 +96,8 @@ pub struct ReadmeDoctests;
 pub struct LiteSVM<CB: AccountsCallback> {
     accounts: AccountsDb<CB>,
     log_collector: Option<Rc<RefCell<LogCollector>>>,
-    history: TransactionHistory,
 
-    sigverify: bool,
+    sig_verify: bool,
     blockhash_verify: bool,
 
     // configurations
@@ -134,8 +130,7 @@ impl<CB: AccountsCallback> Default for LiteSVM<CB> {
         Self {
             accounts: Default::default(),
             log_collector: None,
-            history: TransactionHistory::new(),
-            sigverify: false,
+            sig_verify: false,
             blockhash_verify: false,
             compute_budget: Default::default(),
             feature_set: Default::default(),
@@ -163,7 +158,7 @@ impl<CB: AccountsCallback> Debug for LiteSVM<CB> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "LiteSVM")?;
         write!(f, "compute_budget: {:?}", self.compute_budget)?;
-        write!(f, "sigverify: {}", self.sigverify)?;
+        write!(f, "sig_verify: {}", self.sig_verify)?;
         write!(f, "fee_structure: {:?}", self.fee_structure)?;
         Ok(())
     }
@@ -250,8 +245,8 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     }
 
     /// Enables or disables sigverify.
-    pub const fn with_sigverify(mut self, sigverify: bool) -> Self {
-        self.sigverify = sigverify;
+    pub const fn with_sig_verify(mut self, sig_verify: bool) -> Self {
+        self.sig_verify = sig_verify;
         self
     }
 
@@ -309,19 +304,6 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
                 ProgramCacheEntry::new_builtin(0, builtin.name.len(), builtin.entrypoint);
             self.accounts.programs_cache.replenish(builtin.program_id, Arc::new(loaded_program));
         });
-        self
-    }
-
-    // /// Includes the standard SPL programs.
-    // pub fn with_spl_programs(mut self) -> Self {
-    //     load_spl_programs(&mut self);
-    //     self
-    // }
-
-    /// Changes the capacity of the transaction history.
-    /// Set this to 0 to disable transaction history and allow duplicate transactions.
-    pub fn with_transaction_history(mut self, capacity: usize) -> Self {
-        self.history.set_capacity(capacity);
         self
     }
 
@@ -409,11 +391,6 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         // add to accounts db
         self.accounts.add_diff_account(false, T::id(), account.into())?;
         Ok(())
-    }
-
-    /// Gets a transaction from the transaction history.
-    pub fn get_transaction(&self, signature: &Signature) -> Option<&TransactionResult> {
-        self.history.get_transaction(signature)
     }
 
     fn create_transaction_context(
@@ -791,7 +768,6 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
             .maybe_blockhash_check(sanitized_tx)
             .map_err(|e| ExecutionResult { tx_result: Err(e), ..Default::default() })?;
         let compute_budget_limits = get_compute_budget_limits(sanitized_tx)?;
-        self.maybe_history_check(sanitized_tx)?;
         let (result, compute_units_consumed, context, fee, payer_key, fee_payer_rent_debit) =
             self.process_transaction(sanitized_tx, tx_details, compute_budget_limits);
         Ok(CheckAndProcessTransactionSuccess {
@@ -806,19 +782,6 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
             fee,
             payer_key,
         })
-    }
-
-    fn maybe_history_check(
-        &self,
-        sanitized_tx: &SanitizedTransaction,
-    ) -> Result<(), ExecutionResult> {
-        if self.history.check_transaction(sanitized_tx.signature()) {
-            return Err(ExecutionResult {
-                tx_result: Err(TransactionError::AlreadyProcessed),
-                ..Default::default()
-            });
-        }
-        Ok(())
     }
 
     fn maybe_blockhash_check(
@@ -904,9 +867,8 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
             compute_units_consumed,
             inner_instructions,
             return_data,
-            included,
             fee,
-        } = if self.sigverify {
+        } = if self.sig_verify {
             self.execute_transaction(tx)
         } else {
             self.execute_transaction_no_verify(tx)
@@ -939,12 +901,8 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
 
         if let Err(tx_err) = tx_result {
             let err = Err(FailedTransactionMetadata { err: tx_err, meta });
-            if included {
-                self.history.add_new_transaction(signature, err.clone());
-            }
             err
         } else {
-            self.history.add_new_transaction(signature, Ok(meta.clone()));
             for (key, mut account) in post_accounts {
                 // TODO: is putting collect rent here correct?
                 // collect rent
@@ -980,7 +938,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
             return_data,
             fee,
             ..
-        } = if self.sigverify {
+        } = if self.sig_verify {
             self.execute_transaction_readonly(tx.into())
         } else {
             self.execute_transaction_no_verify_readonly(tx.into())
@@ -1240,7 +1198,6 @@ fn execution_result_if_context(
         inner_instructions,
         compute_units_consumed,
         return_data,
-        included: true,
         fee,
     }
 }

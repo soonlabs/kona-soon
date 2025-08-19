@@ -11,7 +11,6 @@ use kona_mpt::TrieHinter;
 use litesvm::accounts_callback::AccountsCallback;
 use litesvm::{L2Block, L2Transaction, LiteSVM, ParentInfo};
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
-use solana_sdk::hash::Hash;
 use soon_primitives::blocks::L2BlockHeader;
 use soon_primitives::rollup_config::SoonRollupConfig;
 
@@ -81,22 +80,14 @@ where
         let clock_timestamp: i64 = bincode::deserialize(&clock_timestamp)
             .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
 
-        let bankhash = self
-            .provider
-            .data_by_hash(cal_svm_bank_hash(self.current_slot()))
-            .map_err(|_| ExecutorError::FraudInitError("Failed to get bank hash".to_string()))?;
-        let bankhash: Hash = bincode::deserialize(&bankhash)
-            .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
-
         let accounts_callback: A = bincode::deserialize(&init_accounts_code)
             .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
         let mut svm = LiteSVM::new_soon()
             .with_parent_info(parent_info)
             .with_leader_schedule(None.into())
-            .with_sigverify(false)
+            .with_sig_verify(false)
             .with_accounts_callback(accounts_callback)
-            .with_clock_timestamp(clock_timestamp)
-            .with_bank_hash(bankhash);
+            .with_clock_timestamp(clock_timestamp);
         svm.finish_init().map_err(|e| ExecutorError::FraudExecutorError(e.into()))?;
         let mut executor = FraudExecutor::new(svm);
 
@@ -226,11 +217,6 @@ pub fn cal_svm_parent_info(slot: u64) -> B256 {
 /// Calculate the hash of the SVM clock timestamp for the given slot.
 pub fn cal_svm_clock_timestamp(slot: u64) -> B256 {
     slot_spec_hash(slot, b"svm_clock_timestamp")
-}
-
-/// Calculate the hash of the SVM bank hash for the given slot.
-pub fn cal_svm_bank_hash(slot: u64) -> B256 {
-    slot_spec_hash(slot, b"svm_bank_hash")
 }
 
 fn slot_spec_hash(slot: u64, suffix: &[u8]) -> B256 {
