@@ -1,20 +1,17 @@
 use crate::alloc::string::ToString;
 use crate::{ExecutorError, ExecutorResult, L2BlockBuilder, TrieDBProvider};
 use alloc::sync::Arc;
-use alloc::vec::Vec;
 use alloy_primitives::{B256, Keccak256};
 use core::marker::PhantomData;
 use fraud_executor::accounts::SoonAccounts;
-use fraud_executor::block::SimpleBlock;
 use fraud_executor::executor::FraudExecutor;
 use fraud_executor::outcome::BlockBuildingOutcome;
 use fraud_executor::utils::analyze_account_sets;
 use kona_mpt::TrieHinter;
 use litesvm::accounts_callback::AccountsCallback;
-use litesvm::{LiteSVM, ParentInfo};
+use litesvm::{L2Block, L2Transaction, LiteSVM, ParentInfo};
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use solana_sdk::hash::Hash;
-use solana_sdk::transaction::VersionedTransaction;
 use soon_primitives::blocks::L2BlockHeader;
 use soon_primitives::rollup_config::SoonRollupConfig;
 
@@ -177,7 +174,7 @@ where
     }
 
     fn account_diff(&self) -> SoonAccounts {
-        return self.diff_accounts.clone();
+        self.diff_accounts.clone()
     }
 }
 
@@ -195,19 +192,19 @@ where
         self.parent_header.block_info.number
     }
 
-    fn convert_block(&self, attrs: OpPayloadAttributes) -> ExecutorResult<SimpleBlock> {
-        Ok(SimpleBlock {
-            transactions: attrs
+    fn convert_block(&self, attrs: OpPayloadAttributes) -> ExecutorResult<L2Block> {
+        Ok(L2Block(
+            attrs
                 .transactions
                 .unwrap_or_default()
                 .into_iter()
                 .map(|tx| {
-                    let tx: VersionedTransaction = bincode::deserialize(&tx)
+                    let tx: L2Transaction = bincode::deserialize(&tx)
                         .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
                     Ok(tx)
                 })
-                .collect::<ExecutorResult<Vec<VersionedTransaction>>>()?,
-        })
+                .collect::<ExecutorResult<_>>()?,
+        ))
     }
 }
 

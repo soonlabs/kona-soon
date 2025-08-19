@@ -6,11 +6,10 @@ use alloc::string::ToString;
 use alloc::sync::Arc;
 use alloy_primitives::B256;
 use fraud_executor::outcome::BlockBuildingOutcome;
-use fraud_executor::{accounts::SoonAccounts, block::SimpleBlock, executor::FraudExecutor};
+use fraud_executor::{accounts::SoonAccounts, executor::FraudExecutor};
 use kona_mpt::TrieHinter;
-use litesvm::{LiteSVM, ParentInfo};
+use litesvm::{L2Block, L2Transaction, LiteSVM};
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
-use solana_sdk::transaction::VersionedTransaction;
 use soon_primitives::blocks::L2BlockHeader;
 use soon_primitives::rollup_config::SoonRollupConfig;
 
@@ -43,19 +42,19 @@ where
     P: TrieDBProvider + Clone,
     H: TrieHinter + Clone,
 {
-    fn convert_block(&self, attrs: OpPayloadAttributes) -> ExecutorResult<SimpleBlock> {
-        Ok(SimpleBlock {
-            transactions: attrs
+    fn convert_block(&self, attrs: OpPayloadAttributes) -> ExecutorResult<L2Block> {
+        Ok(L2Block(
+            attrs
                 .transactions
                 .unwrap_or_default()
                 .into_iter()
                 .map(|tx| {
-                    let tx: VersionedTransaction = bincode::deserialize(&tx)
+                    let tx: L2Transaction = bincode::deserialize(&tx)
                         .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
                     Ok(tx)
                 })
                 .collect::<ExecutorResult<_>>()?,
-        })
+        ))
     }
 }
 

@@ -77,12 +77,14 @@ mod accounts_db;
 mod builtin;
 mod history;
 // mod spl;
+mod block;
 mod blockhash_queue;
 mod leader_schedule;
 mod parent_info;
 mod utils;
 
 use crate::error::InvalidSysvarDataError;
+pub use block::{L2Block, L2Transaction, RawBlock};
 pub use blockhash_queue::BlockhashQueue;
 pub use leader_schedule::LeaderSchedule;
 pub use parent_info::ParentInfo;
@@ -107,7 +109,6 @@ pub struct LiteSVM<CB: AccountsCallback> {
     feature_set: FeatureSet,
     slots_per_year: f64,
     ticks_per_slot: u64,
-    max_tick_height: u64,
     hashes_per_tick: u64,
     fee_structure: FeeStructure,
     epoch_schedule: EpochSchedule,
@@ -118,16 +119,14 @@ pub struct LiteSVM<CB: AccountsCallback> {
     slot: Slot,
     epoch: Epoch,
     signature_count: u64,
-    tick_height: u64,
     fee_rate_governor: FeeRateGovernor,
+    blockhash: Option<Hash>,
     blockhash_queue: BlockhashQueue,
     rent_collector: RentCollector,
 
     // witness variables
     clock_timestamp: i64,
     bank_hash: Hash,
-    // TODO: blockhash should be computed by: transactions -> data entries -> blockhash
-    blockhash: Hash,
     parent_info: ParentInfo,
 }
 
@@ -143,7 +142,6 @@ impl<CB: AccountsCallback> Default for LiteSVM<CB> {
             feature_set: Default::default(),
             slots_per_year: soon_slots_per_year(),
             ticks_per_slot: 64,
-            max_tick_height: 0,
             hashes_per_tick: 0,
             epoch_schedule: Default::default(),
             leader_schedule: Default::default(),
@@ -154,10 +152,9 @@ impl<CB: AccountsCallback> Default for LiteSVM<CB> {
             fee_structure: Default::default(),
             rent_collector: Default::default(),
             signature_count: 0,
-            tick_height: 0,
             clock_timestamp: 0,
             bank_hash: Default::default(),
-            blockhash: Default::default(),
+            blockhash: None,
             blockhash_queue: Default::default(),
             parent_info: ParentInfo::default(),
         }
@@ -250,11 +247,6 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
 
     pub const fn with_clock_timestamp(mut self, timestamp: i64) -> Self {
         self.clock_timestamp = timestamp;
-        self
-    }
-
-    pub const fn with_blockhash(mut self, blockhash: Hash) -> Self {
-        self.blockhash = blockhash;
         self
     }
 
@@ -365,8 +357,8 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         self.epoch
     }
 
-    pub fn blockhash(&self) -> Hash {
-        self.blockhash
+    pub fn blockhash(&self) -> Result<Hash, LiteSVMError> {
+        self.blockhash.ok_or(LiteSVMError::NoBlockhash)
     }
 
     pub fn parent_blockhash(&mut self) -> Result<Hash, LiteSVMError> {
@@ -750,14 +742,9 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         };
         if let Some(ctx) = context {
             let tx_result = self.check_tx_result(result, payer_key, fee);
-            execution_result_if_context(sanitized_tx, ctx, tx_result, compute_units_consumed, fee)
+            execution_result_if_context(&sanitized_tx, ctx, tx_result, compute_units_consumed, fee)
         } else {
-            ExecutionResult::result_and_compute_units(
-                sanitized_tx,
-                result,
-                compute_units_consumed,
-                fee,
-            )
+            ExecutionResult::result_and_compute_units(result, compute_units_consumed, fee)
         }
     }
 
@@ -780,14 +767,9 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
             Err(value) => return value,
         };
         if let Some(ctx) = context {
-            execution_result_if_context(sanitized_tx, ctx, result, compute_units_consumed, fee)
+            execution_result_if_context(&sanitized_tx, ctx, result, compute_units_consumed, fee)
         } else {
-            ExecutionResult::result_and_compute_units(
-                sanitized_tx,
-                result,
-                compute_units_consumed,
-                fee,
-            )
+            ExecutionResult::result_and_compute_units(result, compute_units_consumed, fee)
         }
     }
 
@@ -891,50 +873,37 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
                 self.feature_set.is_active(&feature_set::validate_fee_collector_account::id());
             self.accounts.mint(validate_fee_collector, &fee_collector.unwrap(), fees)?;
         }
-
         self.update_slot_history()?;
-        self.register_recent_blockhash()?;
 
         Ok(())
     }
 
-    pub fn execute_block_transactions(
+    pub fn execute_block(
         &mut self,
-        txs: Vec<VersionedTransaction>,
+        block: RawBlock,
     ) -> Result<Vec<TransactionResult>, LiteSVMError> {
-        let res = txs.into_iter().map(|tx| self.send_transaction(tx)).collect::<Vec<_>>();
-        self.seal_block(&res)?;
-        Ok(res)
+        let batch_txs = block.0;
+        let mut results = Vec::with_capacity(batch_txs.len());
+        for tx_batch in batch_txs.iter() {
+            let res = self.execute_batch_transactions(tx_batch);
+            results.extend(res);
+        }
+        self.seal_block(&results)?;
+        self.process_entries_and_register_blockhash(&batch_txs)?;
+        Ok(results)
     }
-
-    // pub fn execute_block_transactions(
-    //     &mut self,
-    //     block_txs: Vec<Vec<VersionedTransaction>>,
-    // ) -> Result<Vec<TransactionResult>, LiteSVMError> {
-    //     let mut results = Vec::with_capacity(block_txs.len());
-    //     for tx_batch in &block_txs {
-    //         results.push(self.execute_batch_transactions(tx_batch));
-    //     }
-    //
-    //     // process entries
-    //     self.batches_to_data_entries(&results, &block_txs)?;
-    //
-    //     self.seal_block(&results)?;
-    //     Ok(results)
-    // }
 
     pub fn execute_batch_transactions(
         &mut self,
         batch_txs: &[VersionedTransaction],
     ) -> Vec<TransactionResult> {
         // TODO: verify batch txs conflict or not?
-        batch_txs.iter().map(|tx| self.send_transaction(tx.clone())).collect()
+        batch_txs.into_iter().map(|tx| self.send_transaction(tx.clone())).collect()
     }
 
     /// Submits a signed transaction.
     pub fn send_transaction(&mut self, tx: VersionedTransaction) -> TransactionResult {
         let ExecutionResult {
-            sanitized_tx: _,
             post_accounts,
             tx_result,
             signature,
@@ -1167,52 +1136,73 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         Ok(())
     }
 
-    fn register_recent_blockhash(&mut self) -> Result<(), LiteSVMError> {
+    fn process_entries_and_register_blockhash(
+        &mut self,
+        batch_txs: &[Vec<VersionedTransaction>],
+    ) -> Result<(), LiteSVMError> {
+        // process entries
+        let data_entries = self.batches_to_data_entries(batch_txs)?;
+        // complete entries
+        let entries = self.complete_entries(data_entries)?;
+        // register ticks
+        let mut count = 0;
+        for entry in entries {
+            if entry.is_tick() {
+                count += 1;
+                if count == self.ticks_per_slot {
+                    // the hash of the entry is current blockhash !
+                    self.blockhash = Some(entry.hash);
+                    self.register_recent_blockhash(entry.hash)?;
+                    break;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn register_recent_blockhash(&mut self, blockhash: Hash) -> Result<(), LiteSVMError> {
         self.blockhash_queue
-            .register_hash(self.blockhash, self.fee_rate_governor.lamports_per_signature);
+            .register_hash(blockhash, self.fee_rate_governor.lamports_per_signature);
         self.update_recent_blockhashes_locked()?;
         Ok(())
     }
 
-    // fn complete_entries(&self, mut data_entries: Vec<Entry>) -> Result<Vec<Entry>, LiteSVMError> {
-    //     let last_entry = data_entries.last().ok_or(Error::NoEntries)?;
-    //     let mut start_hash = last_entry.hash;
-    //
-    //     let tick_count = self
-    //         .max_tick_height
-    //         .saturating_sub(self.tick_height)
-    //         .saturating_sub(data_entries.iter().filter(|entry| entry.is_tick()).count() as u64);
-    //
-    //     for _ in 0..tick_count {
-    //         let entry = new_entry(&start_hash, self.hashes_per_tick, vec![]);
-    //         start_hash = entry.hash;
-    //         data_entries.push(entry);
-    //     }
-    //
-    //     Ok(data_entries)
-    // }
-    //
-    // fn batches_to_data_entries(
-    //     &self,
-    //     results: &[Vec<TransactionResult>],
-    //     transactions: &[Vec<SanitizedTransaction>],
-    // ) -> Result<Vec<Entry>> {
-    //     let mut data_entries = Vec::with_capacity(results.len().min(transactions.len()));
-    //     let mut start_hash = None;
-    //     for (result, origin) in results.iter().zip(transactions.iter()) {
-    //         let executed_txs = result.executed_txs(origin);
-    //         // maybe there's no successful execution transactions in one entry.
-    //         // this entry is actually a tick, we should ignore this tick instead of add it.
-    //         // otherwise the ticks may be over limit(64/slot).
-    //         if executed_txs.is_empty() {
-    //             continue;
-    //         }
-    //         let entry = self.transactions_to_entry(executed_txs, start_hash)?;
-    //         start_hash = Some(entry.hash);
-    //         data_entries.push(entry);
-    //     }
-    //     Ok(data_entries)
-    // }
+    fn complete_entries(&self, mut data_entries: Vec<Entry>) -> Result<Vec<Entry>, LiteSVMError> {
+        let last_entry = data_entries.last().ok_or(LiteSVMError::NoEntries)?;
+        let mut start_hash = last_entry.hash;
+
+        let tick_count = self
+            .ticks_per_slot
+            .saturating_sub(data_entries.iter().filter(|entry| entry.is_tick()).count() as u64);
+
+        for _ in 0..tick_count {
+            let entry = new_entry(&start_hash, self.hashes_per_tick, vec![]);
+            start_hash = entry.hash;
+            data_entries.push(entry);
+        }
+
+        Ok(data_entries)
+    }
+
+    fn batches_to_data_entries(
+        &self,
+        batch_txs: &[Vec<VersionedTransaction>],
+    ) -> Result<Vec<Entry>, LiteSVMError> {
+        let mut data_entries = Vec::with_capacity(batch_txs.len());
+        let mut start_hash = None;
+        for executed_txs in batch_txs.iter() {
+            // maybe there's no successful execution transactions in one entry.
+            // this entry is actually a tick, we should ignore this tick instead of add it.
+            // otherwise the ticks may be over limit(64/slot).
+            if executed_txs.is_empty() {
+                continue;
+            }
+            let entry = self.transactions_to_entry(executed_txs.clone(), start_hash)?;
+            start_hash = Some(entry.hash);
+            data_entries.push(entry);
+        }
+        Ok(data_entries)
+    }
 
     fn transactions_to_entry(
         &self,
@@ -1241,16 +1231,15 @@ struct CheckAndProcessTransactionSuccess {
 }
 
 fn execution_result_if_context(
-    sanitized_tx: SanitizedTransaction,
+    sanitized_tx: &SanitizedTransaction,
     ctx: TransactionContext,
     result: Result<(), TransactionError>,
     compute_units_consumed: u64,
     fee: u64,
 ) -> ExecutionResult {
     let (signature, signature_count, return_data, inner_instructions, post_accounts) =
-        execute_tx_helper(&sanitized_tx, ctx);
+        execute_tx_helper(sanitized_tx, ctx);
     ExecutionResult {
-        sanitized_tx: Some(sanitized_tx),
         tx_result: result,
         signature,
         signature_count,

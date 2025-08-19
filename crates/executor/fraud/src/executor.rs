@@ -2,16 +2,13 @@ use crate::accounts::AccountPairs;
 use crate::error::Result;
 use crate::outcome::BlockBuildingOutcome;
 use l1_block_info::state::L1BlockInfo;
-use litesvm::LiteSVM;
+use litesvm::{LiteSVM, RawBlock, accounts_callback::AccountsCallback};
 use solana_sdk::account::ReadableAccount;
 use solana_sdk::clock::Clock;
 use solana_sdk::program_pack::Pack;
 use soon_mpt_primitives::B256;
 use soon_mpt_primitives::alloy::eips::BlockNumHash;
 use soon_primitives::blocks::{BlockInfo, L2BlockInfo};
-
-use crate::block::SimpleBlock;
-use litesvm::accounts_callback::AccountsCallback;
 
 #[derive(Debug, Default)]
 pub struct FraudExecutor<CB: AccountsCallback> {
@@ -23,8 +20,8 @@ impl<CB: AccountsCallback> FraudExecutor<CB> {
         Self { svm: litesvm }
     }
 
-    pub fn execute_block(&mut self, block: SimpleBlock) -> Result<BlockBuildingOutcome> {
-        let execution_result = self.svm.execute_block_transactions(block.transactions)?;
+    pub fn execute_block(&mut self, block: impl Into<RawBlock>) -> Result<BlockBuildingOutcome> {
+        let execution_result = self.svm.execute_block(block.into())?;
         let l2_block_info = self.get_l2_block_info()?;
         Ok(BlockBuildingOutcome {
             block_info: l2_block_info,
@@ -44,7 +41,7 @@ impl<CB: AccountsCallback> FraudExecutor<CB> {
         let clock = self.svm.get_sysvar::<Clock>()?;
         let slot = self.svm.slot();
         let parent_hash = self.svm.parent_blockhash()?.to_bytes();
-        let hash = self.svm.blockhash().to_bytes();
+        let hash = self.svm.blockhash()?.to_bytes();
         Ok(L2BlockInfo {
             block_info: BlockInfo::new(
                 hash.into(),
