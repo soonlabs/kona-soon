@@ -42,4 +42,8 @@ pub enum LiteSVMError {
     InsufficientLamports,
     #[error("Missing account {0}")]
     MissingAccount(Pubkey),
+    #[error("No entries")]
+    NoEntries,
+    #[error("No Blockhash generated")]
+    NoBlockhash,
 }

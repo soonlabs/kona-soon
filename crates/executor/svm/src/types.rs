@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use solana_sdk::transaction::SanitizedTransaction;
 use solana_sdk::{
     account::AccountSharedData,
     inner_instruction::InnerInstructionsList,
@@ -48,7 +47,6 @@ impl From<ProgramError> for FailedTransactionMetadata {
 pub type TransactionResult = std::result::Result<TransactionMetadata, FailedTransactionMetadata>;
 
 pub(crate) struct ExecutionResult {
-    pub(crate) sanitized_tx: Option<SanitizedTransaction>,
     pub(crate) post_accounts: Vec<(Pubkey, AccountSharedData)>,
     pub(crate) tx_result: Result<()>,
     pub(crate) signature: Signature,
@@ -56,15 +54,12 @@ pub(crate) struct ExecutionResult {
     pub(crate) compute_units_consumed: u64,
     pub(crate) inner_instructions: InnerInstructionsList,
     pub(crate) return_data: TransactionReturnData,
-    /// Whether the transaction can be included in a block
-    pub(crate) included: bool,
     pub(crate) fee: u64,
 }
 
 impl Default for ExecutionResult {
     fn default() -> Self {
         Self {
-            sanitized_tx: None,
             post_accounts: Default::default(),
             tx_result: Err(TransactionError::UnsupportedVersion),
             signature: Default::default(),
@@ -72,7 +67,6 @@ impl Default for ExecutionResult {
             compute_units_consumed: Default::default(),
             inner_instructions: Default::default(),
             return_data: Default::default(),
-            included: false,
             fee: 0,
         }
     }
@@ -80,17 +74,10 @@ impl Default for ExecutionResult {
 
 impl ExecutionResult {
     pub(crate) fn result_and_compute_units(
-        sanitized_tx: SanitizedTransaction,
         tx_result: Result<()>,
         compute_units_consumed: u64,
         fee: u64,
     ) -> Self {
-        Self {
-            sanitized_tx: Some(sanitized_tx),
-            tx_result,
-            compute_units_consumed,
-            fee,
-            ..Default::default()
-        }
+        Self { tx_result, compute_units_consumed, fee, ..Default::default() }
     }
 }

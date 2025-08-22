@@ -129,7 +129,7 @@ impl<T: CommsClient> OracleL2ChainProvider<T> {
             OracleProviderError::FetchBlockInfoFailed("No l1 block info tx found".to_string()),
         )?;
         let l1_block_info_tx_data =
-            l1_block_info_tx.0.message.instructions().first().ok_or(
+            l1_block_info_tx.transaction().message.instructions().first().ok_or(
                 OracleProviderError::FetchBlockInfoFailed("No instruction found".to_string()),
             )?;
         let l1_block_info_instruction =
