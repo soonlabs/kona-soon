@@ -67,7 +67,7 @@ where
                 |_| ExecutorError::FraudInitError("Failed to get init accounts code".to_string()),
             )?;
         let parent_info =
-            self.provider.data_by_hash(cal_svm_parent_info(self.parent_slot())).map_err(|_| {
+            self.provider.data_by_hash(cal_svm_parent_info(self.current_slot())).map_err(|_| {
                 ExecutorError::FraudInitError("Failed to get svm parent info code".to_string())
             })?;
         let parent_info: ParentInfo = bincode::deserialize(&parent_info)
