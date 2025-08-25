@@ -80,7 +80,6 @@ mod leader_schedule;
 mod parent_info;
 mod utils;
 
-use crate::error::InvalidSysvarDataError;
 pub use block::{L2Block, L2Transaction, RawBlock};
 pub use blockhash_queue::BlockhashQueue;
 pub use leader_schedule::LeaderSchedule;
@@ -116,6 +115,7 @@ pub struct LiteSVM<CB: AccountsCallback> {
     epoch: Epoch,
     signature_count: u64,
     fee_rate_governor: FeeRateGovernor,
+    parent_blockhash: Option<Hash>,
     blockhash: Option<Hash>,
     blockhash_queue: BlockhashQueue,
     rent_collector: RentCollector,
@@ -147,6 +147,7 @@ impl<CB: AccountsCallback> Default for LiteSVM<CB> {
             rent_collector: Default::default(),
             signature_count: 0,
             clock_timestamp: 0,
+            parent_blockhash: None,
             blockhash: None,
             blockhash_queue: Default::default(),
             parent_info: ParentInfo::default(),
@@ -208,6 +209,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         #[allow(deprecated)]
         let blockhash_queue: sysvar::recent_blockhashes::RecentBlockhashes = self.get_sysvar()?;
         self.blockhash_queue = blockhash_queue.into();
+        self.parent_blockhash = Some(self.blockhash_queue.last_hash());
 
         // fill sysvars cache
         self.accounts.fill_sysvar_cache()?;
@@ -337,11 +339,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     }
 
     pub fn parent_blockhash(&mut self) -> Result<Hash, LiteSVMError> {
-        let slot_hashes: sysvar::slot_hashes::SlotHashes = self.get_sysvar()?;
-        let bankhash = slot_hashes
-            .get(&self.parent_info.slot)
-            .ok_or(LiteSVMError::InvalidSysvarData(InvalidSysvarDataError::SlotHashes))?;
-        Ok(*bankhash)
+        self.parent_blockhash.ok_or(LiteSVMError::NoBlockhash)
     }
 
     pub fn feature_set(&self) -> &FeatureSet {

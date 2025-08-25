@@ -83,6 +83,7 @@ where
 
     /// Initializes the block builder.
     fn init(&mut self) -> ExecutorResult<()> {
+        // TODO: litesvm should be initialized here
         Ok(())
     }
 

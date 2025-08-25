@@ -1,16 +1,17 @@
-use crate::alloc::string::ToString;
 use crate::{ExecutorError, ExecutorResult, L2BlockBuilder, TrieDBProvider};
+use alloc::collections::BTreeMap;
+use alloc::string::ToString;
 use alloc::sync::Arc;
-use alloy_primitives::{B256, Keccak256};
+use alloy_primitives::{B256, Keccak256, keccak256};
 use core::marker::PhantomData;
 use fraud_executor::accounts::SoonAccounts;
 use fraud_executor::executor::FraudExecutor;
 use fraud_executor::outcome::BlockBuildingOutcome;
-use fraud_executor::utils::analyze_account_sets;
 use kona_mpt::TrieHinter;
 use litesvm::accounts_callback::AccountsCallback;
 use litesvm::{L2Block, L2Transaction, LiteSVM, ParentInfo};
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
+use solana_sdk::pubkey::Pubkey;
 use soon_primitives::blocks::L2BlockHeader;
 use soon_primitives::rollup_config::SoonRollupConfig;
 
@@ -28,6 +29,7 @@ where
     pub(crate) _hinter: H,
     pub(crate) parent_header: L2BlockHeader,
     pub(crate) diff_accounts: SoonAccounts,
+    pub(crate) state_root: B256,
     _a: PhantomData<A>,
 }
 
@@ -35,7 +37,7 @@ impl<P, H, A> L2BlockBuilder<P, H> for OffchainL2Builder<P, H, A>
 where
     P: TrieDBProvider,
     H: TrieHinter,
-    A: AccountsCallback + Default + serde::de::DeserializeOwned,
+    A: AccountsCallback + Default + serde::de::DeserializeOwned + From<SoonAccounts>,
 {
     fn new(
         config: Arc<SoonRollupConfig>,
@@ -50,11 +52,13 @@ where
             _hinter: hinter,
             parent_header,
             diff_accounts: SoonAccounts::default(),
+            state_root: B256::ZERO,
             _a: PhantomData,
         }
     }
 
     fn init(&mut self) -> ExecutorResult<()> {
+        // TODO: litesvm should be initialized here
         Ok(())
     }
 
@@ -62,106 +66,101 @@ where
         // Step 1. Set up the execution environment using genesis
 
         // Step 2. Create the executor, using the trie database.
-        let init_accounts_code =
-            self.provider.data_by_hash(cal_init_accounts_hash(self.parent_slot())).map_err(
-                |_| ExecutorError::FraudInitError("Failed to get init accounts code".to_string()),
+        let soon_accounts =
+            self.provider.data_by_hash(cal_soon_accounts_hash(self.parent_slot())).map_err(
+                |_| ExecutorError::FraudInitError("Failed to get soon accounts code".to_string()),
             )?;
+        let soon_accounts: SoonAccounts = bincode::deserialize(&soon_accounts)
+            .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
+        let mut soon_accounts_map: BTreeMap<_, _> = soon_accounts.clone().into();
         let parent_info =
             self.provider.data_by_hash(cal_svm_parent_info(self.parent_slot())).map_err(|_| {
                 ExecutorError::FraudInitError("Failed to get svm parent info code".to_string())
             })?;
         let parent_info: ParentInfo = bincode::deserialize(&parent_info)
             .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
-
         let clock_timestamp =
             self.provider.data_by_hash(cal_svm_clock_timestamp(self.current_slot())).map_err(
                 |_| ExecutorError::FraudInitError("Failed to get clock timestamp".to_string()),
             )?;
         let clock_timestamp: i64 = bincode::deserialize(&clock_timestamp)
             .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
-
-        let accounts_callback: A = bincode::deserialize(&init_accounts_code)
+        let leader = self
+            .provider
+            .data_by_hash(cal_svm_leader())
+            .map_err(|_| ExecutorError::FraudInitError("Failed to get svm leader".to_string()))?;
+        let leader: Pubkey = bincode::deserialize(&leader)
             .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
-        let mut svm = LiteSVM::new_soon()
+
+        let mut svm: LiteSVM<A> = LiteSVM::new_soon()
             .with_parent_info(parent_info)
-            .with_leader_schedule(None.into())
+            .with_leader_schedule(leader.into())
             .with_sig_verify(false)
-            .with_accounts_callback(accounts_callback)
+            .with_blockhash_verify(true)
+            .with_accounts_callback(soon_accounts.into())
             .with_clock_timestamp(clock_timestamp);
         svm.finish_init().map_err(|e| ExecutorError::FraudExecutorError(e.into()))?;
         let mut executor = FraudExecutor::new(svm);
 
-        // check state root
-        {
-            let init_state_root =
-                self.provider.data_by_hash(cal_init_state_root_hash(self.current_slot())).map_err(
-                    |_| ExecutorError::FraudInitError("Failed to get init state root".to_string()),
-                )?;
-            let init_state_root = B256::try_from(init_state_root.to_vec().as_slice()).unwrap();
-            let diff_accounts = executor.export_diff_accounts();
-            let actual_state_root = SoonAccounts::from(diff_accounts).state_root();
-            if init_state_root != actual_state_root {
-                error!(
-                    "init state root mismatch, expected: {}, actual: {}",
-                    init_state_root, actual_state_root
-                );
-            } else {
-                info!(
-                    "init state root match, expected: {}, actual: {}",
-                    init_state_root, actual_state_root
-                );
-            }
-        }
+        // // check state root
+        // {
+        //     let init_state_root =
+        //         self.provider.data_by_hash(cal_init_state_root_hash(self.current_slot())).map_err(
+        //             |_| ExecutorError::FraudInitError("Failed to get init state root".to_string()),
+        //         )?;
+        //     let init_state_root = B256::try_from(init_state_root.to_vec().as_slice()).unwrap();
+        //     let diff_accounts = executor.export_diff_accounts();
+        //     let actual_state_root = SoonAccounts::from(diff_accounts).state_root();
+        //     if init_state_root != actual_state_root {
+        //         error!(
+        //             "init state root mismatch, expected: {}, actual: {}",
+        //             init_state_root, actual_state_root
+        //         );
+        //     } else {
+        //         info!(
+        //             "init state root match, expected: {}, actual: {}",
+        //             init_state_root, actual_state_root
+        //         );
+        //     }
+        // }
 
         // Step 3. Execute the block containing the transactions within the payload attributes.
         let block = self.convert_block(attrs)?;
-        let l2_info = executor.execute_block(block)?;
+        let mut outcome = executor.execute_block(block)?;
 
         // Step 4. Store data to calculate output root
-        let accounts = executor.export_diff_accounts();
-        info!("exported diff {} accounts", accounts.len());
-        self.diff_accounts = SoonAccounts::from(accounts);
+        let accounts_diff = executor.export_diff_accounts();
+        info!("exported diff {} accounts", accounts_diff.len());
+        self.diff_accounts = SoonAccounts::from(accounts_diff);
 
-        // check execution account states
+        // compute state root
         {
-            let new_accounts_data =
-                self.provider.data_by_hash(cal_init_accounts_hash(self.current_slot())).map_err(
+            for (key, account) in self.diff_accounts.accounts.iter() {
+                soon_accounts_map.insert(*key, account.clone());
+            }
+            let soon_accounts: SoonAccounts = soon_accounts_map.into();
+            let state_root = soon_accounts.state_root();
+            self.state_root = state_root;
+            outcome.state_root = state_root;
+
+            let actual_root =
+                self.provider.data_by_hash(cal_init_state_root_hash(self.current_slot())).map_err(
                     |_| ExecutorError::FraudInitError("Failed to get init state root".to_string()),
                 )?;
-            let new_block_accounts: SoonAccounts = bincode::deserialize(&new_accounts_data)
-                .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
-            let soon_state_root = new_block_accounts.state_root();
-            let litesvm_state_root = self.diff_accounts.state_root();
-            if soon_state_root == litesvm_state_root {
-                info!("state root match, both are: {}", soon_state_root);
+            let actual_root = B256::try_from(actual_root.to_vec().as_slice()).unwrap();
+
+            if state_root != actual_root {
+                warn!("state root mismatch, expected: {}, actual: {}", actual_root, state_root);
             } else {
-                info!(
-                    "state root mismatch, expected: {}, actual: {}",
-                    soon_state_root, litesvm_state_root
-                );
-                let (_, _, _, analyze) =
-                    analyze_account_sets(&new_block_accounts, &self.diff_accounts);
-                info!("check execution account states, analyze: {}", analyze);
+                info!("state root matches: {}", state_root);
             }
         }
 
-        Ok(l2_info)
+        Ok(outcome)
     }
 
     fn compute_output_root(&mut self) -> ExecutorResult<B256> {
-        if self.diff_accounts.accounts.len() == 0 {
-            let init_accounts_code = self
-                .provider
-                .data_by_hash(cal_init_accounts_hash(self.parent_slot()))
-                .map_err(|_| {
-                    ExecutorError::FraudInitError("Failed to get init accounts code".to_string())
-                })?;
-            let soon_accounts: SoonAccounts = bincode::deserialize(&init_accounts_code)
-                .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
-            Ok(soon_accounts.state_root())
-        } else {
-            Ok(self.diff_accounts.state_root())
-        }
+        Ok(self.state_root)
     }
 
     fn account_diff(&self) -> SoonAccounts {
@@ -200,8 +199,8 @@ where
 }
 
 /// Calculate the hash of the init accounts for the given slot.
-pub fn cal_init_accounts_hash(slot: u64) -> B256 {
-    slot_spec_hash(slot, b"init_accounts")
+pub fn cal_soon_accounts_hash(slot: u64) -> B256 {
+    slot_spec_hash(slot, b"soon_accounts")
 }
 
 /// Calculate the hash of the init state root for the given slot.
@@ -217,6 +216,11 @@ pub fn cal_svm_parent_info(slot: u64) -> B256 {
 /// Calculate the hash of the SVM clock timestamp for the given slot.
 pub fn cal_svm_clock_timestamp(slot: u64) -> B256 {
     slot_spec_hash(slot, b"svm_clock_timestamp")
+}
+
+/// Calculate the hash of the SVM leader.
+pub fn cal_svm_leader() -> B256 {
+    keccak256(b"svm_leader")
 }
 
 fn slot_spec_hash(slot: u64, suffix: &[u8]) -> B256 {
