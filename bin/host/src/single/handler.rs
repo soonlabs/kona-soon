@@ -14,6 +14,7 @@ use async_trait::async_trait;
 use kona_preimage::{PreimageKey, PreimageKeyType};
 use kona_proof::{Hint, HintType};
 use soon_primitives::output_root::OutputRoot;
+use tracing::info;
 
 /// The [HintHandler] for the [SingleChainHost].
 #[derive(Debug, Clone, Copy)]
@@ -104,7 +105,12 @@ impl HintHandler for SingleChainHintHandler {
 
                 let output_res: OutputRoot =
                     providers.l2.output_at_block(cfg.agreed_l2_block_number).await?;
+                info!("output_res:{}", output_res);
                 let output_root_hash = output_res.hash();
+
+                info!("cfg.agreed_l2_block_number:{}", cfg.agreed_l2_block_number);
+                info!("output_root_hash:{}", output_root_hash);
+                info!("cfg.agreed_l2_output_root:{}", cfg.agreed_l2_output_root);
 
                 ensure!(
                     output_root_hash == cfg.agreed_l2_output_root,

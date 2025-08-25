@@ -71,7 +71,7 @@ where
         // Write the key to the host and read the length of the preimage.
         let length = self.write_key(key).await?;
 
-        trace!(target: "oracle_client", "Reading data from preimage oracle. Key {key}");
+        info!(target: "oracle_client", "Reading data from preimage oracle. Key {key}");
 
         // Ensure the buffer is the correct size.
         if buf.len() != length {
@@ -84,7 +84,7 @@ where
 
         self.channel.read_exact(buf).await?;
 
-        trace!(target: "oracle_client", "Successfully read data from preimage oracle. Key: {key}");
+        info!(target: "oracle_client", "Successfully read data from preimage oracle. Key: {key}");
 
         Ok(())
     }
@@ -120,7 +120,7 @@ where
         self.channel.read_exact(&mut buf).await?;
         let preimage_key = PreimageKey::try_from(buf)?;
 
-        trace!(target: "oracle_server", "Fetching preimage for key {preimage_key}");
+        info!(target: "oracle_server", "Fetching preimage for key {preimage_key}");
 
         // Fetch the preimage value from the preimage getter.
         let value = fetcher.get_preimage(preimage_key).await?;

@@ -93,7 +93,7 @@ where
             }
         };
 
-        trace!(target: "hint_reader", "Successfully read hint: \"{payload}\"");
+        info!(target: "hint_reader", "Successfully read hint: \"{payload}\"");
 
         // Route the hint
         if let Err(e) = hint_router.route_hint(payload).await {
@@ -107,7 +107,7 @@ where
         // Write back an acknowledgement to the client to unblock their process.
         self.channel.write(&[0x00]).await?;
 
-        trace!(target: "hint_reader", "Successfully routed and acknowledged hint");
+        info!(target: "hint_reader", "Successfully routed and acknowledged hint");
 
         Ok(())
     }

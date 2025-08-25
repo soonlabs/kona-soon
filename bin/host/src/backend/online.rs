@@ -9,7 +9,9 @@ use kona_preimage::{
 };
 use kona_proof::{Hint, errors::HintParsingError};
 use std::{collections::HashSet, hash::Hash, str::FromStr, sync::Arc};
+use std::time::Duration;
 use tokio::sync::RwLock;
+use tokio::time::sleep;
 use tracing::{debug, error, trace};
 
 /// The [OnlineHostBackendCfg] trait is used to define the type configuration for the
@@ -144,6 +146,7 @@ where
 
                 let kv_lock = self.kv.read().await;
                 preimage = kv_lock.get(key.into());
+                sleep(Duration::from_secs(2)).await;
             }
         }
 
