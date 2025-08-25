@@ -66,12 +66,7 @@ where
         // Step 1. Set up the execution environment using genesis
 
         // Step 2. Create the executor, using the trie database.
-        let soon_accounts =
-            self.provider.data_by_hash(cal_soon_accounts_hash(self.parent_slot())).map_err(
-                |_| ExecutorError::FraudInitError("Failed to get soon accounts code".to_string()),
-            )?;
-        let soon_accounts: SoonAccounts = bincode::deserialize(&soon_accounts)
-            .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
+        let soon_accounts = self.get_init_accounts()?;
         let mut soon_accounts_map: BTreeMap<_, _> = soon_accounts.clone().into();
         let parent_info =
             self.provider.data_by_hash(cal_svm_parent_info(self.parent_slot())).map_err(|_| {
@@ -101,28 +96,6 @@ where
             .with_clock_timestamp(clock_timestamp);
         svm.finish_init().map_err(|e| ExecutorError::FraudExecutorError(e.into()))?;
         let mut executor = FraudExecutor::new(svm);
-
-        // // check state root
-        // {
-        //     let init_state_root =
-        //         self.provider.data_by_hash(cal_init_state_root_hash(self.current_slot())).map_err(
-        //             |_| ExecutorError::FraudInitError("Failed to get init state root".to_string()),
-        //         )?;
-        //     let init_state_root = B256::try_from(init_state_root.to_vec().as_slice()).unwrap();
-        //     let diff_accounts = executor.export_diff_accounts();
-        //     let actual_state_root = SoonAccounts::from(diff_accounts).state_root();
-        //     if init_state_root != actual_state_root {
-        //         error!(
-        //             "init state root mismatch, expected: {}, actual: {}",
-        //             init_state_root, actual_state_root
-        //         );
-        //     } else {
-        //         info!(
-        //             "init state root match, expected: {}, actual: {}",
-        //             init_state_root, actual_state_root
-        //         );
-        //     }
-        // }
 
         // Step 3. Execute the block containing the transactions within the payload attributes.
         let block = self.convert_block(attrs)?;
@@ -160,6 +133,10 @@ where
     }
 
     fn compute_output_root(&mut self) -> ExecutorResult<B256> {
+        if self.state_root == B256::ZERO {
+            let soon_accounts = self.get_init_accounts()?;
+            self.state_root = soon_accounts.state_root();
+        }
         Ok(self.state_root)
     }
 
@@ -195,6 +172,17 @@ where
                 })
                 .collect::<ExecutorResult<_>>()?,
         ))
+    }
+
+    fn get_init_accounts(&self) -> ExecutorResult<SoonAccounts> {
+        let soon_accounts =
+            self.provider.data_by_hash(cal_soon_accounts_hash(self.parent_slot())).map_err(
+                |_| ExecutorError::FraudInitError("Failed to get soon accounts code".to_string()),
+            )?;
+        let soon_accounts: SoonAccounts = bincode::deserialize(&soon_accounts)
+            .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
+
+        Ok(soon_accounts)
     }
 }
 
