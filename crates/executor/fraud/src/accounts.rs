@@ -1,8 +1,9 @@
 use crate::utils::add_trie_account;
+use alloy_primitives::B256;
+use kona_mpt_primitives::account::TrieSolanaAccount as MptAccount;
 use litesvm::accounts_callback::MemoryAccountsCallback;
 use serde::{Deserialize, Serialize};
 use solana_sdk::{account::AccountSharedData, pubkey::Pubkey};
-use soon_mpt_primitives::{Account as MptAccount, B256};
 use soon_mpt_trie::{encoder::sol_account_encoder, test_utils::state_root_prehashed};
 use std::collections::BTreeMap;
 

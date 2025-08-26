@@ -4084,7 +4084,10 @@ checksum = "28dd6caf6059519a65843af8fe2a3ae298b14b80179855aeb4adc2c1934ee619"
 name = "fraud-executor"
 version = "0.1.0"
 dependencies = [
+ "alloy-primitives",
  "hex",
+ "kona-mpt-primitives",
+ "kona-soon-primitives",
  "l1-block-info",
  "litesvm",
  "serde",
@@ -4092,7 +4095,6 @@ dependencies = [
  "solana-sdk",
  "soon-mpt-primitives",
  "soon-mpt-trie",
- "soon-primitives",
  "thiserror 2.0.12",
  "tracing",
 ]
@@ -5767,6 +5769,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "kona-mpt-primitives"
+version = "0.1.0"
+dependencies = [
+ "alloy-primitives",
+ "alloy-rlp",
+ "serde",
+ "solana-sdk",
+]
+
+[[package]]
 name = "kona-preimage"
 version = "0.3.0"
 dependencies = [
@@ -5831,6 +5843,19 @@ dependencies = [
  "serde",
  "serde_json",
  "toml 0.8.23",
+]
+
+[[package]]
+name = "kona-soon-primitives"
+version = "0.1.0"
+dependencies = [
+ "alloy-consensus 0.15.11",
+ "alloy-eips 0.15.11",
+ "alloy-primitives",
+ "derive_more 2.0.1",
+ "op-alloy-rpc-types-engine",
+ "serde",
+ "solana-sdk",
 ]
 
 [[package]]

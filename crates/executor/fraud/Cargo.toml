@@ -12,10 +12,12 @@ categories.workspace = true
 exclude.workspace = true
 
 [dependencies]
+alloy-primitives.workspace = true
 litesvm.workspace = true
 soon-mpt-primitives.workspace = true
 soon-mpt-trie.workspace = true
-soon-primitives.workspace = true
+kona-soon-primitives.workspace = true
+kona-mpt-primitives.workspace = true
 tracing.workspace = true
 l1-block-info.workspace = true
 

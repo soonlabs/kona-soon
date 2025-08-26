@@ -17,6 +17,7 @@ members = [
   "crates/protocol/*",
   "crates/utilities/*",
   "crates/executor/*",
+  "crates/primitives/*",
 ]
 default-members = ["bin/host", "bin/client"]
 
@@ -82,6 +83,10 @@ litesvm = { path = "crates/executor/svm", version = "0.1.0", default-features = 
 # Utilities
 kona-cli = { path = "crates/utilities/cli", version = "0.2.0", default-features = false }
 kona-serde = { path = "crates/utilities/serde", version = "0.2.0", default-features = false }
+
+# Primitives
+kona-soon-primitives = { path = "crates/primitives/soon", version = "0.1.0", default-features = false }
+kona-mpt-primitives = { path = "crates/primitives/mpt", version = "0.1.0", default-features = false }
 
 # Alloy
 alloy-rlp = { version = "0.3.11", default-features = false }
