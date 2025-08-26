@@ -32,7 +32,7 @@ impl HintHandler for SingleChainHintHandler {
     ) -> Result<()> {
         match hint.ty {
             HintType::L1BlockHeader => {
-                ensure!(hint.data.len() == 32, "Invalid hint data length");
+                ensure!(hint.data.len() == 32, "Invalid hint data length for l1 block header");
 
                 let hash: B256 = hint.data.as_ref().try_into()?;
                 let raw_header: Bytes =
@@ -42,7 +42,7 @@ impl HintHandler for SingleChainHintHandler {
                 kv_lock.set(PreimageKey::new_keccak256(*hash).into(), raw_header.into())?;
             }
             HintType::L1Transactions => {
-                ensure!(hint.data.len() == 32, "Invalid hint data length");
+                ensure!(hint.data.len() == 32, "Invalid hint data length for l1 transaction");
 
                 let hash: B256 = hint.data.as_ref().try_into()?;
                 let Block { transactions, .. } = providers
@@ -59,7 +59,7 @@ impl HintHandler for SingleChainHintHandler {
                 store_ordered_trie(kv.as_ref(), encoded_transactions.as_slice()).await?;
             }
             HintType::L1Receipts => {
-                ensure!(hint.data.len() == 32, "Invalid hint data length");
+                ensure!(hint.data.len() == 32, "Invalid hint data length for l1 receipts");
 
                 let hash: B256 = hint.data.as_ref().try_into()?;
                 let raw_receipts: Vec<Bytes> =
@@ -69,14 +69,14 @@ impl HintHandler for SingleChainHintHandler {
             }
             HintType::L1Blob => {}
             HintType::DAProxyBlob => {
-                ensure!(hint.data.len() == 513, "Invalid hint data length");
+                // ensure!(hint.data.len() == 513, "Invalid hint data length");
                 let key_hash = keccak256(hint.data.as_ref());
                 let data = providers.da.download_preimage(hint.data.as_ref().to_vec()).await?;
                 let mut kv_lock = kv.write().await;
                 kv_lock.set(PreimageKey::new_keccak256(*key_hash).into(), data.into())?;
             }
             HintType::L1Precompile => {
-                ensure!(hint.data.len() >= 28, "Invalid hint data length");
+                ensure!(hint.data.len() >= 28, "Invalid hint data length for l1 precompile");
 
                 let address = Address::from_slice(&hint.data.as_ref()[..20]);
                 let gas = u64::from_be_bytes(hint.data.as_ref()[20..28].try_into()?);
@@ -101,7 +101,7 @@ impl HintHandler for SingleChainHintHandler {
                 )?;
             }
             HintType::StartingL2Output => {
-                ensure!(hint.data.len() == 32, "Invalid hint data length");
+                ensure!(hint.data.len() == 32, "Invalid hint data length for starting l2 output");
 
                 let output_res: OutputRoot =
                     providers.l2.output_at_block(cfg.agreed_l2_block_number).await?;
@@ -183,7 +183,7 @@ impl HintHandler for SingleChainHintHandler {
             //     })?;
             // }
             HintType::L2BlockData => {
-                ensure!(hint.data.len() == 8, "Invalid hint data length");
+                ensure!(hint.data.len() == 8, "Invalid hint data length for l2 block data");
 
                 let block_number = u64::from_be_bytes(hint.data.as_ref()[..8].try_into()?);
                 let number_hash = keccak256(hint.data.as_ref());
