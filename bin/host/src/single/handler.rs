@@ -13,7 +13,7 @@ use anyhow::{Result, anyhow, ensure};
 use async_trait::async_trait;
 use kona_preimage::{PreimageKey, PreimageKeyType};
 use kona_proof::{Hint, HintType};
-use soon_primitives::output_root::OutputRoot;
+use soon_primitives::{blocks::str_block_hash_to, output_root::OutputRoot};
 use tracing::info;
 
 /// The [HintHandler] for the [SingleChainHost].
@@ -186,13 +186,12 @@ impl HintHandler for SingleChainHintHandler {
                 ensure!(hint.data.len() == 8, "Invalid hint data length for l2 block data");
 
                 let block_number = u64::from_be_bytes(hint.data.as_ref()[..8].try_into()?);
-                let number_hash = keccak256(hint.data.as_ref());
 
                 let block = providers.l2.get_block_by_number(block_number).await?;
                 let mut out_buf = BytesMut::default();
                 Encodable::encode(&block, &mut out_buf);
                 let mut kv_lock = kv.write().await;
-                kv_lock.set(PreimageKey::new_keccak256(*number_hash).into(), out_buf.into())?;
+                kv_lock.set(PreimageKey::new_block_slot(block_number).into(), out_buf.into())?;
             }
         }
 

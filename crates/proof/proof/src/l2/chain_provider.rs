@@ -115,8 +115,7 @@ impl<T: CommsClient> OracleL2ChainProvider<T> {
             .with_data(&[number_bytes.as_ref()])
             .send(self.oracle.as_ref())
             .await?;
-        let number_hash = keccak256(number_bytes.as_ref());
-        let block_bytes = self.oracle.get(PreimageKey::new_keccak256(*number_hash)).await?;
+        let block_bytes = self.oracle.get(PreimageKey::new_block_slot(number)).await?;
 
         Decodable::decode(&mut block_bytes.as_slice()).map_err(OracleProviderError::Rlp)
     }
