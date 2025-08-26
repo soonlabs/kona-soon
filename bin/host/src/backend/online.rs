@@ -141,12 +141,12 @@ where
 
                 if let Err(e) = value {
                     error!(target: "host_backend", "Failed to prefetch hint: {e}");
+                    sleep(Duration::from_secs(2)).await;
                     continue;
                 }
 
                 let kv_lock = self.kv.read().await;
                 preimage = kv_lock.get(key.into());
-                sleep(Duration::from_secs(2)).await;
             }
         }
 
