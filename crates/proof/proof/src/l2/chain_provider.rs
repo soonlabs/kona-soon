@@ -228,8 +228,7 @@ impl<T: CommsClient> TrieHinter for OracleL2ChainProvider<T> {
         crate::block_on(async move {
             let hashed_address = keccak256(pubkey.as_ref());
             HintType::L2AccountProof
-                .with_data(&[block_number.to_be_bytes().as_ref(), pubkey.as_ref()])
-                .with_data(hashed_address)
+                .with_data(&[block_number.to_be_bytes().as_ref(), hashed_address.as_ref()])
                 .send(self.oracle.as_ref())
                 .await
         })
