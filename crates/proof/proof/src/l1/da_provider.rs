@@ -28,7 +28,6 @@ impl<T: CommsClient + Sync + Send> DAProvider for OracleDaProvider<T> {
     /// fetch data by key from DA provider
     async fn get_input(&self, key: Vec<u8>) -> Result<Vec<u8>, Self::Error> {
         HintType::DAProxyBlob.with_data(&[key.as_ref()]).send(self.oracle.as_ref()).await?;
-        let key_hash = keccak256::<&[u8]>(key.as_ref());
-        Ok(self.oracle.get(PreimageKey::new_keccak256(*key_hash)).await?)
+        Ok(self.oracle.get(PreimageKey::new_da_proxy_blob(&key)).await?)
     }
 }

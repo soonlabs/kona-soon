@@ -70,10 +70,9 @@ impl HintHandler for SingleChainHintHandler {
             HintType::L1Blob => {}
             HintType::DAProxyBlob => {
                 // ensure!(hint.data.len() == 513, "Invalid hint data length");
-                let key_hash = keccak256(hint.data.as_ref());
                 let data = providers.da.download_preimage(hint.data.as_ref().to_vec()).await?;
                 let mut kv_lock = kv.write().await;
-                kv_lock.set(PreimageKey::new_keccak256(*key_hash).into(), data.into())?;
+                kv_lock.set(PreimageKey::new_da_proxy_blob(hint.data.as_ref()).into(), data.into())?;
             }
             HintType::L1Precompile => {
                 ensure!(hint.data.len() >= 28, "Invalid hint data length for l1 precompile");

@@ -41,6 +41,8 @@ pub enum PreimageKeyType {
     Precompile = 6,
     /// BlockSlot key types are global to represent a block slot.
     BlockSlot = 7,
+    /// DAProxyBlob key types are global to represent a blob from da proxy.
+    DAProxyBlob = 8,
 }
 
 impl TryFrom<u8> for PreimageKeyType {
@@ -71,6 +73,7 @@ impl core::fmt::Display for PreimageKeyType {
             PreimageKeyType::Blob => write!(f, "blob"),
             PreimageKeyType::Precompile => write!(f, "precompile"),
             PreimageKeyType::BlockSlot => write!(f, "block_slot"),
+            PreimageKeyType::DAProxyBlob => write!(f, "da_proxy_blob"),
         }
     }
 }
@@ -137,6 +140,12 @@ impl PreimageKey {
         let number_bytes = block_slot.to_be_bytes();
         let number_hash = keccak256(number_bytes.as_ref());
         Self::new(*number_hash, PreimageKeyType::BlockSlot)
+    }
+
+    /// Creates a new DAProxyBlob [PreimageKey] from a key data.
+    pub fn new_da_proxy_blob(key_data: &[u8]) -> Self {
+        let key_hash = keccak256(key_data);
+        Self::new(*key_hash, PreimageKeyType::DAProxyBlob)
     }
 
     /// Returns the [PreimageKeyType] for the [PreimageKey].
