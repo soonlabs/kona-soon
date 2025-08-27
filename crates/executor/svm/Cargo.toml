@@ -31,8 +31,9 @@ solana-stake-program.workspace = true
 solana-svm.workspace = true
 solana-system-program.workspace = true
 solana-vote-program.workspace = true
-solana-entry.workspace = true
 thiserror.workspace = true
+hex.workspace = true
+fast-math.workspace = true
 
 [dev-dependencies]
 criterion.workspace = true

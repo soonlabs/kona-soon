@@ -12,16 +12,15 @@ use soon_node::node::tests::{init_soon_genesis, new_derive_block_with_mock_l1, n
 use soon_primitives::blocks::{BlockInfo, RawBlock, L2BlockInfo};
 use crossbeam_channel::Receiver;
 use solana_sdk::account::AccountSharedData;
-use solana_sdk::signer::Signer;
 use soon_storage::error::Error;
-use litesvm::{ParentInfo, L2Block};
+use litesvm::{ParentInfo, L2Block, L2Transaction};
 use serde::{Deserialize, Serialize};
 use soon_node::derive::driver::L2ChainProviderImmutable;
+use soon_primitives::l2blocks::{L2Block as SoonL2Block, L2Transaction as SoonL2Transaction};
 
 type AccountPairs = Vec<(Pubkey, AccountSharedData)>;
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
+fn main() -> anyhow::Result<()> {
     // Initialize tracing. In order to view logs, run `RUST_LOG=info cargo run`
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::filter::EnvFilter::from_default_env())
@@ -39,8 +38,8 @@ async fn main() -> anyhow::Result<()> {
     let mut l1_node = MockEthL1Node::new(1, 10);
     let _deposit_to = produce_slot_1(&mut l1_node, &mut producer, &complete_receiver)?;
     // record slot 1 witness
-    let witness_1 = fetch_witness_from_soon(producer.get_executor())?;
-    let block_1 = fetch_l2_block_from_soon(producer.get_executor()).await?;
+    let _witness_1 = fetch_witness_from_soon(producer.get_executor())?;
+    let block_1 = fetch_l2_block_from_soon(producer.get_executor())?;
     let block_data_1 = bincode::serialize(&block_1)?;
 
     // An executor environment describes the configurations for the zkVM
@@ -91,6 +90,12 @@ fn new_soon(
     Receiver<(L2BlockInfo, Option<BlockInfo>)>,
 )> {
     let identity = Arc::new(Keypair::new());
+    println!("dir: {:?}", std::env::var("CARGO_MANIFEST_DIR")
+        .ok()
+        .map_or_else(
+            || std::env::current_dir().ok(),
+            |s| Some(std::path::PathBuf::from(s)),
+        ));
     init_soon_genesis(
         path,
         &identity,
@@ -103,7 +108,7 @@ fn new_soon(
                     |s| Some(std::path::PathBuf::from(s)),
                 )
                 .unwrap()
-                .join(relative_to_soon.unwrap_or("../../.."))
+                .join(relative_to_soon.unwrap_or("../../../../../../"))
                 .join("soon/node/programs/target/deploy"),
         ),
     )?;
@@ -153,10 +158,23 @@ fn fetch_witness_from_soon(executor: &SharedExecutor) -> soon_node::Result<Witne
     })
 }
 
-async fn fetch_l2_block_from_soon(executor: &SharedExecutor) -> soon_node::Result<L2Block> {
+fn fetch_l2_block_from_soon(executor: &SharedExecutor) -> anyhow::Result<L2Block> {
     let slot = executor.latest_slot()?;
-    let l2_block = executor.block_by_number_immut(slot).await?;
-    Ok(l2_block.into())
+    let block_with_entries = executor.block_by_number_immut(slot)?;
+    let l2_block: SoonL2Block = block_with_entries.try_into()?;
+    Ok(soon_l2_block_to_litesvm_l2_block(l2_block))
+}
+
+fn soon_l2_block_to_litesvm_l2_block(l2_block: SoonL2Block) -> L2Block {
+    let l2_txs = l2_block
+        .transactions
+        .into_iter()
+        .map(|tx| match tx {
+            SoonL2Transaction::Head(index, tx) => L2Transaction::Head(index, tx),
+            SoonL2Transaction::Body(tx) => L2Transaction::Body(tx),
+        })
+        .collect();
+    L2Block(l2_txs)
 }
 
 #[derive(Debug, Serialize, Deserialize)]

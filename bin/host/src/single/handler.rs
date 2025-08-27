@@ -72,7 +72,8 @@ impl HintHandler for SingleChainHintHandler {
                 // ensure!(hint.data.len() == 513, "Invalid hint data length");
                 let data = providers.da.download_preimage(hint.data.as_ref().to_vec()).await?;
                 let mut kv_lock = kv.write().await;
-                kv_lock.set(PreimageKey::new_da_proxy_blob(hint.data.as_ref()).into(), data.into())?;
+                kv_lock
+                    .set(PreimageKey::new_da_proxy_blob(hint.data.as_ref()).into(), data.into())?;
             }
             HintType::L1Precompile => {
                 ensure!(hint.data.len() >= 28, "Invalid hint data length for l1 precompile");

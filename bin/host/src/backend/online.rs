@@ -8,8 +8,8 @@ use kona_preimage::{
     errors::{PreimageOracleError, PreimageOracleResult},
 };
 use kona_proof::{Hint, errors::HintParsingError};
-use std::{collections::HashSet, hash::Hash, str::FromStr, sync::Arc};
 use std::time::Duration;
+use std::{collections::HashSet, hash::Hash, str::FromStr, sync::Arc};
 use tokio::sync::RwLock;
 use tokio::time::sleep;
 use tracing::{debug, error, trace};
