@@ -57,6 +57,7 @@ impl TryFrom<u8> for PreimageKeyType {
             5 => Self::Blob,
             6 => Self::Precompile,
             7 => Self::BlockSlot,
+            8 => Self::DAProxyBlob,
             _ => return Err(PreimageOracleError::InvalidPreimageKey),
         };
         Ok(key_type)
