@@ -1,7 +1,7 @@
-use kona_soon_primitives::blocks::L2BlockInfo;
+use alloy_primitives::B256;
 use litesvm::types::TransactionResult;
 use solana_program::fee_calculator::FeeRateGovernor;
-use soon_mpt_primitives::B256;
+use soon_primitives::blocks::L2BlockInfo;
 
 /// The outcome of a block building operation, returning the sealed block [`Header`] and the
 /// [`BlockExecutionResult`].

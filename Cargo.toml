@@ -17,7 +17,7 @@ members = [
   "crates/protocol/*",
   "crates/utilities/*",
   "crates/executor/*",
-  "crates/primitives/*",
+  "crates/soon/*",
 ]
 default-members = ["bin/host", "bin/client"]
 
@@ -84,9 +84,11 @@ litesvm = { path = "crates/executor/svm", version = "0.1.0", default-features = 
 kona-cli = { path = "crates/utilities/cli", version = "0.2.0", default-features = false }
 kona-serde = { path = "crates/utilities/serde", version = "0.2.0", default-features = false }
 
-# Primitives
-kona-soon-primitives = { path = "crates/primitives/soon", version = "0.1.0", default-features = false }
-kona-mpt-primitives = { path = "crates/primitives/mpt", version = "0.1.0", default-features = false }
+# Soon
+soon-derive = { path = "crates/soon/derive", version = "0.1.0", default-features = false }
+soon-primitives = { path = "crates/soon/primitives", version = "0.1.0", default-features = false }
+soon-l2-chain-provider = { path = "crates/soon/l2provider", version = "0.1.0", default-features = false }
+soon-da-provider = { path = "crates/soon/da-provider", version = "0.1.0", default-features = false }
 
 # Alloy
 alloy-rlp = { version = "0.3.11", default-features = false }
@@ -154,26 +156,19 @@ http-body-util = "0.1.3"
 unsigned-varint = "0.8.0"
 tracing-appender = "0.2.3"
 buddy_system_allocator = "0.11.0"
+hex = "0.4.3"
+num-bigint = "0.4.6"
+hex-literal = "0.4.1"
 
 rand = { version = "0.9.1", default-features = false }
-tabled = { version = "0.19", default-features = false }
 anyhow = { version = "1.0.98", default-features = false }
 thiserror = { version = "2.0.12", default-features = false }
 derive_more = { version = "2.0.1", default-features = false }
-lazy_static = { version = "1.5.0", default-features = false }
 
 # Compression
-getrandom = "0.3.2"
 miniz_oxide = "0.8.8"
 alloc-no-stdlib = "2.0.4"
 brotli = { version = "8.0.0", default-features = false }
-
-# Networking
-snap = "1.1.1"
-discv5 = "0.9.1"
-libp2p = "0.55.0"
-libp2p-identity = "0.2.10"
-openssl = "0.10.72"
 
 # Tracing
 tracing-loki = "0.2.6"
@@ -181,8 +176,6 @@ tracing-subscriber = "0.3.19"
 tracing = { version = "0.1.41", default-features = false }
 
 # Metrics
-metrics = { version = "0.24.2", default-features = false }
-prometheus = { version = "0.14.0", default-features = false }
 metrics-exporter-prometheus = { version = "0.17.0", default-features = false }
 
 # Testing
@@ -197,6 +190,7 @@ serde_repr = "0.1.20"
 toml = { version = "0.8.20", default-features = false }
 serde = { version = "1.0.219", default-features = false }
 serde_json = { version = "1.0.140", default-features = false }
+serde_derive = { version = "1.0.204", default-features = false }
 
 # K/V database
 rocksdb = { version = "0.22.0", default-features = false }
@@ -208,17 +202,10 @@ ark-ff = { version = "0.5.0", default-features = false }
 secp256k1 = { version = "0.31.0", default-features = false }
 ark-bls12-381 = { version = "0.5.0", default-features = false }
 
-# Soon
-soon-derive = { path = '../soon/node/derive' }
-soon-da-provider = { path = '../soon/node/da-provider' }
-soon-l1-chain-provider = { path = '../soon/node/l1provider' }
-soon-l2-chain-provider = { path = '../soon/node/l2provider' }
-soon-primitives = { path = '../soon/node/primitives' }
-soon-mpt-primitives = { path = "../soon/node/mpt/primitives" }
-soon-mpt-trie = { path = "../soon/node/mpt/trie/trie" }
-l1-block-info = { path = "../soon/node/programs/l1-block-info-program", features = [
-    "no-entrypoint",
-] }
+# Soon external
+l1-block-info = { path = "../soon/node/programs/l1-block-info-program", features = ["no-entrypoint"] }
+bridge = { path = "../soon/node/programs/bridge-program", features = ["no-entrypoint"] }
+soon-miniz-oxide = { path = "../soon/toollib/miniz_oxide" }
 
 # executor
 bincode = "1.3"
@@ -237,15 +224,15 @@ solana-loader-v4-program = { git = "https://github.com/soonlabs/agave", branch =
 solana-program = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
 solana-program-runtime = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
 solana-program-test = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
-solana-runtime-transaction = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
 solana-sdk = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
 solana-stake-program = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
 solana-svm = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
 solana-system-program = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
 solana-vote-program = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
 solana-entry = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
+solana-client = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
+solana-account-decoder = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
 spl-token = "=6.0.0"
-hex = "0.4.3"
 
 [patch.crates-io]
 # Solana related dependencies

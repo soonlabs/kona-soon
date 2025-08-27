@@ -1,14 +1,14 @@
 use crate::accounts::AccountPairs;
 use crate::error::Result;
 use crate::outcome::BlockBuildingOutcome;
-use kona_soon_primitives::blocks::{BlockInfo, L2BlockInfo};
-use l1_block_info::state::L1BlockInfo;
+use alloy_eips::BlockNumHash;
+use alloy_primitives::B256;
+use l1_block_info::{pda::l1_block_info_pubkey, state::L1BlockInfo};
 use litesvm::{LiteSVM, RawBlock, accounts_callback::AccountsCallback};
+use solana_program::clock::Clock;
+use solana_program::program_pack::Pack;
 use solana_sdk::account::ReadableAccount;
-use solana_sdk::clock::Clock;
-use solana_sdk::program_pack::Pack;
-use soon_mpt_primitives::B256;
-use soon_mpt_primitives::alloy::eips::BlockNumHash;
+use soon_primitives::blocks::{BlockInfo, L2BlockInfo};
 
 #[derive(Debug, Default)]
 pub struct FraudExecutor<CB: AccountsCallback> {
@@ -55,10 +55,9 @@ impl<CB: AccountsCallback> FraudExecutor<CB> {
     }
 
     fn get_l1_block_info(&mut self) -> Option<L1BlockInfo> {
-        let l1_info_account = l1_block_info::pda::l1_block_info_pubkey();
+        let l1_info_account = l1_block_info_pubkey();
         let l1_data = self.svm.get_account(&l1_info_account);
-        let l1_block_info = l1_data
-            .and_then(|l1_data| l1_block_info::state::L1BlockInfo::unpack(l1_data.data()).ok());
+        let l1_block_info = l1_data.and_then(|l1_data| L1BlockInfo::unpack(l1_data.data()).ok());
         l1_block_info
     }
 }

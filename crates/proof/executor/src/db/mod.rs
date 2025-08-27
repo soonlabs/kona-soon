@@ -5,15 +5,15 @@ use crate::errors::{TrieDBError, TrieDBResult};
 use alloc::{format, string::ToString, vec::Vec};
 use alloy_primitives::{B256, keccak256};
 use alloy_rlp::{Decodable, Encodable};
+use fraud_executor::accounts::SoonAccounts;
 use kona_mpt::{Nibbles, TrieHinter, TrieNode, TrieNodeError};
 use litesvm::accounts_callback::AccountsCallback;
 use solana_sdk::account::{AccountSharedData, ReadableAccount};
 use solana_sdk::pubkey::Pubkey;
-use soon_primitives::{blocks::L2BlockHeader, mpt::WrappedSolanaAccount};
+use soon_primitives::blocks::L2BlockHeader;
+use soon_primitives::mpt::{TrieSolanaAccount, WrappedSolanaAccount};
 
 mod traits;
-use fraud_executor::accounts::SoonAccounts;
-use soon_mpt_primitives::account::TrieSolanaAccount;
 pub use traits::{NoopTrieDBProvider, TrieDBProvider};
 
 /// A Trie DB that caches open state in-memory.

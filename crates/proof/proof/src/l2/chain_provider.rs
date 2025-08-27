@@ -15,7 +15,7 @@ use l1_block_info::instruction::L1BlockInfoInstruction;
 use solana_sdk::pubkey::Pubkey;
 use soon_derive::traits::L2ChainProvider;
 use soon_primitives::blocks::{BlockInfo, L2BlockInfo, str_block_hash_to};
-use soon_primitives::l2blocks::L2Block;
+use soon_primitives::l2_blocks::L2Block;
 use soon_primitives::rollup_config::SoonRollupConfig;
 use soon_primitives::system::SystemConfig;
 use spin::RwLock;

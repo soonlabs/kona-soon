@@ -1,10 +1,10 @@
-use crate::utils::add_trie_account;
+use crate::utils::sol_account_encoder;
 use alloy_primitives::B256;
-use kona_mpt_primitives::account::TrieSolanaAccount as MptAccount;
+use kona_mpt::ordered_trie_with_encoder;
 use litesvm::accounts_callback::MemoryAccountsCallback;
 use serde::{Deserialize, Serialize};
 use solana_sdk::{account::AccountSharedData, pubkey::Pubkey};
-use soon_mpt_trie::{encoder::sol_account_encoder, test_utils::state_root_prehashed};
+use soon_primitives::mpt::{TrieSolanaAccount as MptAccount, TrieSolanaPubkey};
 use std::collections::BTreeMap;
 
 pub type AccountPairs = Vec<(Pubkey, AccountSharedData)>;
@@ -16,8 +16,14 @@ pub struct SoonAccounts {
 
 impl SoonAccounts {
     pub fn state_root(&self) -> B256 {
-        let mpt_accounts: Vec<(B256, MptAccount)> = self.clone().into();
-        state_root_prehashed(mpt_accounts, sol_account_encoder())
+        let mut mpt_accounts: Vec<(B256, MptAccount)> = self.clone().into();
+        mpt_accounts.sort_unstable_by_key(|(k, _)| *k);
+        let accounts = mpt_accounts.into_iter().map(|(_, m)| m).collect::<Vec<_>>();
+        let mut hash_builder = ordered_trie_with_encoder(&accounts, |account, buf| {
+            let encoded = sol_account_encoder(account);
+            buf.put_slice(&encoded);
+        });
+        hash_builder.root()
     }
 }
 
@@ -31,7 +37,7 @@ impl From<SoonAccounts> for Vec<(B256, MptAccount)> {
     fn from(val: SoonAccounts) -> Self {
         let mut accounts = Self::new();
         for (pubkey, account) in val.accounts {
-            add_trie_account(&mut accounts, &pubkey, &account);
+            accounts.push((TrieSolanaPubkey(pubkey).into(), account.into()));
         }
         accounts
     }

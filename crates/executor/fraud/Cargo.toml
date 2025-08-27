@@ -13,18 +13,13 @@ exclude.workspace = true
 
 [dependencies]
 alloy-primitives.workspace = true
+alloy-eips.workspace = true
 litesvm.workspace = true
-soon-mpt-primitives.workspace = true
-soon-mpt-trie.workspace = true
-kona-soon-primitives.workspace = true
-kona-mpt-primitives.workspace = true
-tracing.workspace = true
+soon-primitives.workspace = true
+kona-mpt.workspace = true
 l1-block-info.workspace = true
-
 thiserror.workspace = true
-hex.workspace = true
 serde.workspace = true
-
 solana-sdk.workspace = true
 solana-program.workspace = true
 

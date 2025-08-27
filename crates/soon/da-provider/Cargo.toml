@@ -1,0 +1,16 @@
+[package]
+name = "soon-da-provider"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+license.workspace = true
+edition.workspace = true
+
+[dependencies]
+soon-derive = { workspace = true }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time"] }
+thiserror = { workspace = true }
+hex = { workspace = true }
+reqwest = { workspace = true }
+async-trait = { workspace = true }
