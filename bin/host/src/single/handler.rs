@@ -151,21 +151,20 @@ impl HintHandler for SingleChainHintHandler {
                     providers.l2.get_tried_account_proof(hashed_address, block_number).await?;
                 // need to write account + trie proof node into kv.
                 let mut out_buf = BytesMut::default();
-                let mut kv_lock = kv.write().await;
-                if let Some(account) = tried_account {
-                    Encodable::encode(&account.account, &mut out_buf);
-                    account.proofs.into_iter().try_for_each(|node| {
-                        let node_hash = keccak256::<&[u8]>(node.as_ref());
-                        let key = PreimageKey::new_keccak256(*node_hash);
-                        kv_lock.set(key.into(), node.into())?;
-                        Ok::<(), anyhow::Error>(())
-                    })?;
+                if let Some(account) = tried_account.account {
+                    Encodable::encode(&account, &mut out_buf);
                 }
-            
+                let mut kv_lock = kv.write().await;
                 kv_lock.set(
                     PreimageKey::new_l2_account_proof(hashed_address.into()).into(),
                     out_buf.into(),
                 )?;
+                tried_account.proofs.into_iter().try_for_each(|node| {
+                    let node_hash = keccak256::<&[u8]>(node.as_ref());
+                    let key = PreimageKey::new_keccak256(*node_hash);
+                    kv_lock.set(key.into(), node.into())?;
+                    Ok::<(), anyhow::Error>(())
+                })?;
             }
             // HintType::L2AccountStorageProof => {
             //     ensure!(hint.data.len() == 8 + 32, "Invalid hint data length");
