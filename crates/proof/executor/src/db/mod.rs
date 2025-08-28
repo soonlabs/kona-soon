@@ -122,39 +122,6 @@ where
         Ok(root)
     }
 
-    /// Fetches the [TrieSolanaAccount] of an account from the trie DB.
-    ///
-    /// ## Takes
-    /// - `address`: The address of the account.
-    ///
-    /// ## Returns
-    /// - `Ok(Some(TrieSolanaAccount))`: The [TrieSolanaAccount] of the account.
-    /// - `Ok(None)`: If the account does not exist in the trie.
-    /// - `Err(_)`: If the account could not be fetched.
-    pub fn get_trie_account(
-        &mut self,
-        pubkey: &Pubkey,
-        block_number: u64,
-    ) -> TrieDBResult<Option<TrieSolanaAccount>> {
-        // Send a hint to the host to fetch the account proof.
-        self.hinter
-            .hint_account_proof(pubkey, block_number)
-            .map_err(|e| TrieDBError::Provider(e.to_string()))?;
-
-        // Fetch the account from the trie.
-        let hashed_address_nibbles = Nibbles::unpack(keccak256(pubkey));
-        let Some(trie_account_rlp) = self.root_node.open(&hashed_address_nibbles, &self.fetcher)?
-        else {
-            return Ok(None);
-        };
-
-        // Decode the trie account from the RLP bytes.
-        TrieSolanaAccount::decode(&mut trie_account_rlp.as_ref())
-            .map_err(TrieNodeError::RLPError)
-            .map_err(Into::into)
-            .map(Some)
-    }
-
     /// Modifies the accounts in the storage trie with the given [BundleState] changeset.
     ///
     /// ## Takes

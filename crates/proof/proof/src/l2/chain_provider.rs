@@ -203,7 +203,7 @@ impl<T: CommsClient> TrieDBProvider for OracleL2ChainProvider<T> {
     fn data_by_hash(&self, hash: B256) -> Result<Bytes, OracleProviderError> {
         crate::block_on(async move {
             self.oracle
-                .get(PreimageKey::new(*hash, PreimageKeyType::Keccak256))
+                .get(PreimageKey::new_l2_account_proof(hash))
                 .await
                 .map(Bytes::from)
                 .map_err(OracleProviderError::Preimage)

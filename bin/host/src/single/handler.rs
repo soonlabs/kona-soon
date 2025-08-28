@@ -163,7 +163,7 @@ impl HintHandler for SingleChainHintHandler {
                 }
             
                 kv_lock.set(
-                    PreimageKey::new_keccak256(hashed_address.into()).into(),
+                    PreimageKey::new_l2_account_proof(hashed_address.into()).into(),
                     out_buf.into(),
                 )?;
             }
