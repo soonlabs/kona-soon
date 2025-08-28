@@ -210,6 +210,9 @@ where
             .fetcher
             .data_by_hash(keccak256(pubkey))
             .map_err(|e| TrieDBError::MissingAccountInfo)?;
+        if account_bytes.len() == 0 {
+            return Ok(None);
+        }
         let account: WrappedSolanaAccount = Decodable::decode(&mut account_bytes.as_ref())
             .map_err(|e| TrieDBError::Provider(format!("fail to parse solana account: {}", e)))?;
         Ok(Some(account.0))
