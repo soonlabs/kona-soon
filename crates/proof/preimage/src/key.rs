@@ -1,7 +1,7 @@
 //! Contains the [PreimageKey] type, which is used to identify preimages that may be fetched from
 //! the preimage oracle.
 
-use alloy_primitives::{B256, Keccak256, U256};
+use alloy_primitives::{B256, Keccak256, U256, keccak256};
 #[cfg(feature = "rkyv")]
 use rkyv::{Archive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
 #[cfg(feature = "serde")]
@@ -39,6 +39,10 @@ pub enum PreimageKeyType {
     /// `keccak256(precompile_addr ++ input)`, and then the high-order byte of the digest is set to
     /// the type byte.
     Precompile = 6,
+    /// BlockSlot key types are global to represent a block slot.
+    BlockSlot = 7,
+    /// DAProxyBlob key types are global to represent a blob from da proxy.
+    DAProxyBlob = 8,
 }
 
 impl TryFrom<u8> for PreimageKeyType {
@@ -52,6 +56,8 @@ impl TryFrom<u8> for PreimageKeyType {
             4 => Self::Sha256,
             5 => Self::Blob,
             6 => Self::Precompile,
+            7 => Self::BlockSlot,
+            8 => Self::DAProxyBlob,
             _ => return Err(PreimageOracleError::InvalidPreimageKey),
         };
         Ok(key_type)
@@ -67,6 +73,8 @@ impl core::fmt::Display for PreimageKeyType {
             PreimageKeyType::Sha256 => write!(f, "sha256"),
             PreimageKeyType::Blob => write!(f, "blob"),
             PreimageKeyType::Precompile => write!(f, "precompile"),
+            PreimageKeyType::BlockSlot => write!(f, "block_slot"),
+            PreimageKeyType::DAProxyBlob => write!(f, "da_proxy_blob"),
         }
     }
 }
@@ -126,6 +134,19 @@ impl PreimageKey {
 
         data.copy_from_slice(&hasher.finalize()[1..]);
         Self { data, key_type: PreimageKeyType::Precompile }
+    }
+
+    /// Creates a new block slot [PreimageKey] from a block slot number.
+    pub fn new_block_slot(block_slot: u64) -> Self {
+        let number_bytes = block_slot.to_be_bytes();
+        let number_hash = keccak256(number_bytes.as_ref());
+        Self::new(*number_hash, PreimageKeyType::BlockSlot)
+    }
+
+    /// Creates a new DAProxyBlob [PreimageKey] from a key data.
+    pub fn new_da_proxy_blob(key_data: &[u8]) -> Self {
+        let key_hash = keccak256(key_data);
+        Self::new(*key_hash, PreimageKeyType::DAProxyBlob)
     }
 
     /// Returns the [PreimageKeyType] for the [PreimageKey].

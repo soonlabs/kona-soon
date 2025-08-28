@@ -3,6 +3,7 @@
 use crate::{
     accounts_db::AccountsDb,
     builtin::BUILTINS,
+    entry::*,
     error::LiteSVMError,
     genesis::*,
     types::{ExecutionResult, FailedTransactionMetadata, TransactionMetadata, TransactionResult},
@@ -14,8 +15,6 @@ use solana_compute_budget::{
     compute_budget::ComputeBudget,
     compute_budget_processor::{ComputeBudgetLimits, process_compute_budget_instructions},
 };
-use solana_entry::entry::{Entry, next_hash};
-
 use solana_loader_v4_program::create_program_runtime_environment_v2;
 use solana_program::clock::{Clock, Epoch, INITIAL_RENT_EPOCH, MAX_PROCESSING_AGE, Slot};
 use solana_program::epoch_schedule::EpochSchedule;
@@ -24,12 +23,12 @@ use solana_program::hash::Hash;
 use solana_program::nonce;
 use solana_program::sysvar;
 use solana_program::sysvar::recent_blockhashes::IntoIterSorted;
-use solana_program_runtime::loaded_programs::ProgramRuntimeEnvironments;
+#[cfg(not(target_os = "zkvm"))]
+use solana_program_runtime::timings::ExecuteTimings;
 use solana_program_runtime::{
     invoke_context::{EnvironmentConfig, InvokeContext},
-    loaded_programs::ProgramCacheEntry,
+    loaded_programs::{ProgramCacheEntry, ProgramRuntimeEnvironments},
     log_collector::LogCollector,
-    timings::ExecuteTimings,
 };
 use solana_sdk::{
     account::{Account, AccountSharedData, ReadableAccount, WritableAccount},
@@ -77,6 +76,7 @@ mod builtin;
 // mod spl;
 mod block;
 mod blockhash_queue;
+mod entry;
 mod leader_schedule;
 mod parent_info;
 mod utils;
@@ -620,6 +620,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
                         self.log_collector.clone(),
                         self.compute_budget,
                     ),
+                    #[cfg(not(target_os = "zkvm"))]
                     &mut ExecuteTimings::default(),
                     &mut accumulated_consume_units,
                 )

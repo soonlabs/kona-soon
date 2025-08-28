@@ -13,9 +13,10 @@ use solana_program::{
     },
     system_program,
 };
-use solana_program_runtime::loaded_programs::ProgramRuntimeEnvironments;
+#[cfg(not(target_os = "zkvm"))]
+use solana_program_runtime::loaded_programs::LoadProgramMetrics;
 use solana_program_runtime::{
-    loaded_programs::{LoadProgramMetrics, ProgramCacheEntry, ProgramCacheForTxBatch},
+    loaded_programs::{ProgramCacheEntry, ProgramCacheForTxBatch, ProgramRuntimeEnvironments},
     sysvar_cache::SysvarCache,
 };
 use solana_sdk::{
@@ -50,12 +51,12 @@ impl<CB: AccountsCallback> Default for AccountsDb<CB> {
 }
 
 impl<CB: AccountsCallback> AccountsDb<CB> {
-    pub fn set_callback(&mut self, callback: CB) -> &mut Self {
+    pub(crate) fn set_callback(&mut self, callback: CB) -> &mut Self {
         self.callback = Some(callback);
         self
     }
 
-    pub fn set_init_accounts(
+    pub(crate) fn set_init_accounts(
         &mut self,
         init_accounts: Vec<(Pubkey, AccountSharedData)>,
     ) -> &mut Self {
@@ -65,19 +66,22 @@ impl<CB: AccountsCallback> AccountsDb<CB> {
         self
     }
 
-    pub fn set_slot(&mut self, slot: Slot) -> &mut Self {
+    pub(crate) fn set_slot(&mut self, slot: Slot) -> &mut Self {
         self.slot = slot;
         self.programs_cache.set_slot_for_tests(slot);
         self
     }
 
-    pub fn set_epoch(&mut self, epoch: Epoch) -> &mut Self {
+    pub(crate) fn set_epoch(&mut self, epoch: Epoch) -> &mut Self {
         self.epoch = epoch;
         self.programs_cache.latest_root_epoch = epoch;
         self
     }
 
-    pub fn set_environments(&mut self, environments: ProgramRuntimeEnvironments) -> &mut Self {
+    pub(crate) fn set_environments(
+        &mut self,
+        environments: ProgramRuntimeEnvironments,
+    ) -> &mut Self {
         self.programs_cache.environments = environments;
         self
     }
@@ -162,6 +166,7 @@ impl<CB: AccountsCallback> AccountsDb<CB> {
         self.accounts_diff.iter().map(|(pubkey, account)| (*pubkey, account.clone())).collect()
     }
 
+    #[allow(unused)]
     pub(crate) fn clean_zero_accounts(&mut self) {
         self.accounts_diff.retain(|_, account| account.lamports() > 0);
     }
@@ -170,6 +175,7 @@ impl<CB: AccountsCallback> AccountsDb<CB> {
         &mut self,
         program_account: &AccountSharedData,
     ) -> Result<ProgramCacheEntry, InstructionError> {
+        #[cfg(not(target_os = "zkvm"))]
         let metrics = &mut LoadProgramMetrics::default();
 
         let owner = program_account.owner();
@@ -183,7 +189,8 @@ impl<CB: AccountsCallback> AccountsDb<CB> {
                 self.slot,
                 program_account.data(),
                 program_account.data().len(),
-                &mut LoadProgramMetrics::default(),
+                #[cfg(not(target_os = "zkvm"))]
+                metrics,
             )
             .map_err(|e| {
                 error!("Error loading program: {:?}", e);
@@ -216,10 +223,12 @@ impl<CB: AccountsCallback> AccountsDb<CB> {
                         .data()
                         .len()
                         .saturating_add(program_data.len()),
-                    metrics).map_err(|_| {
-                        error!("Error encountered when calling ProgramCacheEntry::new() for bpf_loader_upgradeable.");
-                        InstructionError::InvalidAccountData
-                    })
+                    #[cfg(not(target_os = "zkvm"))]
+                    metrics,
+                ).map_err(|_| {
+                    error!("Error encountered when calling ProgramCacheEntry::new() for bpf_loader_upgradeable.");
+                    InstructionError::InvalidAccountData
+                })
             } else {
                 error!("Index out of bounds using bpf_loader_upgradeable.");
                 Err(InstructionError::InvalidAccountData)
@@ -235,6 +244,7 @@ impl<CB: AccountsCallback> AccountsDb<CB> {
                     self.slot,
                     elf_bytes,
                     program_account.data().len(),
+                    #[cfg(not(target_os = "zkvm"))]
                     metrics,
                 )
                 .map_err(|_| {
@@ -254,6 +264,7 @@ impl<CB: AccountsCallback> AccountsDb<CB> {
         }
     }
 
+    #[allow(unused)]
     fn load_lookup_table_addresses(
         &mut self,
         address_table_lookup: &MessageAddressTableLookup,
@@ -321,6 +332,7 @@ impl<CB: AccountsCallback> AccountsDb<CB> {
     }
 }
 
+#[allow(unused)]
 fn into_address_loader_error(err: AddressLookupError) -> AddressLoaderError {
     match err {
         AddressLookupError::LookupTableAccountNotFound => {

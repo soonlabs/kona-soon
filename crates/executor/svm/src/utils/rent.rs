@@ -6,7 +6,7 @@ use solana_sdk::{
 //this code is taken from https://github.com/solana-labs/solana/blob/master/runtime/src/accounts/account_rent_state.rs
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum RentState {
+pub(crate) enum RentState {
     /// account.lamports == 0
     Uninitialized,
     /// 0 < account.lamports < rent-exempt-minimum
@@ -19,7 +19,7 @@ pub enum RentState {
 }
 
 impl RentState {
-    pub fn from_account(account: &AccountSharedData, rent: &Rent) -> Self {
+    pub(crate) fn from_account(account: &AccountSharedData, rent: &Rent) -> Self {
         if account.lamports() == 0 {
             Self::Uninitialized
         } else if rent.is_exempt(account.lamports(), account.data().len()) {
@@ -29,7 +29,7 @@ impl RentState {
         }
     }
 
-    pub fn transition_allowed_from(&self, pre_rent_state: &RentState) -> bool {
+    pub(crate) fn transition_allowed_from(&self, pre_rent_state: &RentState) -> bool {
         match self {
             Self::Uninitialized | Self::RentExempt => true,
             Self::RentPaying { data_size: post_data_size, lamports: post_lamports } => {

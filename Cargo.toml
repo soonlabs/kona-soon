@@ -159,6 +159,7 @@ buddy_system_allocator = "0.11.0"
 hex = "0.4.3"
 num-bigint = "0.4.6"
 hex-literal = "0.4.1"
+fast-math = "0.1"
 
 rand = { version = "0.9.1", default-features = false }
 anyhow = { version = "1.0.98", default-features = false }
