@@ -9,11 +9,14 @@ use kona_mpt::{Nibbles, TrieHinter, TrieNode, TrieNodeError};
 use litesvm::accounts_callback::AccountsCallback;
 use solana_sdk::account::{AccountSharedData, ReadableAccount};
 use solana_sdk::pubkey::Pubkey;
-use soon_primitives::{blocks::L2BlockHeader, mpt::WrappedSolanaAccount};
+use soon_primitives::{
+    blocks::L2BlockHeader, mpt::WrappedSolanaAccount, mpt::account_from_solana_native,
+};
 
 mod traits;
 use fraud_executor::accounts::SoonAccounts;
 use soon_mpt_primitives::account::TrieSolanaAccount;
+use soon_mpt_primitives::encoder::sol_account_encoder;
 pub use traits::{NoopTrieDBProvider, TrieDBProvider};
 
 /// A Trie DB that caches open state in-memory.
@@ -148,9 +151,8 @@ where
             }
 
             // RLP encode the trie account for insertion.
-            let wrapped_account = WrappedSolanaAccount(bundle_account.clone());
-            let mut account_buf = Vec::with_capacity(wrapped_account.length());
-            wrapped_account.encode(&mut account_buf);
+            let mpt_account = account_from_solana_native(bundle_account);
+            let account_buf = sol_account_encoder()(&mpt_account);
 
             // Insert or update the account in the trie.
             self.root_node.insert(&account_path, account_buf.into(), &self.fetcher)?;

@@ -2,8 +2,8 @@ use crate::utils::add_trie_account;
 use litesvm::accounts_callback::MemoryAccountsCallback;
 use serde::{Deserialize, Serialize};
 use solana_sdk::{account::AccountSharedData, pubkey::Pubkey};
-use soon_mpt_primitives::{Account as MptAccount, B256};
-use soon_mpt_trie::{encoder::sol_account_encoder, test_utils::state_root_prehashed};
+use soon_mpt_primitives::{Account as MptAccount, B256, encoder::sol_account_encoder};
+use soon_mpt_trie::test_utils::state_root_prehashed;
 use std::collections::BTreeMap;
 
 pub type AccountPairs = Vec<(Pubkey, AccountSharedData)>;
@@ -44,7 +44,9 @@ impl From<SoonAccounts> for MemoryAccountsCallback {
 
 impl From<BTreeMap<Pubkey, AccountSharedData>> for SoonAccounts {
     fn from(val: BTreeMap<Pubkey, AccountSharedData>) -> Self {
-        Self { accounts: val.into_iter().collect() }
+        Self {
+            accounts: val.into_iter().collect(),
+        }
     }
 }
 
