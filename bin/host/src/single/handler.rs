@@ -165,6 +165,12 @@ impl HintHandler for SingleChainHintHandler {
                     kv_lock.set(key.into(), node.into())?;
                     Ok::<(), anyhow::Error>(())
                 })?;
+                tried_account.withdrawal_proofs.into_iter().try_for_each(|node| {
+                    let node_hash = keccak256::<&[u8]>(node.as_ref());
+                    let key = PreimageKey::new_keccak256(*node_hash);
+                    kv_lock.set(key.into(), node.into())?;
+                    Ok::<(), anyhow::Error>(())
+                })?;
             }
             // HintType::L2AccountStorageProof => {
             //     ensure!(hint.data.len() == 8 + 32, "Invalid hint data length");
