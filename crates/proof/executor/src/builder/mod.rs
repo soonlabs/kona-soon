@@ -14,7 +14,7 @@ use fraud_executor::outcome::BlockBuildingOutcome;
 mod offchain;
 pub use offchain::{
     OffchainL2Builder, cal_init_state_root_hash, cal_soon_accounts_hash, cal_svm_bank_hash,
-    cal_svm_clock_timestamp, cal_svm_leader,
+    cal_svm_clock_timestamp,
 };
 
 use crate::{ExecutorResult, TrieDBProvider};

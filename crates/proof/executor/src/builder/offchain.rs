@@ -25,7 +25,7 @@ where
     H: TrieHinter,
     A: AccountsCallback,
 {
-    pub(crate) _config: Arc<SoonRollupConfig>,
+    pub(crate) config: Arc<SoonRollupConfig>,
     pub(crate) provider: P,
     pub(crate) _hinter: H,
     pub(crate) parent_header: L2BlockHeader,
@@ -48,7 +48,7 @@ where
         _last_accounts_diff: SoonAccounts,
     ) -> Self {
         Self {
-            _config: config,
+            config,
             provider,
             _hinter: hinter,
             parent_header,
@@ -80,17 +80,11 @@ where
             )?;
         let clock_timestamp: i64 = bincode::deserialize(&clock_timestamp)
             .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
-        let leader = self
-            .provider
-            .data_by_hash(cal_svm_leader())
-            .map_err(|_| ExecutorError::FraudInitError("Failed to get svm leader".to_string()))?;
-        let leader: Pubkey = bincode::deserialize(&leader)
-            .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
 
         let mut svm: LiteSVM<A> = LiteSVM::new_soon()
             .with_parent_slot(self.parent_slot())
             .with_parent_bank_hash(parent_bank_hash)
-            .with_leader_schedule(leader.into())
+            .with_leader_schedule(self.config.sequencer_schedules.clone().into_iter().collect())
             .with_sig_verify(false)
             .with_blockhash_verify(true)
             .with_accounts_callback(soon_accounts.into())
@@ -205,11 +199,6 @@ pub fn cal_svm_bank_hash(slot: u64) -> B256 {
 /// Calculate the hash of the SVM clock timestamp for the given slot.
 pub fn cal_svm_clock_timestamp(slot: u64) -> B256 {
     slot_spec_hash(slot, b"svm_clock_timestamp")
-}
-
-/// Calculate the hash of the SVM leader.
-pub fn cal_svm_leader() -> B256 {
-    keccak256(b"svm_leader")
 }
 
 fn slot_spec_hash(slot: u64, suffix: &[u8]) -> B256 {
