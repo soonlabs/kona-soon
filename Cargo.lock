@@ -5719,7 +5719,6 @@ dependencies = [
  "async-trait",
  "bs58 0.5.1",
  "clap 4.5.41",
- "hex",
  "kona-cli",
  "kona-client",
  "kona-driver",
