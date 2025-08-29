@@ -25,7 +25,6 @@ solana-config-program.workspace = true
 solana-loader-v4-program.workspace = true
 solana-program-runtime.workspace = true
 solana-program.workspace = true
-solana-runtime-transaction.workspace = true
 solana-sdk.workspace = true
 solana-stake-program.workspace = true
 solana-svm.workspace = true

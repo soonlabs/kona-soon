@@ -30,15 +30,17 @@ fn main() {
         .with_sig_verify(false)
         .with_blockhash_verify(true)
         .with_accounts_callback(witness.soon_accounts.into())
-        .with_clock_timestamp(witness.clock_timestamp);
+        .with_clock_timestamp(witness.clock_timestamp)
+        .with_log_collector(Some(std::rc::Rc::new(std::cell::RefCell::new(Default::default()))));
     svm.finish_init().expect("svm finish init failed");
 
     // execute block
-    let _results = svm.execute_block(l2_block.into()).expect("svm execute block failed");
+    let results = svm.execute_block(l2_block.into()).expect("svm execute block failed");
+    env::log(&format!("results: {:#?}", results));
+
     let diff_accounts = svm.export_diff_accounts();
-    let len = diff_accounts.len();
-    
+
     // write public output to the journal
-    env::commit(&len);
+    env::commit(&diff_accounts);
 }
 
