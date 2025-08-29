@@ -3,7 +3,7 @@
 
 use crate::errors::{TrieDBError, TrieDBResult};
 use alloc::{format, string::ToString, vec::Vec};
-use alloy_primitives::{B256, keccak256};
+use alloy_primitives::{B256, BlockHash, keccak256};
 use alloy_rlp::Decodable;
 use kona_mpt::{Nibbles, TrieHinter, TrieNode};
 use litesvm::accounts_callback::AccountsCallback;
@@ -163,6 +163,40 @@ where
         }
 
         Ok(())
+    }
+
+    /// Fetches the bank hash for the given block number.
+    ///
+    /// ## Takes
+    /// - `block_number` - The block number at which the bank hash is to be fetched.
+    ///
+    /// ## Returns
+    /// - Ok(B256): The bank hash.
+    pub fn bank_hash(&self, block_number: u64) -> TrieDBResult<B256> {
+        self.hinter
+            .hint_bank_hash(block_number)
+            .map_err(|e| TrieDBError::Provider(e.to_string()))?;
+        Ok(self
+            .fetcher
+            .bank_hash(block_number)
+            .map_err(|e| TrieDBError::Provider(e.to_string()))?)
+    }
+
+    /// Fetches the block time for the given block number.
+    ///
+    /// ## Takes
+    /// - `block_number` - The block number at which the block time is to be fetched.
+    ///
+    /// ## Returns
+    /// - Ok(u64): The block time.
+    pub fn block_time(&self, block_number: u64) -> TrieDBResult<i64> {
+        self.hinter
+            .hint_block_time(block_number)
+            .map_err(|e| TrieDBError::Provider(e.to_string()))?;
+        Ok(self
+            .fetcher
+            .block_time(block_number)
+            .map_err(|e| TrieDBError::Provider(e.to_string()))?)
     }
 }
 

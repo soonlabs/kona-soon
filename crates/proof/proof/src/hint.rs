@@ -104,6 +104,10 @@ pub enum HintType {
     L2AccountProof,
     /// A hint that specifies loading the block data for an SOON block.
     L2BlockData,
+    /// A hint that specifies the bank hash for an L2 block.
+    L2BankHash,
+    /// A hint that specifies the block time for an L2 block.
+    L2BlockTime,
 }
 
 impl HintType {
@@ -135,6 +139,8 @@ impl FromStr for HintType {
             "l2-account-proof" => Ok(Self::L2AccountProof),
             // "l2-account-storage-proof" => Ok(Self::L2AccountStorageProof),
             "l2-block-data" => Ok(Self::L2BlockData),
+            "l2-bank-hash" => Ok(Self::L2BankHash),
+            "l2-block-time" => Ok(Self::L2BlockTime),
             _ => Err(HintParsingError(value.to_string())),
         }
     }
@@ -154,6 +160,8 @@ impl From<HintType> for &str {
             HintType::L2AccountProof => "l2-account-proof",
             // HintType::L2AccountStorageProof => "l2-account-storage-proof",
             HintType::L2BlockData => "l2-block-data",
+            HintType::L2BankHash => "l2-bank-hash",
+            HintType::L2BlockTime => "l2-block-time",
         }
     }
 }

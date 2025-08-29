@@ -96,13 +96,23 @@ where
     fn build_block(&mut self, attrs: OpPayloadAttributes) -> ExecutorResult<BlockBuildingOutcome> {
         // Step 1. Set up the execution environment using genesis
 
+        // Step 2. Get the parent bank hash and clock timestamp
+        let parent_bank_hash = self.trie_db.bank_hash(self.parent_slot)?;
+        let clock_timestamp = self.trie_db.block_time(self.parent_slot + 1)?;
+        info!(
+            "building block for slot: {:?}, parent_bank_hash: {:?}, clock_timestamp: {:?}",
+            self.parent_slot + 1,
+            parent_bank_hash,
+            clock_timestamp
+        );
+
         // Step 2. Create the executor, using the trie database.
         let mut svm = LiteSVM::new_soon()
             .with_parent_slot(self.parent_slot)
             // TODO: use the actual bank hash
-            .with_parent_bank_hash(Default::default())
+            .with_parent_bank_hash((*parent_bank_hash).into())
             // TODO: use the actual clock timestamp
-            .with_clock_timestamp(Default::default())
+            .with_clock_timestamp(clock_timestamp)
             .with_leader_schedule(self.config.sequencer_schedules.clone().into_iter().collect())
             .with_sig_verify(false)
             .with_blockhash_verify(true)

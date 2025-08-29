@@ -2,6 +2,7 @@
 
 use crate::alloc::string::ToString;
 use crate::{HintType, errors::OracleProviderError};
+use alloc::string::String;
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use alloy_eips::BlockNumHash;
 use alloy_primitives::{Address, B256, Bytes, U160, keccak256};
@@ -197,6 +198,28 @@ impl<T: CommsClient> TrieProvider for OracleL2ChainProvider<T> {
             .map_err(OracleProviderError::Rlp)
         })
     }
+
+    fn bank_hash(&self, block_number: u64) -> Result<B256, Self::Error> {
+        crate::block_on(async move {
+            let bank_hash_data = self
+                .oracle
+                .get(PreimageKey::new_l2_bank_hash(block_number))
+                .await
+                .map_err(OracleProviderError::Preimage)?;
+            Ok(B256::from_slice(bank_hash_data.as_slice()))
+        })
+    }
+
+    fn block_time(&self, block_number: u64) -> Result<i64, Self::Error> {
+        crate::block_on(async move {
+            let block_time_data = self
+                .oracle
+                .get(PreimageKey::new_l2_block_time(block_number))
+                .await
+                .map_err(OracleProviderError::Preimage)?;
+            Ok(i64::from_be_bytes(block_time_data.as_slice().try_into().unwrap()))
+        })
+    }
 }
 
 impl<T: CommsClient> TrieDBProvider for OracleL2ChainProvider<T> {
@@ -231,6 +254,24 @@ impl<T: CommsClient> TrieHinter for OracleL2ChainProvider<T> {
             info!("hint_account_proof, hashed_address: {:?}", hashed_address);
             HintType::L2AccountProof
                 .with_data(&[block_number.to_be_bytes().as_ref(), hashed_address.as_ref()])
+                .send(self.oracle.as_ref())
+                .await
+        })
+    }
+
+    fn hint_bank_hash(&self, block_number: u64) -> Result<(), Self::Error> {
+        crate::block_on(async move {
+            HintType::L2BankHash
+                .with_data(&[block_number.to_be_bytes().as_ref()])
+                .send(self.oracle.as_ref())
+                .await
+        })
+    }
+
+    fn hint_block_time(&self, block_number: u64) -> Result<(), Self::Error> {
+        crate::block_on(async move {
+            HintType::L2BlockTime
+                .with_data(&[block_number.to_be_bytes().as_ref()])
                 .send(self.oracle.as_ref())
                 .await
         })

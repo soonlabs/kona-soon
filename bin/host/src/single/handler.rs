@@ -201,6 +201,29 @@ impl HintHandler for SingleChainHintHandler {
                 let mut kv_lock = kv.write().await;
                 kv_lock.set(PreimageKey::new_block_slot(block_number).into(), out_buf.into())?;
             }
+            HintType::L2BankHash => {
+                ensure!(hint.data.len() == 8, "Invalid hint data length for l2 bank hash");
+                let block_number = u64::from_be_bytes(hint.data.as_ref()[..8].try_into()?);
+                let bank_hash = providers.l2.get_bank_hash(block_number).await?;
+                let bank_hash_bytes = match bank_hash {
+                    Some(hash) => hash.as_bytes().to_vec(),
+                    None => vec![],
+                };
+                let mut kv_lock = kv.write().await;
+                kv_lock.set(PreimageKey::new_l2_bank_hash(block_number).into(), bank_hash_bytes)?;
+            }
+            HintType::L2BlockTime => {
+                ensure!(hint.data.len() == 8, "Invalid hint data length for l2 block time");
+                let block_number = u64::from_be_bytes(hint.data.as_ref()[..8].try_into()?);
+                let block_time = providers.l2.get_block_time(block_number).await?;
+                let block_time_bytes = match block_time {
+                    Some(time) => time.to_be_bytes().to_vec(),
+                    None => vec![],
+                };
+                let mut kv_lock = kv.write().await;
+                kv_lock
+                    .set(PreimageKey::new_l2_block_time(block_number).into(), block_time_bytes)?;
+            }
         }
 
         Ok(())
