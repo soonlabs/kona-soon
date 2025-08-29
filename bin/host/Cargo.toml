@@ -70,6 +70,7 @@ serde = { workspace = true, features = ["derive"] }
 clap = { workspace = true, features = ["derive", "env"] }
 tracing-subscriber = { workspace = true, features = ["fmt"] }
 thiserror.workspace = true
+bs58.workspace = true
 
 # KZG
 ark-ff.workspace = true

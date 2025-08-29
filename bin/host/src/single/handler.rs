@@ -15,6 +15,7 @@ use kona_preimage::{PreimageKey, PreimageKeyType};
 use kona_proof::{Hint, HintType};
 use soon_primitives::output_root::OutputRoot;
 use tracing::info;
+use bs58;
 
 /// The [HintHandler] for the [SingleChainHost].
 #[derive(Debug, Clone, Copy)]
@@ -206,7 +207,7 @@ impl HintHandler for SingleChainHintHandler {
                 let block_number = u64::from_be_bytes(hint.data.as_ref()[..8].try_into()?);
                 let bank_hash = providers.l2.get_bank_hash(block_number).await?;
                 let bank_hash_bytes = match bank_hash {
-                    Some(hash) => hash.as_bytes().to_vec(),
+                    Some(hash) => bs58::decode(hash.as_str()).into_vec().unwrap(),
                     None => vec![],
                 };
                 let mut kv_lock = kv.write().await;

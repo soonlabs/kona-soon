@@ -241,6 +241,7 @@ solana-system-program = { git = "https://github.com/soonlabs/agave", branch = "f
 solana-vote-program = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
 spl-token = "=6.0.0"
 hex = "0.4.3"
+bs58 = "0.5"
 
 [patch.crates-io]
 # Solana related dependencies
