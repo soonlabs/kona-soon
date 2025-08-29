@@ -2,6 +2,7 @@
 
 use crate::ExecutorError;
 use crate::{ExecutorResult, TrieDB, TrieDBProvider, builder::L2BlockBuilder};
+use alloc::collections::BTreeMap;
 use alloc::string::ToString;
 use alloc::sync::Arc;
 use alloy_primitives::B256;
@@ -10,6 +11,8 @@ use fraud_executor::{accounts::SoonAccounts, executor::FraudExecutor};
 use kona_mpt::TrieHinter;
 use litesvm::{L2Block, L2Transaction, LiteSVM};
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
+use solana_sdk::account::AccountSharedData;
+use solana_sdk::pubkey::Pubkey;
 use soon_primitives::blocks::L2BlockHeader;
 use soon_primitives::rollup_config::SoonRollupConfig;
 
@@ -32,8 +35,8 @@ where
     #[allow(dead_code)]
     pub(crate) factory: Option<bool>,
 
-    pub(crate) accounts_diff: SoonAccounts,
-    pub(crate) last_accounts_diff: SoonAccounts,
+    accounts_diff: BTreeMap<Pubkey, AccountSharedData>,
+    last_accounts_diff: SoonAccounts,
     parent_slot: u64,
 }
 
@@ -77,7 +80,7 @@ where
             config,
             trie_db,
             factory: None,
-            accounts_diff: SoonAccounts::default(),
+            accounts_diff: last_accounts_diff.accounts.iter().cloned().collect(),
             last_accounts_diff,
             parent_slot,
         }
@@ -113,10 +116,9 @@ where
         let mut outcome = executor.execute_block(block)?;
 
         // Step 4. Store data to calculate output root
-        let accounts = executor.export_diff_accounts();
-        self.accounts_diff = SoonAccounts::from(accounts);
-
-        outcome.state_root = self.trie_db.state_root(&self.accounts_diff)?;
+        let diff_accounts = executor.export_diff_accounts();
+        self.accounts_diff.extend(diff_accounts);
+        outcome.state_root = self.trie_db.state_root(self.accounts_diff.iter())?;
 
         Ok(outcome)
     }
@@ -124,10 +126,10 @@ where
     /// Computes the current output root of the latest executed block, based on the parent header
     /// and the underlying state trie.
     fn compute_output_root(&mut self) -> ExecutorResult<B256> {
-        Ok(self.accounts_diff.state_root())
+        Ok(self.trie_db.state_root(self.accounts_diff.iter())?)
     }
 
     fn account_diff(&self) -> SoonAccounts {
-        self.accounts_diff.clone()
+        SoonAccounts::from(self.accounts_diff.clone())
     }
 }

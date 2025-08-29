@@ -9,13 +9,12 @@ use kona_mpt::{Nibbles, TrieHinter, TrieNode};
 use litesvm::accounts_callback::AccountsCallback;
 use solana_sdk::account::{AccountSharedData, ReadableAccount};
 use solana_sdk::pubkey::Pubkey;
+use soon_mpt_primitives::encoder::sol_account_encoder;
 use soon_primitives::{
     blocks::L2BlockHeader, mpt::WrappedSolanaAccount, mpt::account_from_solana_native,
 };
 
 mod traits;
-use fraud_executor::accounts::SoonAccounts;
-use soon_mpt_primitives::encoder::sol_account_encoder;
 pub use traits::{NoopTrieDBProvider, TrieDBProvider};
 
 /// A Trie DB that caches open state in-memory.
@@ -106,7 +105,10 @@ where
     /// ## Returns
     /// - `Ok(B256)`: The new state root hash of the trie DB.
     /// - `Err(_)`: If the state root hash could not be computed.
-    pub fn state_root(&mut self, account_diff: &SoonAccounts) -> TrieDBResult<B256> {
+    pub fn state_root<'a>(
+        &mut self,
+        account_diff: impl IntoIterator<Item = (&'a Pubkey, &'a AccountSharedData)>,
+    ) -> TrieDBResult<B256> {
         debug!(target: "client_executor", "Recomputing state root");
 
         // Update the accounts in the trie with the changeset.
@@ -132,11 +134,14 @@ where
     /// ## Returns
     /// - `Ok(())` if the accounts were successfully updated.
     /// - `Err(_)` if the accounts could not be updated.
-    fn update_accounts(&mut self, account_diff: &SoonAccounts) -> TrieDBResult<()> {
+    fn update_accounts<'a>(
+        &mut self,
+        account_diff: impl IntoIterator<Item = (&'a Pubkey, &'a AccountSharedData)>,
+    ) -> TrieDBResult<()> {
         // Sort the account keys prior to applying the changeset, to ensure that the order of
         // application is deterministic between runs.
         let mut sorted_state =
-            account_diff.accounts.iter().map(|(k, v)| (k, keccak256(*k), v)).collect::<Vec<_>>();
+            account_diff.into_iter().map(|(k, v)| (k, keccak256(*k), v)).collect::<Vec<_>>();
         sorted_state.sort_by_key(|(_, hashed_addr, _)| *hashed_addr);
 
         for (_pubkey, hashed_address, bundle_account) in sorted_state {
