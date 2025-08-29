@@ -9,8 +9,9 @@ use fraud_executor::executor::FraudExecutor;
 use fraud_executor::outcome::BlockBuildingOutcome;
 use kona_mpt::TrieHinter;
 use litesvm::accounts_callback::AccountsCallback;
-use litesvm::{L2Block, L2Transaction, LiteSVM, ParentInfo};
+use litesvm::{L2Block, L2Transaction, LiteSVM};
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
+use solana_sdk::hash::Hash;
 use solana_sdk::pubkey::Pubkey;
 use soon_primitives::blocks::L2BlockHeader;
 use soon_primitives::rollup_config::SoonRollupConfig;
@@ -68,12 +69,11 @@ where
         // Step 2. Create the executor, using the trie database.
         let soon_accounts = self.get_init_accounts()?;
         let mut soon_accounts_map: BTreeMap<_, _> = soon_accounts.clone().into();
-        let parent_info =
-            self.provider.data_by_hash(cal_svm_parent_info(self.parent_slot())).map_err(|_| {
-                ExecutorError::FraudInitError("Failed to get svm parent info code".to_string())
+        let parent_bank_hash =
+            self.provider.data_by_hash(cal_svm_bank_hash(self.parent_slot())).map_err(|_| {
+                ExecutorError::FraudInitError("Failed to get svm parent bank hash code".to_string())
             })?;
-        let parent_info: ParentInfo = bincode::deserialize(&parent_info)
-            .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
+        let parent_bank_hash = Hash::new(&parent_bank_hash);
         let clock_timestamp =
             self.provider.data_by_hash(cal_svm_clock_timestamp(self.current_slot())).map_err(
                 |_| ExecutorError::FraudInitError("Failed to get clock timestamp".to_string()),
@@ -88,7 +88,8 @@ where
             .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
 
         let mut svm: LiteSVM<A> = LiteSVM::new_soon()
-            .with_parent_info(parent_info)
+            .with_parent_slot(self.parent_slot())
+            .with_parent_bank_hash(parent_bank_hash)
             .with_leader_schedule(leader.into())
             .with_sig_verify(false)
             .with_blockhash_verify(true)
@@ -196,9 +197,9 @@ pub fn cal_init_state_root_hash(slot: u64) -> B256 {
     slot_spec_hash(slot, b"init_state_root")
 }
 
-/// Calculate the hash of the SVM parent info for the given slot.
-pub fn cal_svm_parent_info(slot: u64) -> B256 {
-    slot_spec_hash(slot, b"svm_parent_info")
+/// Calculate the hash of the SVM bank hash for the given slot.
+pub fn cal_svm_bank_hash(slot: u64) -> B256 {
+    slot_spec_hash(slot, b"svm_bank_hash")
 }
 
 /// Calculate the hash of the SVM clock timestamp for the given slot.

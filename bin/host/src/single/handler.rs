@@ -13,7 +13,7 @@ use anyhow::{Result, anyhow, ensure};
 use async_trait::async_trait;
 use kona_preimage::{PreimageKey, PreimageKeyType};
 use kona_proof::{Hint, HintType};
-use soon_primitives::{blocks::str_block_hash_to, output_root::OutputRoot};
+use soon_primitives::output_root::OutputRoot;
 use tracing::info;
 
 /// The [HintHandler] for the [SingleChainHost].

@@ -4,8 +4,8 @@
 use crate::errors::{TrieDBError, TrieDBResult};
 use alloc::{format, string::ToString, vec::Vec};
 use alloy_primitives::{B256, keccak256};
-use alloy_rlp::{Decodable, Encodable};
-use kona_mpt::{Nibbles, TrieHinter, TrieNode, TrieNodeError};
+use alloy_rlp::Decodable;
+use kona_mpt::{Nibbles, TrieHinter, TrieNode};
 use litesvm::accounts_callback::AccountsCallback;
 use solana_sdk::account::{AccountSharedData, ReadableAccount};
 use solana_sdk::pubkey::Pubkey;
@@ -15,7 +15,6 @@ use soon_primitives::{
 
 mod traits;
 use fraud_executor::accounts::SoonAccounts;
-use soon_mpt_primitives::account::TrieSolanaAccount;
 use soon_mpt_primitives::encoder::sol_account_encoder;
 pub use traits::{NoopTrieDBProvider, TrieDBProvider};
 

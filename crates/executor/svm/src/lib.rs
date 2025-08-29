@@ -21,7 +21,7 @@ use solana_program::epoch_schedule::EpochSchedule;
 use solana_program::fee_calculator::FeeRateGovernor;
 use solana_program::hash::Hash;
 use solana_program::nonce;
-use solana_program::sysvar;
+use solana_program::sysvar as solana_sysvar;
 use solana_program::sysvar::recent_blockhashes::IntoIterSorted;
 #[cfg(not(target_os = "zkvm"))]
 use solana_program_runtime::timings::ExecuteTimings;
@@ -69,6 +69,7 @@ use utils::{
 pub mod accounts_callback;
 pub mod error;
 pub mod genesis;
+pub mod sysvar;
 pub mod types;
 
 mod accounts_db;
@@ -78,13 +79,11 @@ mod block;
 mod blockhash_queue;
 mod entry;
 mod leader_schedule;
-mod parent_info;
 mod utils;
 
 pub use block::{L2Block, L2Transaction, RawBlock};
 pub use blockhash_queue::BlockhashQueue;
 pub use leader_schedule::LeaderSchedule;
-pub use parent_info::ParentInfo;
 
 // The test code doesn't actually get run because it's not
 // what doctest expects but at least it
@@ -123,7 +122,8 @@ pub struct LiteSVM<CB: AccountsCallback> {
 
     // witness variables
     clock_timestamp: i64,
-    parent_info: ParentInfo,
+    parent_slot: Slot,
+    parent_bank_hash: Hash,
 }
 
 impl<CB: AccountsCallback> Default for LiteSVM<CB> {
@@ -143,15 +143,16 @@ impl<CB: AccountsCallback> Default for LiteSVM<CB> {
             rent: Default::default(),
             slot: 0,
             epoch: 0,
-            fee_rate_governor: FeeRateGovernor::default(),
-            fee_structure: Default::default(),
-            rent_collector: Default::default(),
             signature_count: 0,
-            clock_timestamp: 0,
+            fee_rate_governor: Default::default(),
+            fee_structure: Default::default(),
             parent_blockhash: None,
             blockhash: None,
             blockhash_queue: Default::default(),
-            parent_info: ParentInfo::default(),
+            rent_collector: Default::default(),
+            clock_timestamp: 0,
+            parent_slot: 0,
+            parent_bank_hash: Hash::default(),
         }
     }
 }
@@ -180,12 +181,13 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
 
     pub fn finish_init(&mut self) -> Result<(), LiteSVMError> {
         // set slot and epoch from parent
-        self.slot = self.parent_info.next_slot();
+        self.slot = self.parent_slot + 1;
         self.epoch = self.epoch_schedule.get_epoch(self.slot);
         self.accounts.set_slot(self.slot);
         self.accounts.set_epoch(self.epoch);
         // update fee rate governer
-        self.fee_rate_governor = self.parent_info.next_fee_rate_governor();
+        let fee_rate_governor = self.get_sysvar::<sysvar::SoonFeeRateGovernor>()?;
+        self.fee_rate_governor = fee_rate_governor.new_derived();
 
         // create environments
         let program_runtime_v1 = create_program_runtime_environment_v1(
@@ -208,7 +210,8 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
 
         // update blockhash queue
         #[allow(deprecated)]
-        let blockhash_queue: sysvar::recent_blockhashes::RecentBlockhashes = self.get_sysvar()?;
+        let blockhash_queue =
+            self.get_sysvar::<solana_sysvar::recent_blockhashes::RecentBlockhashes>()?;
         self.blockhash_queue = blockhash_queue.into();
         self.parent_blockhash = Some(self.blockhash_queue.last_hash());
 
@@ -231,8 +234,13 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         self
     }
 
-    pub fn with_parent_info(mut self, parent: ParentInfo) -> Self {
-        self.parent_info = parent;
+    pub const fn with_parent_slot(mut self, slot: Slot) -> Self {
+        self.parent_slot = slot;
+        self
+    }
+
+    pub const fn with_parent_bank_hash(mut self, bank_hash: Hash) -> Self {
+        self.parent_bank_hash = bank_hash;
         self
     }
 
@@ -382,8 +390,11 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     where
         T: Sysvar + SysvarId,
     {
-        let mut account =
-            Account::new(self.rent.minimum_balance(T::size_of()), T::size_of(), &sysvar::id());
+        let mut account = Account::new(
+            self.rent.minimum_balance(T::size_of()),
+            T::size_of(),
+            &solana_sysvar::id(),
+        );
         solana_sdk::account::to_account::<_, Account>(&sysvar, &mut account).unwrap();
         account.rent_epoch = INITIAL_RENT_EPOCH;
 
@@ -482,7 +493,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
             .iter()
             .enumerate()
             .map(|(i, key)| {
-                let account = if sysvar::instructions::check_id(key) {
+                let account = if solana_sysvar::instructions::check_id(key) {
                     construct_instructions_account(message)
                 } else {
                     let mut account = self
@@ -817,7 +828,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         }
     }
 
-    pub fn seal_block(&mut self, results: &[TransactionResult]) -> Result<(), LiteSVMError> {
+    fn seal_block(&mut self, results: &[TransactionResult]) -> Result<(), LiteSVMError> {
         let mut fees = 0;
         results.iter().for_each(|r| match r {
             Ok(meta) => fees += meta.fee,
@@ -830,8 +841,17 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
             self.accounts.mint(validate_fee_collector, &fee_collector.unwrap(), fees)?;
         }
         self.update_slot_history()?;
+        self.update_fee_rate_governor()?;
 
         Ok(())
+    }
+
+    fn execute_batch_transactions(
+        &mut self,
+        batch_txs: &[VersionedTransaction],
+    ) -> Vec<TransactionResult> {
+        // TODO: verify batch txs conflict or not?
+        batch_txs.into_iter().map(|tx| self.send_transaction(tx.clone())).collect()
     }
 
     pub fn execute_block(
@@ -847,14 +867,6 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         self.seal_block(&results)?;
         self.process_entries_and_register_blockhash(&batch_txs)?;
         Ok(results)
-    }
-
-    pub fn execute_batch_transactions(
-        &mut self,
-        batch_txs: &[VersionedTransaction],
-    ) -> Vec<TransactionResult> {
-        // TODO: verify batch txs conflict or not?
-        batch_txs.into_iter().map(|tx| self.send_transaction(tx.clone())).collect()
     }
 
     /// Submits a signed transaction.
@@ -1042,13 +1054,13 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     }
 
     fn update_clock(&mut self) -> Result<(), LiteSVMError> {
-        let epoch_start_timestamp =
-            if self.epoch_schedule.get_epoch(self.parent_info.slot) != self.epoch {
-                todo!("Epoch change not supported yet")
-            } else {
-                let clock: Clock = self.get_sysvar()?;
-                clock.epoch_start_timestamp
-            };
+        let epoch_start_timestamp = if self.epoch_schedule.get_epoch(self.parent_slot) != self.epoch
+        {
+            todo!("Epoch change not supported yet")
+        } else {
+            let clock: Clock = self.get_sysvar()?;
+            clock.epoch_start_timestamp
+        };
 
         let clock = Clock {
             slot: self.slot,
@@ -1072,7 +1084,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     fn update_slot_hashes(&mut self) -> Result<(), LiteSVMError> {
         let mut slot_hashes: solana_program::slot_hashes::SlotHashes =
             self.get_sysvar().unwrap_or_default();
-        slot_hashes.add(self.parent_info.slot, self.parent_info.bank_hash);
+        slot_hashes.add(self.parent_slot, self.parent_bank_hash);
         self.update_sysvar(slot_hashes)?;
         Ok(())
     }
@@ -1081,9 +1093,20 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     fn update_recent_blockhashes_locked(&mut self) -> Result<(), LiteSVMError> {
         let recent_blockhash_iter = self.get_blockhash_queue().get_recent_blockhashes();
         let sorted = BinaryHeap::from_iter(recent_blockhash_iter);
-        let recent_blockhashes: sysvar::recent_blockhashes::RecentBlockhashes =
-            IntoIterSorted::new(sorted).take(sysvar::recent_blockhashes::MAX_ENTRIES).collect();
+        let recent_blockhashes: solana_sysvar::recent_blockhashes::RecentBlockhashes =
+            IntoIterSorted::new(sorted)
+                .take(solana_sysvar::recent_blockhashes::MAX_ENTRIES)
+                .collect();
         self.update_sysvar(recent_blockhashes)?;
+        Ok(())
+    }
+
+    fn update_fee_rate_governor(&mut self) -> Result<(), LiteSVMError> {
+        let fee_rate_governor = sysvar::SoonFeeRateGovernor {
+            fee_rate_governor: self.fee_rate_governor.clone(),
+            signature_count: self.signature_count,
+        };
+        self.update_sysvar(fee_rate_governor)?;
         Ok(())
     }
 

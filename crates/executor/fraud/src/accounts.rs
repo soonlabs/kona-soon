@@ -44,9 +44,7 @@ impl From<SoonAccounts> for MemoryAccountsCallback {
 
 impl From<BTreeMap<Pubkey, AccountSharedData>> for SoonAccounts {
     fn from(val: BTreeMap<Pubkey, AccountSharedData>) -> Self {
-        Self {
-            accounts: val.into_iter().collect(),
-        }
+        Self { accounts: val.into_iter().collect() }
     }
 }
 

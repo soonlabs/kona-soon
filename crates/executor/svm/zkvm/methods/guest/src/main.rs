@@ -1,14 +1,17 @@
 use risc0_zkvm::guest::env;
 use solana_sdk::account::AccountSharedData;
 use solana_sdk::pubkey::Pubkey;
-use litesvm::{L2Block, LiteSVM, ParentInfo};
+use litesvm::{L2Block, LiteSVM};
 use litesvm::accounts_callback::MemoryAccountsCallback;
 use serde::{Deserialize, Serialize};
+use solana_sdk::clock::Slot;
+use solana_sdk::hash::Hash;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct WitnessData {
     soon_accounts: Vec<(Pubkey, AccountSharedData)>,
-    parent_info: ParentInfo,
+    parent_slot: Slot,
+    parent_bank_hash: Hash,
     clock_timestamp: i64,
     leader: Pubkey,
 }
@@ -25,7 +28,8 @@ fn main() {
     
     // create svm
     let mut svm: LiteSVM<MemoryAccountsCallback> = LiteSVM::new_soon()
-        .with_parent_info(witness.parent_info)
+        .with_parent_slot(witness.parent_slot)
+        .with_parent_bank_hash(witness.parent_bank_hash)
         .with_leader_schedule(witness.leader.into())
         .with_sig_verify(false)
         .with_blockhash_verify(true)

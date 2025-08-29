@@ -14,9 +14,11 @@ use soon_primitives::blocks::{BlockInfo, RawBlock, L2BlockInfo};
 use crossbeam_channel::Receiver;
 use solana_sdk::account::AccountSharedData;
 use soon_storage::error::Error;
-use litesvm::{ParentInfo, L2Block, L2Transaction};
+use litesvm::{L2Block, L2Transaction};
 use fraud_executor::accounts::SoonAccounts;
 use serde::{Deserialize, Serialize};
+use solana_sdk::clock::Slot;
+use solana_sdk::hash::Hash;
 use soon_node::derive::driver::L2ChainProviderImmutable;
 use soon_primitives::l2blocks::{L2Block as SoonL2Block, L2Transaction as SoonL2Transaction};
 
@@ -151,18 +153,15 @@ fn fetch_witness_from_soon(executor: &SharedExecutor) -> soon_node::Result<Witne
             .into_iter()
             .map(|(pubkey, account, _slot)| (pubkey, account))
             .collect::<Vec<_>>();
-        let parent_info = ParentInfo {
-            slot: s.current_slot(),
-            bank_hash: bank.hash(),
-            fee_rate_governor: bank.fee_rate_governor.clone(),
-            signature_count: bank.signature_count(),
-        };
+        let parent_slot = bank.slot();
+        let parent_bank_hash = bank.hash();
         let clock_timestamp = bank.clock().unix_timestamp;
         let leader = *bank.collector_id();
 
         Ok(Witness {
             soon_accounts,
-            parent_info,
+            parent_slot,
+            parent_bank_hash,
             clock_timestamp,
             leader,
         })
@@ -191,7 +190,8 @@ fn soon_l2_block_to_litesvm_l2_block(l2_block: SoonL2Block) -> L2Block {
 #[derive(Debug, Serialize, Deserialize)]
 struct Witness {
     soon_accounts: AccountPairs,
-    parent_info: ParentInfo,
+    parent_slot: Slot,
+    parent_bank_hash: Hash,
     clock_timestamp: i64,
     leader: Pubkey,
 }

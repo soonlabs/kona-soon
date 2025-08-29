@@ -11469,6 +11469,9 @@ dependencies = [
  "roaring",
  "serde",
  "serde_json",
+ "smallvec",
+ "solana-accounts-db",
+ "solana-program",
  "solana-sdk",
  "thiserror 1.0.69",
 ]
