@@ -204,12 +204,15 @@ impl HintHandler for SingleChainHintHandler {
             }
             HintType::L2BankHash => {
                 ensure!(hint.data.len() == 8, "Invalid hint data length for l2 bank hash");
+                info!("handle L2BankHash request.");
                 let block_number = u64::from_be_bytes(hint.data.as_ref()[..8].try_into()?);
                 let bank_hash = providers.l2.get_bank_hash(block_number).await?;
+                info!("bank_hash:{:?}", bank_hash);
                 let bank_hash_bytes = match bank_hash {
                     Some(hash) => bs58::decode(hash.as_str()).into_vec().unwrap(),
                     None => vec![],
                 };
+                info!("bank_hash_bytes len:{}", bank_hash_bytes.len());
                 let mut kv_lock = kv.write().await;
                 kv_lock.set(PreimageKey::new_l2_bank_hash(block_number).into(), bank_hash_bytes)?;
             }

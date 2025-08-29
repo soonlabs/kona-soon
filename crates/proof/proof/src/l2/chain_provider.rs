@@ -261,6 +261,7 @@ impl<T: CommsClient> TrieHinter for OracleL2ChainProvider<T> {
 
     fn hint_bank_hash(&self, block_number: u64) -> Result<(), Self::Error> {
         crate::block_on(async move {
+            info!("hint_bank_hash, block_number:{}", block_number);
             HintType::L2BankHash
                 .with_data(&[block_number.to_be_bytes().as_ref()])
                 .send(self.oracle.as_ref())
