@@ -33,8 +33,8 @@ where
     pub(crate) factory: Option<bool>,
 
     pub(crate) accounts_diff: SoonAccounts,
-
     pub(crate) last_accounts_diff: SoonAccounts,
+    parent_slot: u64,
 }
 
 impl<P, H> StatelessL2Builder<P, H>
@@ -71,6 +71,7 @@ where
         parent_header: L2BlockHeader,
         last_accounts_diff: SoonAccounts,
     ) -> Self {
+        let parent_slot = parent_header.block_info.number;
         let trie_db = TrieDB::new(parent_header, provider, hinter);
         Self {
             config,
@@ -78,6 +79,7 @@ where
             factory: None,
             accounts_diff: SoonAccounts::default(),
             last_accounts_diff,
+            parent_slot,
         }
     }
 
@@ -92,14 +94,17 @@ where
         // Step 1. Set up the execution environment using genesis
 
         // Step 2. Create the executor, using the trie database.
-        // TODO: import using trie db later
         let mut svm = LiteSVM::new_soon()
+            .with_parent_slot(self.parent_slot)
+            // TODO: use the actual bank hash
+            .with_parent_bank_hash(Default::default())
+            // TODO: use the actual clock timestamp
+            .with_clock_timestamp(Default::default())
+            .with_leader_schedule(self.config.sequencer_schedules.clone().into_iter().collect())
+            .with_sig_verify(false)
+            .with_blockhash_verify(true)
             .with_accounts_callback(self.trie_db.clone())
             .with_init_account(self.last_accounts_diff.accounts.clone());
-        // TODO: how to fetch the following data from trie db?
-        // .with_parent_info()
-        // .with_bank_hash()
-        // .with_clock_timestamp();
         svm.finish_init().map_err(|e| ExecutorError::FraudExecutorError(e.into()))?;
         let mut executor = FraudExecutor::new(svm);
 
