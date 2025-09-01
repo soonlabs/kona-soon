@@ -146,6 +146,7 @@ where
 
         for (_pubkey, hashed_address, bundle_account) in sorted_state {
             // Compute the path to the account in the trie.
+            info!("update accounts: {}", hashed_address);
             let account_path = Nibbles::unpack(hashed_address.as_slice());
 
             // If the account was destroyed, delete it from the trie.
