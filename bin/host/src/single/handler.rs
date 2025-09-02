@@ -11,11 +11,11 @@ use alloy_rlp::{BytesMut, Encodable};
 use alloy_rpc_types::Block;
 use anyhow::{Result, anyhow, ensure};
 use async_trait::async_trait;
+use bs58;
 use kona_preimage::{PreimageKey, PreimageKeyType};
 use kona_proof::{Hint, HintType};
 use soon_primitives::output_root::OutputRoot;
 use tracing::info;
-use bs58;
 
 /// The [HintHandler] for the [SingleChainHost].
 #[derive(Debug, Clone, Copy)]

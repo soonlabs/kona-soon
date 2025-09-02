@@ -18,7 +18,14 @@ use tracing::{debug, error, info, trace};
 /// [OnlineHostBackend].
 pub trait OnlineHostBackendCfg {
     /// The hint type describing the range of hints that can be received.
-    type HintType: FromStr<Err = HintParsingError> + Hash + Eq + PartialEq + Clone + Send + Sync + Debug;
+    type HintType: FromStr<Err = HintParsingError>
+        + Hash
+        + Eq
+        + PartialEq
+        + Clone
+        + Send
+        + Sync
+        + Debug;
 
     /// The providers that are used to fetch data in response to hints.
     type Providers: Send + Sync;

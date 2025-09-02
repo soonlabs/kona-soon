@@ -8,14 +8,14 @@ use core::fmt::Debug;
 use kona_driver::{PipelineCursor, TipCursor};
 use soon_derive::traits::ChainProvider;
 use soon_derive::traits::L2ChainProvider;
-use soon_primitives::blocks::L2BlockInfo;
+use soon_primitives::blocks::{L2BlockHeader, L2BlockInfo};
 use soon_primitives::rollup_config::SoonRollupConfig;
 use spin::RwLock;
 
 /// Constructs a [`PipelineCursor`] from the caching oracle, boot info, and providers.
 pub async fn new_oracle_pipeline_cursor<L1, L2>(
     rollup_config: &SoonRollupConfig,
-    safe_header: L2BlockInfo,
+    safe_header: L2BlockHeader,
     chain_provider: &mut L1,
     l2_chain_provider: &mut L2,
 ) -> Result<Arc<RwLock<PipelineCursor>>, OracleProviderError>
@@ -43,7 +43,7 @@ where
 
     // Construct the cursor.
     let mut cursor = PipelineCursor::new(channel_timeout, origin);
-    let tip = TipCursor::new(safe_head_info, B256::ZERO);
+    let tip = TipCursor::new(safe_head_info, safe_header, B256::ZERO);
     cursor.advance(origin, tip);
 
     // Wrap the cursor in a shared read-write lock

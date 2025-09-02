@@ -109,9 +109,7 @@ where
         // Step 2. Create the executor, using the trie database.
         let mut svm = LiteSVM::new_soon()
             .with_parent_slot(self.parent_slot)
-            // TODO: use the actual bank hash
             .with_parent_bank_hash((*parent_bank_hash).into())
-            // TODO: use the actual clock timestamp
             .with_clock_timestamp(clock_timestamp)
             .with_leader_schedule(self.config.sequencer_schedules.clone().into_iter().collect())
             .with_sig_verify(false)
@@ -129,6 +127,8 @@ where
         let diff_accounts = executor.export_diff_accounts();
         self.accounts_diff.extend(diff_accounts);
         outcome.state_root = self.trie_db.state_root(self.accounts_diff.iter())?;
+        // TODO calculate withdraw root
+        outcome.withdraw_root = B256::ZERO;
 
         Ok(outcome)
     }
@@ -136,7 +136,8 @@ where
     /// Computes the current output root of the latest executed block, based on the parent header
     /// and the underlying state trie.
     fn compute_output_root(&mut self) -> ExecutorResult<B256> {
-        Ok(self.trie_db.state_root(self.accounts_diff.iter())?)
+        // TODO calculate output root
+        Ok(B256::ZERO)
     }
 
     fn account_diff(&self) -> SoonAccounts {

@@ -20,6 +20,7 @@ kona-std-fpvm-proc.workspace = true
 # Protocol
 soon-derive.workspace = true
 kona-driver.workspace = true
+soon-primitives.workspace = true
 
 # Alloy
 alloy-rlp.workspace = true

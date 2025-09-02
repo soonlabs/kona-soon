@@ -15,6 +15,8 @@ use kona_proof::{
 };
 use soon_derive::errors::PipelineErrorKind;
 use soon_derive::sources::DAServerSource;
+use soon_primitives::blocks::L2BlockHeader;
+use soon_primitives::output_root::OutputRoot;
 use thiserror::Error;
 use tracing::{error, info};
 
@@ -61,6 +63,13 @@ where
 
     // Fetch the safe head's block header.
     let safe_head = l2_provider.get_l2_block_info_by_number(boot.agreed_l2_block_number).await?;
+    let safe_head_output =
+        fetch_safe_l2_output(oracle.as_ref(), boot.agreed_l2_output_root).await?;
+    let safe_head_header = L2BlockHeader {
+        block_info: safe_head.block_info,
+        account_root: safe_head_output.state_root,
+        widthdraw_root: safe_head_output.bridge_storage_root,
+    };
 
     // If the claimed L2 block number is less than the safe head of the L2 chain, the claim is
     // invalid.
@@ -94,7 +103,7 @@ where
     // Create a new derivation driver with the given boot information and oracle.
     let cursor = new_oracle_pipeline_cursor(
         rollup_config.as_ref(),
-        safe_head,
+        safe_head_header,
         &mut l1_provider,
         &mut l2_provider,
     )
@@ -135,4 +144,31 @@ where
         .await?;
 
     output_preimage[96..128].try_into().map_err(OracleProviderError::SliceConversion)
+}
+
+/// Fetches the safe header of the L2 chain based on the agreed upon L2 output root in the
+/// [BootInfo].
+pub async fn fetch_safe_l2_output<O>(
+    caching_oracle: &O,
+    agreed_l2_output_root: B256,
+) -> Result<OutputRoot, OracleProviderError>
+where
+    O: CommsClient,
+{
+    let mut output_preimage = [0u8; 128];
+    HintType::StartingL2Output
+        .with_data(&[agreed_l2_output_root.as_ref()])
+        .send(caching_oracle)
+        .await?;
+    caching_oracle
+        .get_exact(PreimageKey::new_keccak256(*agreed_l2_output_root), output_preimage.as_mut())
+        .await?;
+
+    let state_root =
+        output_preimage[32..64].try_into().map_err(OracleProviderError::SliceConversion)?;
+    let bridge_storage_root =
+        output_preimage[64..96].try_into().map_err(OracleProviderError::SliceConversion)?;
+    let block_hash =
+        output_preimage[96..128].try_into().map_err(OracleProviderError::SliceConversion)?;
+    Ok(OutputRoot { state_root, bridge_storage_root, block_hash })
 }

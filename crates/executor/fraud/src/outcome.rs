@@ -11,6 +11,8 @@ pub struct BlockBuildingOutcome {
     pub block_info: L2BlockInfo,
     /// The state root
     pub state_root: B256,
+    /// The withdrawal root
+    pub withdraw_root: B256,
     /// The block execution result.
     pub execution_result: Vec<TransactionResult>,
     /// The number of signatures in the block.
