@@ -12,7 +12,6 @@ use litesvm::accounts_callback::AccountsCallback;
 use litesvm::{L2Block, L2Transaction, LiteSVM};
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use solana_sdk::hash::Hash;
-use solana_sdk::pubkey::Pubkey;
 use soon_primitives::blocks::L2BlockHeader;
 use soon_primitives::rollup_config::SoonRollupConfig;
 

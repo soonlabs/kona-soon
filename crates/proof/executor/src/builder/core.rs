@@ -126,9 +126,9 @@ where
         // Step 4. Store data to calculate output root
         let diff_accounts = executor.export_diff_accounts();
         self.accounts_diff.extend(diff_accounts);
-        outcome.state_root = self.trie_db.state_root(self.accounts_diff.iter())?;
-        // TODO calculate withdraw root
-        outcome.withdraw_root = B256::ZERO;
+        let (state_root, withdrawal_root) = self.trie_db.world_states(self.accounts_diff.iter())?;
+        outcome.state_root = state_root;
+        outcome.withdraw_root = withdrawal_root;
 
         // Update the parent block hash in the state database, preparing for the next block.
         self.trie_db.set_parent_block_header(L2BlockHeader {
@@ -136,7 +136,6 @@ where
             account_root: outcome.state_root,
             widthdraw_root: outcome.withdraw_root,
         });
-
         Ok(outcome)
     }
 
@@ -146,9 +145,12 @@ where
         let parent_header = self.trie_db.parent_block_header();
 
         // Construct the raw output and hash it.
-        let output_root_hash =
-            OutputRoot::from_parts(parent_header.account_root, parent_header.widthdraw_root, parent_header.block_info.hash)
-                .hash();
+        let output_root_hash = OutputRoot::from_parts(
+            parent_header.account_root,
+            parent_header.widthdraw_root,
+            parent_header.block_info.hash,
+        )
+        .hash();
 
         info!(
             target: "block_builder",

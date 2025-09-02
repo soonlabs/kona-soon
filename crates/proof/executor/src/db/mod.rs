@@ -10,6 +10,7 @@ use litesvm::accounts_callback::AccountsCallback;
 use solana_sdk::account::{AccountSharedData, ReadableAccount};
 use solana_sdk::pubkey::Pubkey;
 use soon_mpt_primitives::encoder::sol_account_encoder;
+use soon_primitives::mpt::withdrawal_account_encoder;
 use soon_primitives::{
     blocks::L2BlockHeader, mpt::WrappedSolanaAccount, mpt::account_from_solana_native,
 };
@@ -50,6 +51,8 @@ where
 {
     /// The [`TrieNode`] representation of the root node.
     root_node: TrieNode,
+    /// withdrawal trie.
+    withdrawal_node: TrieNode,
     /// The parent block header of the current block.
     parent_block_header: L2BlockHeader,
     /// The [`TrieDBProvider`]
@@ -67,6 +70,7 @@ where
     pub fn new(parent_block_header: L2BlockHeader, fetcher: F, hinter: H) -> Self {
         Self {
             root_node: TrieNode::new_blinded(parent_block_header.account_root),
+            withdrawal_node: TrieNode::new_blinded(parent_block_header.widthdraw_root),
             parent_block_header,
             fetcher,
             hinter,
@@ -97,34 +101,35 @@ where
         self.parent_block_header = parent_block_header;
     }
 
-    /// Applies a [BundleState] changeset to the [TrieNode] and recomputes the state root hash.
+    /// Applies a [BundleState] changeset to the [TrieNode] and recomputes the world status.
     ///
     /// ## Takes
     /// - `bundle`: The [BundleState] changeset to apply to the trie DB.
     ///
     /// ## Returns
-    /// - `Ok(B256)`: The new state root hash of the trie DB.
+    /// - `Ok((B256, B256))`: The new state root hash + withdrawal root hash of the trie DB.
     /// - `Err(_)`: If the state root hash could not be computed.
-    pub fn state_root<'a>(
+    pub fn world_states<'a>(
         &mut self,
         account_diff: impl IntoIterator<Item = (&'a Pubkey, &'a AccountSharedData)>,
-    ) -> TrieDBResult<B256> {
+    ) -> TrieDBResult<(B256, B256)> {
         debug!(target: "client_executor", "Recomputing state root");
 
         // Update the accounts in the trie with the changeset.
         self.update_accounts(account_diff)?;
 
         // Recompute the root hash of the trie.
-        let root = self.root_node.blind();
+        let state_root = self.root_node.blind();
+        let withdrawal_root = self.withdrawal_node.blind();
 
         info!(
             target: "client_executor",
-            "block {} recomputed state root: {root}",
+            "block {} recomputed state root: {state_root}, withdrawal root: {withdrawal_root}",
             self.parent_block_header.block_info.number
         );
 
         // Extract the new state root from the root node.
-        Ok(root)
+        Ok((state_root, withdrawal_root))
     }
 
     /// Modifies the accounts in the storage trie with the given [BundleState] changeset.
@@ -149,10 +154,15 @@ where
             // Compute the path to the account in the trie.
             info!("update accounts: {}", hashed_address);
             let account_path = Nibbles::unpack(hashed_address.as_slice());
+            let is_withdrawal = (bundle_account.owner().to_bytes()
+                == soon_primitives::mpt::WITHDRAWAL_PROGRAM_PUBKEY.to_bytes());
 
             // If the account was destroyed, delete it from the trie.
             if bundle_account.lamports() == 0 {
                 self.root_node.delete(&account_path, &self.fetcher, &self.hinter)?;
+                if is_withdrawal {
+                    self.withdrawal_node.delete(&account_path, &self.fetcher, &self.hinter)?;
+                }
                 continue;
             }
 
@@ -162,6 +172,10 @@ where
 
             // Insert or update the account in the trie.
             self.root_node.insert(&account_path, account_buf.into(), &self.fetcher)?;
+            if is_withdrawal {
+                let buf = withdrawal_account_encoder()(&mpt_account);
+                self.withdrawal_node.insert(&account_path, buf.into(), &self.fetcher)?;
+            }
         }
 
         Ok(())
