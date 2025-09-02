@@ -17,7 +17,7 @@ pub use offchain::{
     cal_svm_clock_timestamp,
 };
 
-use crate::{ExecutorResult, TrieDBProvider};
+use crate::{ExecutorResult, TrieDB, TrieDBProvider};
 
 /// A trait for building L2 blocks.
 pub trait L2BlockBuilder<P, H>
@@ -29,9 +29,9 @@ where
     fn new(
         config: Arc<SoonRollupConfig>,
         provider: P,
-        hinter: H,
         parent_header: L2BlockHeader,
         last_accounts_diff: SoonAccounts,
+        trie_db: TrieDB<P, H>,
     ) -> Self;
 
     /// Initializes the block builder.
@@ -46,4 +46,7 @@ where
 
     /// Get builder account diff
     fn account_diff(&self) -> SoonAccounts;
+
+    /// Get build tire db
+    fn trie_db(&self) -> TrieDB<P, H>;
 }

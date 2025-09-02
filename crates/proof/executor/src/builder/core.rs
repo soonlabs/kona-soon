@@ -70,12 +70,11 @@ where
     fn new(
         config: Arc<SoonRollupConfig>,
         provider: P,
-        hinter: H,
         parent_header: L2BlockHeader,
         last_accounts_diff: SoonAccounts,
+        trie_db: TrieDB<P, H>,
     ) -> Self {
         let parent_slot = parent_header.block_info.number;
-        let trie_db = TrieDB::new(parent_header, provider, hinter);
         Self {
             config,
             trie_db,
@@ -142,5 +141,9 @@ where
 
     fn account_diff(&self) -> SoonAccounts {
         SoonAccounts::from(self.accounts_diff.clone())
+    }
+
+    fn trie_db(&self) -> TrieDB<P, H> {
+        return self.trie_db.clone();
     }
 }

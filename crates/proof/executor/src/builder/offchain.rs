@@ -1,4 +1,4 @@
-use crate::{ExecutorError, ExecutorResult, L2BlockBuilder, TrieDBProvider};
+use crate::{ExecutorError, ExecutorResult, L2BlockBuilder, TrieDB, TrieDBProvider};
 use alloc::collections::BTreeMap;
 use alloc::string::ToString;
 use alloc::sync::Arc;
@@ -27,11 +27,11 @@ where
 {
     pub(crate) config: Arc<SoonRollupConfig>,
     pub(crate) provider: P,
-    pub(crate) _hinter: H,
     pub(crate) parent_header: L2BlockHeader,
     pub(crate) diff_accounts: SoonAccounts,
     pub(crate) state_root: B256,
     _a: PhantomData<A>,
+    _b: PhantomData<H>,
 }
 
 impl<P, H, A> L2BlockBuilder<P, H> for OffchainL2Builder<P, H, A>
@@ -43,18 +43,18 @@ where
     fn new(
         config: Arc<SoonRollupConfig>,
         provider: P,
-        hinter: H,
         parent_header: L2BlockHeader,
         _last_accounts_diff: SoonAccounts,
+        _trie_db: TrieDB<P, H>,
     ) -> Self {
         Self {
             config,
             provider,
-            _hinter: hinter,
             parent_header,
             diff_accounts: SoonAccounts::default(),
             state_root: B256::ZERO,
             _a: PhantomData,
+            _b: PhantomData,
         }
     }
 
@@ -137,6 +137,10 @@ where
 
     fn account_diff(&self) -> SoonAccounts {
         self.diff_accounts.clone()
+    }
+
+    fn trie_db(&self) -> TrieDB<P, H> {
+        todo!()
     }
 }
 
