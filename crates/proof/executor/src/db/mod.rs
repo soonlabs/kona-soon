@@ -125,7 +125,7 @@ where
         info!(
             target: "client_executor",
             "block {} recomputed state root: {state_root}, withdrawal root: {withdrawal_root}",
-            self.parent_block_header.block_info.number
+            self.parent_block_header.block_info.number + 1
         );
 
         // Extract the new state root from the root node.
