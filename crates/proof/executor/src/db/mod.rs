@@ -117,9 +117,10 @@ where
         // Recompute the root hash of the trie.
         let root = self.root_node.blind();
 
-        debug!(
+        info!(
             target: "client_executor",
-            "Recomputed state root: {root}",
+            "block {} recomputed state root: {root}",
+            self.parent_block_header.block_info.number
         );
 
         // Extract the new state root from the root node.
