@@ -14,6 +14,7 @@ use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use solana_sdk::account::AccountSharedData;
 use solana_sdk::pubkey::Pubkey;
 use soon_primitives::blocks::L2BlockHeader;
+use soon_primitives::output_root::OutputRoot;
 use soon_primitives::rollup_config::SoonRollupConfig;
 
 /// The [`StatelessL2Builder`] is an OP Stack block builder that traverses a merkle patricia trie
@@ -129,14 +130,35 @@ where
         // TODO calculate withdraw root
         outcome.withdraw_root = B256::ZERO;
 
+        // Update the parent block hash in the state database, preparing for the next block.
+        self.trie_db.set_parent_block_header(L2BlockHeader {
+            block_info: outcome.block_info.block_info,
+            account_root: outcome.state_root,
+            widthdraw_root: outcome.withdraw_root,
+        });
+
         Ok(outcome)
     }
 
     /// Computes the current output root of the latest executed block, based on the parent header
     /// and the underlying state trie.
     fn compute_output_root(&mut self) -> ExecutorResult<B256> {
-        // TODO calculate output root
-        Ok(B256::ZERO)
+        let parent_header = self.trie_db.parent_block_header();
+
+        // Construct the raw output and hash it.
+        let output_root_hash =
+            OutputRoot::from_parts(parent_header.account_root, parent_header.widthdraw_root, parent_header.block_info.hash)
+                .hash();
+
+        info!(
+            target: "block_builder",
+            block_number = parent_header.block_info.number,
+            output_root = ?output_root_hash,
+            "Computed output root",
+        );
+
+        // Hash the output and return
+        Ok(output_root_hash)
     }
 
     fn account_diff(&self) -> SoonAccounts {
