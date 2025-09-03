@@ -2,8 +2,8 @@
 
 use alloc::collections::{btree_map::BTreeMap, vec_deque::VecDeque};
 use alloy_primitives::{B256, map::HashMap};
-use soon_primitives::blocks::BlockInfo;
 use soon_primitives::blocks::L2BlockInfo;
+use soon_primitives::blocks::{BlockInfo, L2BlockHeader};
 
 use crate::TipCursor;
 
@@ -51,9 +51,14 @@ impl PipelineCursor {
         &self.tip().l2_safe_head
     }
 
+    /// Returns the header of the current L2 safe head.
+    pub fn l2_safe_head_header(&self) -> &L2BlockHeader {
+        &self.tip().l2_safe_head_header
+    }
+
     /// Returns the state root of the L2 safe head.
-    pub fn l2_safe_head_state_root(&self) -> &B256 {
-        &self.tip().l2_safe_head_state_root
+    pub fn l2_safe_head_output_root(&self) -> &B256 {
+        &self.tip().l2_safe_head_output_root
     }
 
     /// Get the current L2 tip

@@ -1,4 +1,4 @@
-use crate::{ExecutorError, ExecutorResult, L2BlockBuilder, TrieDBProvider};
+use crate::{ExecutorError, ExecutorResult, L2BlockBuilder, TrieDB, TrieDBProvider};
 use alloc::collections::BTreeMap;
 use alloc::string::ToString;
 use alloc::sync::Arc;
@@ -9,9 +9,9 @@ use fraud_executor::executor::FraudExecutor;
 use fraud_executor::outcome::BlockBuildingOutcome;
 use kona_mpt::TrieHinter;
 use litesvm::accounts_callback::AccountsCallback;
-use litesvm::{L2Block, L2Transaction, LiteSVM, ParentInfo};
+use litesvm::{L2Block, L2Transaction, LiteSVM};
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
-use solana_sdk::pubkey::Pubkey;
+use solana_sdk::hash::Hash;
 use soon_primitives::blocks::L2BlockHeader;
 use soon_primitives::rollup_config::SoonRollupConfig;
 
@@ -24,13 +24,13 @@ where
     H: TrieHinter,
     A: AccountsCallback,
 {
-    pub(crate) _config: Arc<SoonRollupConfig>,
+    pub(crate) config: Arc<SoonRollupConfig>,
     pub(crate) provider: P,
-    pub(crate) _hinter: H,
     pub(crate) parent_header: L2BlockHeader,
     pub(crate) diff_accounts: SoonAccounts,
     pub(crate) state_root: B256,
     _a: PhantomData<A>,
+    _b: PhantomData<H>,
 }
 
 impl<P, H, A> L2BlockBuilder<P, H> for OffchainL2Builder<P, H, A>
@@ -42,18 +42,18 @@ where
     fn new(
         config: Arc<SoonRollupConfig>,
         provider: P,
-        hinter: H,
         parent_header: L2BlockHeader,
         _last_accounts_diff: SoonAccounts,
+        _trie_db: TrieDB<P, H>,
     ) -> Self {
         Self {
-            _config: config,
+            config,
             provider,
-            _hinter: hinter,
             parent_header,
             diff_accounts: SoonAccounts::default(),
             state_root: B256::ZERO,
             _a: PhantomData,
+            _b: PhantomData,
         }
     }
 
@@ -68,28 +68,22 @@ where
         // Step 2. Create the executor, using the trie database.
         let soon_accounts = self.get_init_accounts()?;
         let mut soon_accounts_map: BTreeMap<_, _> = soon_accounts.clone().into();
-        let parent_info =
-            self.provider.data_by_hash(cal_svm_parent_info(self.parent_slot())).map_err(|_| {
-                ExecutorError::FraudInitError("Failed to get svm parent info code".to_string())
+        let parent_bank_hash =
+            self.provider.data_by_hash(cal_svm_bank_hash(self.parent_slot())).map_err(|_| {
+                ExecutorError::FraudInitError("Failed to get svm parent bank hash code".to_string())
             })?;
-        let parent_info: ParentInfo = bincode::deserialize(&parent_info)
-            .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
+        let parent_bank_hash = Hash::new(&parent_bank_hash);
         let clock_timestamp =
             self.provider.data_by_hash(cal_svm_clock_timestamp(self.current_slot())).map_err(
                 |_| ExecutorError::FraudInitError("Failed to get clock timestamp".to_string()),
             )?;
         let clock_timestamp: i64 = bincode::deserialize(&clock_timestamp)
             .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
-        let leader = self
-            .provider
-            .data_by_hash(cal_svm_leader())
-            .map_err(|_| ExecutorError::FraudInitError("Failed to get svm leader".to_string()))?;
-        let leader: Pubkey = bincode::deserialize(&leader)
-            .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
 
         let mut svm: LiteSVM<A> = LiteSVM::new_soon()
-            .with_parent_info(parent_info)
-            .with_leader_schedule(leader.into())
+            .with_parent_slot(self.parent_slot())
+            .with_parent_bank_hash(parent_bank_hash)
+            .with_leader_schedule(self.config.sequencer_schedules.clone().into_iter().collect())
             .with_sig_verify(false)
             .with_blockhash_verify(true)
             .with_accounts_callback(soon_accounts.into())
@@ -142,6 +136,10 @@ where
 
     fn account_diff(&self) -> SoonAccounts {
         self.diff_accounts.clone()
+    }
+
+    fn trie_db(&self) -> TrieDB<P, H> {
+        todo!()
     }
 }
 
@@ -196,19 +194,14 @@ pub fn cal_init_state_root_hash(slot: u64) -> B256 {
     slot_spec_hash(slot, b"init_state_root")
 }
 
-/// Calculate the hash of the SVM parent info for the given slot.
-pub fn cal_svm_parent_info(slot: u64) -> B256 {
-    slot_spec_hash(slot, b"svm_parent_info")
+/// Calculate the hash of the SVM bank hash for the given slot.
+pub fn cal_svm_bank_hash(slot: u64) -> B256 {
+    slot_spec_hash(slot, b"svm_bank_hash")
 }
 
 /// Calculate the hash of the SVM clock timestamp for the given slot.
 pub fn cal_svm_clock_timestamp(slot: u64) -> B256 {
     slot_spec_hash(slot, b"svm_clock_timestamp")
-}
-
-/// Calculate the hash of the SVM leader.
-pub fn cal_svm_leader() -> B256 {
-    keccak256(b"svm_leader")
 }
 
 fn slot_spec_hash(slot: u64, suffix: &[u8]) -> B256 {

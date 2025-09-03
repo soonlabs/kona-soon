@@ -151,4 +151,12 @@ impl TrieProvider for TrieNodeProvider {
         )
         .map_err(|_| TestTrieProviderError("failed to decode trie node"))
     }
+
+    fn bank_hash(&self, _block_number: u64) -> Result<B256, TestTrieProviderError> {
+        Ok(B256::default())
+    }
+
+    fn block_time(&self, _block_number: u64) -> Result<i64, TestTrieProviderError> {
+        Ok(0)
+    }
 }

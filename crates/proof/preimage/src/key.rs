@@ -43,6 +43,12 @@ pub enum PreimageKeyType {
     BlockSlot = 7,
     /// DAProxyBlob key types are global to represent a blob from da proxy.
     DAProxyBlob = 8,
+    /// L2AccountProof key types are global to represent account proof for l2 account.
+    L2AccountProof = 9,
+    /// BankHash key types are global to represent the bank hash for a given block number.
+    BankHash = 10,
+    /// BlockTime key types are global to represent the block time for a given block number.
+    BlockTime = 11,
 }
 
 impl TryFrom<u8> for PreimageKeyType {
@@ -58,6 +64,9 @@ impl TryFrom<u8> for PreimageKeyType {
             6 => Self::Precompile,
             7 => Self::BlockSlot,
             8 => Self::DAProxyBlob,
+            9 => Self::L2AccountProof,
+            10 => Self::BankHash,
+            11 => Self::BlockTime,
             _ => return Err(PreimageOracleError::InvalidPreimageKey),
         };
         Ok(key_type)
@@ -75,6 +84,9 @@ impl core::fmt::Display for PreimageKeyType {
             PreimageKeyType::Precompile => write!(f, "precompile"),
             PreimageKeyType::BlockSlot => write!(f, "block_slot"),
             PreimageKeyType::DAProxyBlob => write!(f, "da_proxy_blob"),
+            PreimageKeyType::L2AccountProof => write!(f, "l2_account_proof"),
+            PreimageKeyType::BankHash => write!(f, "l2_bank_hash"),
+            PreimageKeyType::BlockTime => write!(f, "l2_block_time"),
         }
     }
 }
@@ -147,6 +159,25 @@ impl PreimageKey {
     pub fn new_da_proxy_blob(key_data: &[u8]) -> Self {
         let key_hash = keccak256(key_data);
         Self::new(*key_hash, PreimageKeyType::DAProxyBlob)
+    }
+
+    /// Creates a new L2 bank hash [PreimageKey] from a block number.
+    pub fn new_l2_bank_hash(block_number: u64) -> Self {
+        let number_bytes = block_number.to_be_bytes();
+        let number_hash = keccak256(number_bytes.as_ref());
+        Self::new(*number_hash, PreimageKeyType::BankHash)
+    }
+
+    /// Creates a new L2 block time [PreimageKey] from a block number.
+    pub fn new_l2_block_time(block_number: u64) -> Self {
+        let number_bytes = block_number.to_be_bytes();
+        let number_hash = keccak256(number_bytes.as_ref());
+        Self::new(*number_hash, PreimageKeyType::BlockTime)
+    }
+
+    /// Creates a new DAProxyBlob [PreimageKey] from a key data.
+    pub fn new_l2_account_proof(hashed_account: B256) -> Self {
+        Self::new(*hashed_account, PreimageKeyType::L2AccountProof)
     }
 
     /// Returns the [PreimageKeyType] for the [PreimageKey].

@@ -1,6 +1,5 @@
 use crate::{HintType, errors::OracleProviderError};
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
-use alloy_primitives::keccak256;
 use async_trait::async_trait;
 use kona_preimage::{CommsClient, PreimageKey};
 use soon_derive::traits::DAProvider;

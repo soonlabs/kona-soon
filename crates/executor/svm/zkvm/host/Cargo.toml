@@ -11,6 +11,7 @@ soon-node = { path = "../../../../../../soon/node/node", features = ["__test"] }
 soon-storage = { path = "../../../../../../soon/node/storage" }
 soon-primitives = { path = "../../../../../../soon/node/primitives" }
 litesvm = { path = "../../../svm" }
+fraud-executor = { path = "../../../fraud" }
 solana-sdk = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
 anyhow = "1.0"
 crossbeam-channel = "0.5.11"

@@ -84,6 +84,8 @@ pub struct L2BlockHeader {
     pub block_info: BlockInfo,
     /// Account state root
     pub account_root: B256,
+    /// Withdraw account state root
+    pub widthdraw_root: B256,
 }
 
 #[derive(

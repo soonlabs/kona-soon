@@ -78,7 +78,7 @@ where
             if let Some(tb) = target {
                 if tip_cursor.l2_safe_head.block_info.number >= tb {
                     info!(target: "client", "Derivation complete, reached L2 safe head.");
-                    return Ok((tip_cursor.l2_safe_head, tip_cursor.l2_safe_head_state_root));
+                    return Ok((tip_cursor.l2_safe_head, tip_cursor.l2_safe_head_output_root));
                 }
             }
 
@@ -106,10 +106,7 @@ where
             };
 
             self.executor
-                .update_safe_head(L2BlockHeader {
-                    block_info: tip_cursor.l2_safe_head.block_info,
-                    account_root: tip_cursor.l2_safe_head_state_root,
-                })
+                .update_safe_head(tip_cursor.l2_safe_head_header.clone())
                 .map_err(DriverError::Executor)?;
             let outcome = match self.executor.execute_payload(attributes.clone()).await {
                 Ok(outcome) => outcome,
@@ -123,8 +120,12 @@ where
             let origin = self.pipeline.origin().ok_or(PipelineError::MissingOrigin.crit())?;
             let tip_cursor = TipCursor::new(
                 outcome.block_info,
-                outcome.state_root,
-                //self.executor.compute_output_root().map_err(DriverError::Executor)?,
+                L2BlockHeader {
+                    block_info: outcome.block_info.block_info,
+                    account_root: outcome.state_root,
+                    widthdraw_root: outcome.withdraw_root,
+                },
+                self.executor.compute_output_root().map_err(DriverError::Executor)?,
             );
 
             // Advance the derivation pipeline cursor

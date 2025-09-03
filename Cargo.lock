@@ -4290,6 +4290,7 @@ dependencies = [
  "serde_json",
  "sha2 0.10.8",
  "soon-derive",
+ "soon-primitives",
  "spin 0.10.0",
  "thiserror 2.0.12",
  "tokio",
@@ -4402,6 +4403,7 @@ dependencies = [
  "anyhow",
  "ark-ff 0.5.0",
  "async-trait",
+ "bs58",
  "clap 4.5.41",
  "kona-cli",
  "kona-client",
@@ -4449,6 +4451,7 @@ dependencies = [
  "solana-sdk",
  "thiserror 2.0.12",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

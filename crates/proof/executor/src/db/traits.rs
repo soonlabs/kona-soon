@@ -31,6 +31,14 @@ impl TrieProvider for NoopTrieDBProvider {
     fn trie_node_by_hash(&self, _key: B256) -> Result<TrieNode, Self::Error> {
         Ok(TrieNode::Empty)
     }
+
+    fn bank_hash(&self, _block_number: u64) -> Result<B256, Self::Error> {
+        Ok(B256::default())
+    }
+
+    fn block_time(&self, _block_number: u64) -> Result<i64, Self::Error> {
+        Ok(0)
+    }
 }
 
 impl TrieDBProvider for NoopTrieDBProvider {

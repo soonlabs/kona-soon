@@ -204,6 +204,7 @@ impl TrieNode {
                 Ok(())
             }
             Self::Leaf { prefix, value: leaf_value } => {
+                tracing::info!("insert leaf: {:?}({})", prefix, leaf_value.len());
                 let shared_extension_nibbles = path.common_prefix_length(prefix);
 
                 // If all nibbles are shared, update the leaf node with the new value.
@@ -243,6 +244,7 @@ impl TrieNode {
                 Ok(())
             }
             Self::Extension { prefix, node } => {
+                tracing::info!("insert extension: {:?}", prefix);
                 let shared_extension_nibbles = path.common_prefix_length(prefix);
                 if shared_extension_nibbles == prefix.len() {
                     node.insert(&path.slice(shared_extension_nibbles..), value, fetcher)?;
@@ -284,11 +286,13 @@ impl TrieNode {
                 Ok(())
             }
             Self::Branch { stack } => {
+                tracing::info!("insert branch: {:?}({})", path, stack.len());
                 // Follow the branch node to the next node in the path.
                 let branch_nibble = path[0] as usize;
                 stack[branch_nibble].insert(&path.slice(BRANCH_NODE_NIBBLES..), value, fetcher)
             }
-            Self::Blinded { .. } => {
+            Self::Blinded { commitment } => {
+                tracing::info!("insert blinded: {:?}", commitment);
                 // If a blinded node is approached, reveal the node and continue the insertion
                 // recursion.
                 self.unblind(fetcher)?;

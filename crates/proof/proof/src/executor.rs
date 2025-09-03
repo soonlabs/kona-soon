@@ -6,8 +6,8 @@ use async_trait::async_trait;
 use fraud_executor::accounts::SoonAccounts;
 use fraud_executor::outcome::BlockBuildingOutcome;
 use kona_driver::Executor;
-use kona_executor::TrieDBProvider;
 pub use kona_executor::{L2BlockBuilder, OffchainL2Builder, StatelessL2Builder};
+use kona_executor::{TrieDB, TrieDBProvider};
 use kona_mpt::TrieHinter;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use soon_primitives::{blocks::L2BlockHeader, rollup_config::SoonRollupConfig};
@@ -67,16 +67,20 @@ where
     /// Since the L2 block executor is stateless, on an update to the safe head,
     /// a new executor is created with the updated header.
     fn update_safe_head(&mut self, header: L2BlockHeader) -> Result<(), Self::Error> {
-        let last_account_diff = match &self.inner {
-            None => SoonAccounts::default(),
-            Some(builder) => builder.account_diff(),
+        let (last_account_diff, trie_db) = match &self.inner {
+            None => {
+                let trie_db =
+                    TrieDB::new(header, self.trie_provider.clone(), self.trie_hinter.clone());
+                (SoonAccounts::default(), trie_db)
+            }
+            Some(builder) => (builder.account_diff(), builder.trie_db()),
         };
         let mut executor = E::new(
             self.rollup_config.clone(),
             self.trie_provider.clone(),
-            self.trie_hinter.clone(),
             header,
             last_account_diff,
+            trie_db,
         );
         executor.init()?;
         self.inner = Some(executor);

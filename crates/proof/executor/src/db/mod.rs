@@ -3,15 +3,17 @@
 
 use crate::errors::{TrieDBError, TrieDBResult};
 use alloc::{format, string::ToString, vec::Vec};
-use alloy_primitives::{B256, keccak256};
-use alloy_rlp::{Decodable, Encodable};
-use fraud_executor::accounts::SoonAccounts;
-use kona_mpt::{Nibbles, TrieHinter, TrieNode, TrieNodeError};
+use alloy_primitives::{B256, BlockHash, keccak256};
+use alloy_rlp::Decodable;
+use kona_mpt::{Nibbles, TrieHinter, TrieNode};
 use litesvm::accounts_callback::AccountsCallback;
 use solana_sdk::account::{AccountSharedData, ReadableAccount};
 use solana_sdk::pubkey::Pubkey;
-use soon_primitives::blocks::L2BlockHeader;
-use soon_primitives::mpt::{TrieSolanaAccount, WrappedSolanaAccount};
+use soon_mpt_primitives::encoder::sol_account_encoder;
+use soon_primitives::mpt::withdrawal_account_encoder;
+use soon_primitives::{
+    blocks::L2BlockHeader, mpt::WrappedSolanaAccount, mpt::account_from_solana_native,
+};
 
 mod traits;
 pub use traits::{NoopTrieDBProvider, TrieDBProvider};
@@ -49,6 +51,8 @@ where
 {
     /// The [`TrieNode`] representation of the root node.
     root_node: TrieNode,
+    /// withdrawal trie.
+    withdrawal_node: TrieNode,
     /// The parent block header of the current block.
     parent_block_header: L2BlockHeader,
     /// The [`TrieDBProvider`]
@@ -66,6 +70,7 @@ where
     pub fn new(parent_block_header: L2BlockHeader, fetcher: F, hinter: H) -> Self {
         Self {
             root_node: TrieNode::new_blinded(parent_block_header.account_root),
+            withdrawal_node: TrieNode::new_blinded(parent_block_header.widthdraw_root),
             parent_block_header,
             fetcher,
             hinter,
@@ -96,63 +101,35 @@ where
         self.parent_block_header = parent_block_header;
     }
 
-    /// Applies a [BundleState] changeset to the [TrieNode] and recomputes the state root hash.
+    /// Applies a [BundleState] changeset to the [TrieNode] and recomputes the world status.
     ///
     /// ## Takes
     /// - `bundle`: The [BundleState] changeset to apply to the trie DB.
     ///
     /// ## Returns
-    /// - `Ok(B256)`: The new state root hash of the trie DB.
+    /// - `Ok((B256, B256))`: The new state root hash + withdrawal root hash of the trie DB.
     /// - `Err(_)`: If the state root hash could not be computed.
-    pub fn state_root(&mut self, account_diff: &SoonAccounts) -> TrieDBResult<B256> {
+    pub fn world_states<'a>(
+        &mut self,
+        account_diff: impl IntoIterator<Item = (&'a Pubkey, &'a AccountSharedData)>,
+    ) -> TrieDBResult<(B256, B256)> {
         debug!(target: "client_executor", "Recomputing state root");
 
         // Update the accounts in the trie with the changeset.
         self.update_accounts(account_diff)?;
 
         // Recompute the root hash of the trie.
-        let root = self.root_node.blind();
+        let state_root = self.root_node.blind();
+        let withdrawal_root = self.withdrawal_node.blind();
 
-        debug!(
+        info!(
             target: "client_executor",
-            "Recomputed state root: {root}",
+            "block {} recomputed state root: {state_root}, withdrawal root: {withdrawal_root}",
+            self.parent_block_header.block_info.number + 1
         );
 
         // Extract the new state root from the root node.
-        Ok(root)
-    }
-
-    /// Fetches the [TrieSolanaAccount] of an account from the trie DB.
-    ///
-    /// ## Takes
-    /// - `address`: The address of the account.
-    ///
-    /// ## Returns
-    /// - `Ok(Some(TrieSolanaAccount))`: The [TrieSolanaAccount] of the account.
-    /// - `Ok(None)`: If the account does not exist in the trie.
-    /// - `Err(_)`: If the account could not be fetched.
-    pub fn get_trie_account(
-        &mut self,
-        pubkey: &Pubkey,
-        block_number: u64,
-    ) -> TrieDBResult<Option<TrieSolanaAccount>> {
-        // Send a hint to the host to fetch the account proof.
-        self.hinter
-            .hint_account_proof(pubkey, block_number)
-            .map_err(|e| TrieDBError::Provider(e.to_string()))?;
-
-        // Fetch the account from the trie.
-        let hashed_address_nibbles = Nibbles::unpack(keccak256(pubkey));
-        let Some(trie_account_rlp) = self.root_node.open(&hashed_address_nibbles, &self.fetcher)?
-        else {
-            return Ok(None);
-        };
-
-        // Decode the trie account from the RLP bytes.
-        TrieSolanaAccount::decode(&mut trie_account_rlp.as_ref())
-            .map_err(TrieNodeError::RLPError)
-            .map_err(Into::into)
-            .map(Some)
+        Ok((state_root, withdrawal_root))
     }
 
     /// Modifies the accounts in the storage trie with the given [BundleState] changeset.
@@ -163,33 +140,79 @@ where
     /// ## Returns
     /// - `Ok(())` if the accounts were successfully updated.
     /// - `Err(_)` if the accounts could not be updated.
-    fn update_accounts(&mut self, account_diff: &SoonAccounts) -> TrieDBResult<()> {
+    fn update_accounts<'a>(
+        &mut self,
+        account_diff: impl IntoIterator<Item = (&'a Pubkey, &'a AccountSharedData)>,
+    ) -> TrieDBResult<()> {
         // Sort the account keys prior to applying the changeset, to ensure that the order of
         // application is deterministic between runs.
         let mut sorted_state =
-            account_diff.accounts.iter().map(|(k, v)| (k, keccak256(*k), v)).collect::<Vec<_>>();
+            account_diff.into_iter().map(|(k, v)| (k, keccak256(*k), v)).collect::<Vec<_>>();
         sorted_state.sort_by_key(|(_, hashed_addr, _)| *hashed_addr);
 
         for (_pubkey, hashed_address, bundle_account) in sorted_state {
             // Compute the path to the account in the trie.
+            info!("update accounts: {}", hashed_address);
             let account_path = Nibbles::unpack(hashed_address.as_slice());
+            let is_withdrawal = (bundle_account.owner().to_bytes()
+                == soon_primitives::mpt::WITHDRAWAL_PROGRAM_PUBKEY.to_bytes());
 
             // If the account was destroyed, delete it from the trie.
             if bundle_account.lamports() == 0 {
                 self.root_node.delete(&account_path, &self.fetcher, &self.hinter)?;
+                if is_withdrawal {
+                    self.withdrawal_node.delete(&account_path, &self.fetcher, &self.hinter)?;
+                }
                 continue;
             }
 
             // RLP encode the trie account for insertion.
-            let wrapped_account = WrappedSolanaAccount(bundle_account.clone());
-            let mut account_buf = Vec::with_capacity(wrapped_account.length());
-            wrapped_account.encode(&mut account_buf);
+            let mpt_account = account_from_solana_native(bundle_account);
+            let account_buf = sol_account_encoder()(&mpt_account);
 
             // Insert or update the account in the trie.
             self.root_node.insert(&account_path, account_buf.into(), &self.fetcher)?;
+            if is_withdrawal {
+                let buf = withdrawal_account_encoder()(&mpt_account);
+                self.withdrawal_node.insert(&account_path, buf.into(), &self.fetcher)?;
+            }
         }
 
         Ok(())
+    }
+
+    /// Fetches the bank hash for the given block number.
+    ///
+    /// ## Takes
+    /// - `block_number` - The block number at which the bank hash is to be fetched.
+    ///
+    /// ## Returns
+    /// - Ok(B256): The bank hash.
+    pub fn bank_hash(&self, block_number: u64) -> TrieDBResult<B256> {
+        self.hinter
+            .hint_bank_hash(block_number)
+            .map_err(|e| TrieDBError::Provider(e.to_string()))?;
+        Ok(self
+            .fetcher
+            .bank_hash(block_number)
+            .map_err(|e| TrieDBError::Provider(e.to_string()))?)
+    }
+
+    /// Fetches the block time for the given block number.
+    ///
+    /// ## Takes
+    /// - `block_number` - The block number at which the block time is to be fetched.
+    ///
+    /// ## Returns
+    /// - Ok(u64): The block time.
+    pub fn block_time(&self, block_number: u64) -> TrieDBResult<i64> {
+        self.hinter
+            .hint_block_time(block_number)
+            .map_err(|e| TrieDBError::Provider(e.to_string()))?;
+        Ok(self
+            .fetcher
+            .block_time(block_number)
+            .map_err(|e| TrieDBError::Provider(e.to_string()))?)
     }
 }
 
@@ -210,6 +233,9 @@ where
             .fetcher
             .data_by_hash(keccak256(pubkey))
             .map_err(|e| TrieDBError::MissingAccountInfo)?;
+        if account_bytes.len() == 0 {
+            return Ok(None);
+        }
         let account: WrappedSolanaAccount = Decodable::decode(&mut account_bytes.as_ref())
             .map_err(|e| TrieDBError::Provider(format!("fail to parse solana account: {}", e)))?;
         Ok(Some(account.0))

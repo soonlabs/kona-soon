@@ -1,6 +1,7 @@
 //! Contains the concrete implementation of the [ChainProvider] trait for the proof.
 
 use crate::{HintType, errors::OracleProviderError};
+use alloc::string::String;
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use alloy_consensus::TxEip4844Variant::{TxEip4844, TxEip4844WithSidecar};
 use alloy_consensus::{Header, Receipt, ReceiptEnvelope, TxEnvelope};
@@ -166,5 +167,13 @@ impl<T: CommsClient> TrieProvider for OracleL1ChainProvider<T> {
             )
             .map_err(OracleProviderError::Rlp)
         })
+    }
+
+    fn bank_hash(&self, _block_number: u64) -> Result<B256, Self::Error> {
+        unimplemented!("L2 bank hash is not supported for L1 chain provider")
+    }
+
+    fn block_time(&self, _block_number: u64) -> Result<i64, Self::Error> {
+        unimplemented!("L2 block time is not supported for L1 chain provider")
     }
 }

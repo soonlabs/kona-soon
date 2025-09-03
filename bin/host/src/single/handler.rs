@@ -11,9 +11,10 @@ use alloy_rlp::{BytesMut, Encodable};
 use alloy_rpc_types::Block;
 use anyhow::{Result, anyhow, ensure};
 use async_trait::async_trait;
+use bs58;
 use kona_preimage::{PreimageKey, PreimageKeyType};
 use kona_proof::{Hint, HintType};
-use soon_primitives::{blocks::str_block_hash_to, output_root::OutputRoot};
+use soon_primitives::output_root::OutputRoot;
 use tracing::info;
 
 /// The [HintHandler] for the [SingleChainHost].
@@ -151,13 +152,21 @@ impl HintHandler for SingleChainHintHandler {
                     providers.l2.get_tried_account_proof(hashed_address, block_number).await?;
                 // need to write account + trie proof node into kv.
                 let mut out_buf = BytesMut::default();
-                Encodable::encode(&tried_account.account, &mut out_buf);
+                if let Some(account) = tried_account.account {
+                    Encodable::encode(&account, &mut out_buf);
+                }
                 let mut kv_lock = kv.write().await;
                 kv_lock.set(
-                    PreimageKey::new_keccak256(hashed_address.into()).into(),
+                    PreimageKey::new_l2_account_proof(hashed_address.into()).into(),
                     out_buf.into(),
                 )?;
                 tried_account.proofs.into_iter().try_for_each(|node| {
+                    let node_hash = keccak256::<&[u8]>(node.as_ref());
+                    let key = PreimageKey::new_keccak256(*node_hash);
+                    kv_lock.set(key.into(), node.into())?;
+                    Ok::<(), anyhow::Error>(())
+                })?;
+                tried_account.withdrawal_proofs.into_iter().try_for_each(|node| {
                     let node_hash = keccak256::<&[u8]>(node.as_ref());
                     let key = PreimageKey::new_keccak256(*node_hash);
                     kv_lock.set(key.into(), node.into())?;
@@ -192,6 +201,32 @@ impl HintHandler for SingleChainHintHandler {
                 Encodable::encode(&block, &mut out_buf);
                 let mut kv_lock = kv.write().await;
                 kv_lock.set(PreimageKey::new_block_slot(block_number).into(), out_buf.into())?;
+            }
+            HintType::L2BankHash => {
+                ensure!(hint.data.len() == 8, "Invalid hint data length for l2 bank hash");
+                info!("handle L2BankHash request.");
+                let block_number = u64::from_be_bytes(hint.data.as_ref()[..8].try_into()?);
+                let bank_hash = providers.l2.get_bank_hash(block_number).await?;
+                info!("bank_hash:{:?}", bank_hash);
+                let bank_hash_bytes = match bank_hash {
+                    Some(hash) => bs58::decode(hash.as_str()).into_vec().unwrap(),
+                    None => vec![],
+                };
+                info!("bank_hash_bytes len:{}", bank_hash_bytes.len());
+                let mut kv_lock = kv.write().await;
+                kv_lock.set(PreimageKey::new_l2_bank_hash(block_number).into(), bank_hash_bytes)?;
+            }
+            HintType::L2BlockTime => {
+                ensure!(hint.data.len() == 8, "Invalid hint data length for l2 block time");
+                let block_number = u64::from_be_bytes(hint.data.as_ref()[..8].try_into()?);
+                let block_time = providers.l2.get_block_time(block_number).await?;
+                let block_time_bytes = match block_time {
+                    Some(time) => time.to_be_bytes().to_vec(),
+                    None => vec![],
+                };
+                let mut kv_lock = kv.write().await;
+                kv_lock
+                    .set(PreimageKey::new_l2_block_time(block_number).into(), block_time_bytes)?;
             }
         }
 

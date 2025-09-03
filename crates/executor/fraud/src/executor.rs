@@ -26,6 +26,7 @@ impl<CB: AccountsCallback> FraudExecutor<CB> {
         Ok(BlockBuildingOutcome {
             block_info: l2_block_info,
             state_root: B256::ZERO,
+            withdraw_root: B256::ZERO,
             execution_result,
             signature_count: self.svm.signature_count(),
             fee_rate_governor: self.svm.fee_rate_governor().clone(),
