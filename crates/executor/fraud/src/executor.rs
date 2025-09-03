@@ -7,7 +7,7 @@ use solana_sdk::account::ReadableAccount;
 use solana_sdk::clock::Clock;
 use solana_sdk::program_pack::Pack;
 use soon_mpt_primitives::B256;
-use soon_mpt_primitives::alloy::eips::BlockNumHash;
+use alloy_eips::BlockNumHash;
 use soon_primitives::blocks::{BlockInfo, L2BlockInfo};
 
 #[derive(Debug, Default)]

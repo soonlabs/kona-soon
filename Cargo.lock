@@ -11523,6 +11523,7 @@ dependencies = [
  "l1-block-info",
  "log",
  "num-bigint 0.4.6",
+ "once_cell",
  "op-alloy-rpc-types-engine",
  "serde",
  "serde_json",
