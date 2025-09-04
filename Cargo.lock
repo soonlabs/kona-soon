@@ -4083,6 +4083,7 @@ checksum = "28dd6caf6059519a65843af8fe2a3ae298b14b80179855aeb4adc2c1934ee619"
 name = "fraud-executor"
 version = "0.1.0"
 dependencies = [
+ "alloy-eips 0.15.11",
  "hex",
  "l1-block-info",
  "litesvm",
@@ -11518,6 +11519,7 @@ dependencies = [
  "l1-block-info",
  "log",
  "num-bigint 0.4.6",
+ "once_cell",
  "op-alloy-rpc-types-engine",
  "serde",
  "serde_json",
