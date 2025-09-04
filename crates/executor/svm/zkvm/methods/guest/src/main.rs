@@ -34,8 +34,7 @@ fn main() {
         .with_sig_verify(false)
         .with_blockhash_verify(true)
         .with_accounts_callback(witness.soon_accounts.into())
-        .with_clock_timestamp(witness.clock_timestamp)
-        .with_log_collector(Some(std::rc::Rc::new(std::cell::RefCell::new(Default::default()))));
+        .with_clock_timestamp(witness.clock_timestamp);
     svm.finish_init().expect("svm finish init failed");
 
     // execute block
