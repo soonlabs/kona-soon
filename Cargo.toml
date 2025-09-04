@@ -233,7 +233,6 @@ solana-loader-v4-program = { git = "https://github.com/soonlabs/agave", branch =
 solana-program = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
 solana-program-runtime = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
 solana-program-test = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
-solana-runtime-transaction = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
 solana-sdk = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
 solana-stake-program = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
 solana-svm = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
@@ -245,6 +244,7 @@ bs58 = "0.5"
 
 [patch.crates-io]
 # Solana related dependencies
+solana-sdk = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
 solana-program = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
 solana-zk-token-sdk = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
 solana-curve25519 = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
