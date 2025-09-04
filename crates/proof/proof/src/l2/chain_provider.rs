@@ -2,7 +2,6 @@
 
 use crate::alloc::string::ToString;
 use crate::{HintType, errors::OracleProviderError};
-use alloc::string::String;
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use alloy_eips::BlockNumHash;
 use alloy_primitives::{Address, B256, Bytes, U160, keccak256};
