@@ -2,7 +2,7 @@ use crate::{ExecutorError, ExecutorResult, L2BlockBuilder, TrieDB, TrieDBProvide
 use alloc::collections::BTreeMap;
 use alloc::string::ToString;
 use alloc::sync::Arc;
-use alloy_primitives::{B256, Keccak256, keccak256};
+use alloy_primitives::{B256, Keccak256};
 use core::marker::PhantomData;
 use fraud_executor::accounts::SoonAccounts;
 use fraud_executor::executor::FraudExecutor;

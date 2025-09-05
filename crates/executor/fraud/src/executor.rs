@@ -1,13 +1,13 @@
 use crate::accounts::AccountPairs;
 use crate::error::Result;
 use crate::outcome::BlockBuildingOutcome;
+use alloy_eips::BlockNumHash;
 use l1_block_info::state::L1BlockInfo;
 use litesvm::{LiteSVM, RawBlock, accounts_callback::AccountsCallback};
 use solana_sdk::account::ReadableAccount;
 use solana_sdk::clock::Clock;
 use solana_sdk::program_pack::Pack;
-use soon_mpt_primitives::B256;
-use alloy_eips::BlockNumHash;
+use alloy_primitives::B256;
 use soon_primitives::blocks::{BlockInfo, L2BlockInfo};
 
 #[derive(Debug, Default)]

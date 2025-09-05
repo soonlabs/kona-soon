@@ -13,12 +13,11 @@ exclude.workspace = true
 
 [dependencies]
 litesvm.workspace = true
-soon-mpt-primitives.workspace = true
-soon-mpt-trie.workspace = true
 soon-primitives.workspace = true
 tracing.workspace = true
 l1-block-info.workspace = true
 alloy-eips.workspace = true
+alloy-primitives = { workspace = true, features = ["rlp"] }
 
 thiserror.workspace = true
 hex.workspace = true
@@ -26,6 +25,9 @@ serde.workspace = true
 
 solana-sdk.workspace = true
 solana-program.workspace = true
+triehash = { version = "0.8" }
+hash-db = { version = "~0.15" }
+plain_hasher = { version = "0.2" }
 
 [lints]
 workspace = true

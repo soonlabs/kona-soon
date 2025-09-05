@@ -1,9 +1,11 @@
 use crate::utils::add_trie_account;
+use alloy_primitives::{B256, keccak256};
 use litesvm::accounts_callback::MemoryAccountsCallback;
 use serde::{Deserialize, Serialize};
 use solana_sdk::{account::AccountSharedData, pubkey::Pubkey};
-use soon_mpt_primitives::{Account as MptAccount, B256, encoder::sol_account_encoder};
-use soon_mpt_trie::test_utils::state_root_prehashed;
+use soon_primitives::mpt::{
+    account::TrieSolanaAccount as MptAccount, encoder::sol_account_encoder,
+};
 use std::collections::BTreeMap;
 
 pub type AccountPairs = Vec<(Pubkey, AccountSharedData)>;
@@ -16,7 +18,11 @@ pub struct SoonAccounts {
 impl SoonAccounts {
     pub fn state_root(&self) -> B256 {
         let mpt_accounts: Vec<(B256, MptAccount)> = self.clone().into();
-        state_root_prehashed(mpt_accounts, sol_account_encoder())
+        triehash::trie_root::<KeccakHasher, _, _, _>(
+            mpt_accounts
+                .into_iter()
+                .map(|(address, account)| (address, sol_account_encoder()(&account))),
+        )
     }
 }
 
@@ -51,5 +57,21 @@ impl From<BTreeMap<Pubkey, AccountSharedData>> for SoonAccounts {
 impl From<SoonAccounts> for BTreeMap<Pubkey, AccountSharedData> {
     fn from(val: SoonAccounts) -> Self {
         val.accounts.into_iter().collect()
+    }
+}
+
+use hash_db::Hasher;
+use plain_hasher::PlainHasher;
+
+pub struct KeccakHasher;
+
+impl Hasher for KeccakHasher {
+    type Out = B256;
+    type StdHasher = PlainHasher;
+
+    const LENGTH: usize = 32;
+
+    fn hash(x: &[u8]) -> Self::Out {
+        keccak256(x)
     }
 }

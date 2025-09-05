@@ -2,12 +2,13 @@ use std::collections::HashSet;
 
 use crate::accounts::SoonAccounts;
 use crate::error::{Error, Result};
+use alloy_primitives::{B256, keccak256};
 use litesvm::LiteSVM;
 use litesvm::accounts_callback::AccountsCallback;
 use litesvm::types::TransactionMetadata;
 use solana_sdk::account::{AccountSharedData, ReadableAccount};
 use solana_sdk::pubkey::Pubkey;
-use soon_mpt_primitives::{Account as MptAccount, B256, keccak256};
+use soon_primitives::mpt::account::TrieSolanaAccount as MptAccount;
 use soon_primitives::blocks::RawBlock;
 use soon_primitives::mpt::account_from_solana_native;
 

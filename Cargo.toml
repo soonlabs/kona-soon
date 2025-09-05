@@ -210,7 +210,6 @@ soon-da-provider = { path = '../soon/node/da-provider' }
 soon-l1-chain-provider = { path = '../soon/node/l1provider' }
 soon-l2-chain-provider = { path = '../soon/node/l2provider' }
 soon-primitives = { path = '../soon/node/primitives' }
-soon-mpt-primitives = { path = "../soon/node/mpt/primitives" }
 soon-mpt-trie = { path = "../soon/node/mpt/trie/trie" }
 l1-block-info = { path = "../soon/node/programs/l1-block-info-program", features = [
     "no-entrypoint",
@@ -233,7 +232,6 @@ solana-loader-v4-program = { git = "https://github.com/soonlabs/agave", branch =
 solana-program = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
 solana-program-runtime = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
 solana-program-test = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
-solana-runtime-transaction = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
 solana-sdk = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
 solana-stake-program = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
 solana-svm = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
@@ -245,6 +243,7 @@ bs58 = "0.5"
 
 [patch.crates-io]
 # Solana related dependencies
+solana-sdk = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
 solana-program = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
 solana-zk-token-sdk = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
 solana-curve25519 = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }

@@ -42,7 +42,7 @@ fn main() -> anyhow::Result<()> {
     let _deposit_to = produce_slot_1(&mut l1_node, &mut producer, &complete_receiver)?;
     // record slot 1 witness
     let witness_1 = fetch_witness_from_soon(producer.get_executor())?;
-    // let state_root_1 = SoonAccounts::from(witness_1.soon_accounts).state_root();
+    let state_root_1 = SoonAccounts::from(witness_1.soon_accounts).state_root();
     let block_1 = fetch_l2_block_from_soon(producer.get_executor())?;
     let block_data_1 = bincode::serialize(&block_1)?;
 
@@ -71,22 +71,8 @@ fn main() -> anyhow::Result<()> {
     let mut accounts_map = witness_0.soon_accounts.into_iter().collect::<BTreeMap<_, _>>();
     accounts_map.extend(diff_accounts);
 
-    let accounts_map_origin = witness_1.soon_accounts.into_iter().collect::<BTreeMap<_, _>>();
-
-    for (pubkey, expect_account) in accounts_map_origin.iter() {
-        if let Some(actual_account) = accounts_map.get_mut(pubkey) {
-            if actual_account != expect_account {
-                println!("account mismatch for {}", pubkey);
-                println!("  expect: {:?}", expect_account);
-                println!("  actual: {:?}", actual_account);
-            }
-        } else {
-            println!("missing account for {}", pubkey);
-        }
-    }
-
-    // let new_state_root = SoonAccounts::from(accounts_map).state_root();
-    // assert_eq!(new_state_root, state_root_1, "state root mismatch");
+    let new_state_root = SoonAccounts::from(accounts_map).state_root();
+    assert_eq!(new_state_root, state_root_1, "state root mismatch");
 
     // The receipt was verified at the end of proving, but the below code is an
     // example of how someone else could verify this receipt.

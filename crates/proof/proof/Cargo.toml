@@ -25,7 +25,6 @@ solana-sdk.workspace = true
 soon-derive.workspace = true
 soon-primitives.workspace = true
 l1-block-info.workspace = true
-soon-da-provider.workspace = true
 
 # Alloy
 alloy-rlp.workspace = true
