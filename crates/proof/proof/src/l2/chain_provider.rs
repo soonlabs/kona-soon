@@ -248,9 +248,8 @@ impl<T: CommsClient> TrieHinter for OracleL2ChainProvider<T> {
 
     fn hint_account_proof(&self, pubkey: &Pubkey, block_number: u64) -> Result<(), Self::Error> {
         crate::block_on(async move {
-            info!("hint_account_proof, pubkey: {:?}", pubkey);
             let hashed_address = keccak256(pubkey.as_ref());
-            info!("hint_account_proof, hashed_address: {:?}", hashed_address);
+            info!("hint_account_proof, pubkey: {:?}, hashed_address: {:?}", pubkey, hashed_address);
             HintType::L2AccountProof
                 .with_data(&[block_number.to_be_bytes().as_ref(), hashed_address.as_ref()])
                 .send(self.oracle.as_ref())

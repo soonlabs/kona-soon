@@ -131,20 +131,20 @@ where
 {
     /// Get the preimage for the given key.
     async fn get_preimage(&self, key: PreimageKey) -> PreimageOracleResult<Vec<u8>> {
-        info!(target: "host_backend", "Pre-image requested. Key: {key}");
-
         // Acquire a read lock on the key-value store.
         let kv_lock = self.kv.read().await;
         let mut preimage = kv_lock.get(key.into());
-
         // Drop the read lock before beginning the retry loop.
         drop(kv_lock);
+        if preimage.is_some() {
+            info!(target: "host_backend", "preimage hint without wait, key: {key}");
+            return preimage.ok_or(PreimageOracleError::KeyNotFound);
+        }
 
         // Use a loop to keep retrying the prefetch as long as the key is not found
         while preimage.is_none() {
-            info!(target: "host_backend", "Pre-image requested {key}");
             if let Some(hint) = self.last_hint.read().await.as_ref() {
-                info!(target: "host_backend", "hint: {:?}", hint.ty);
+                info!(target: "host_backend", "Looping query preimage {key}, new hint: {:?}", hint.ty);
                 let value =
                     H::fetch_hint(hint.clone(), &self.cfg, &self.providers, self.kv.clone()).await;
 
@@ -158,7 +158,6 @@ where
                 preimage = kv_lock.get(key.into());
             }
         }
-
         preimage.ok_or(PreimageOracleError::KeyNotFound)
     }
 }

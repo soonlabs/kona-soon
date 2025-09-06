@@ -149,9 +149,9 @@ where
             account_diff.into_iter().map(|(k, v)| (k, keccak256(*k), v)).collect::<Vec<_>>();
         sorted_state.sort_by_key(|(_, hashed_addr, _)| *hashed_addr);
 
-        for (_pubkey, hashed_address, bundle_account) in sorted_state {
+        for (pubkey, hashed_address, bundle_account) in sorted_state {
             // Compute the path to the account in the trie.
-            info!("update accounts: {}", hashed_address);
+            info!("update accounts: {:?} <-> {}", pubkey, hashed_address);
             let account_path = Nibbles::unpack(hashed_address.as_slice());
             let is_withdrawal = bundle_account.owner().to_bytes()
                 == soon_primitives::mpt::WITHDRAWAL_PROGRAM_PUBKEY.to_bytes();

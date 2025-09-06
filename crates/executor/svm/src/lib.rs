@@ -28,7 +28,7 @@ use solana_program_runtime::timings::ExecuteTimings;
 use solana_program_runtime::{
     invoke_context::{EnvironmentConfig, InvokeContext},
     loaded_programs::{ProgramCacheEntry, ProgramRuntimeEnvironments},
-    log_collector::LogCollector,
+    log_collector::{LogCollector, log::info},
 };
 use solana_sdk::{
     account::{Account, AccountSharedData, ReadableAccount, WritableAccount},
