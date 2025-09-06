@@ -105,4 +105,9 @@ where
             |e| e.compute_output_root(),
         )
     }
+
+    /// Reset the executor.
+    fn reset(&mut self) {
+        self.inner.take();
+    }
 }

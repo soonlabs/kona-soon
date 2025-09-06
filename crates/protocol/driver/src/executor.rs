@@ -31,4 +31,7 @@ pub trait Executor {
     /// Computes the output root.
     /// Expected to be called after the payload has been executed.
     fn compute_output_root(&mut self) -> Result<B256, Self::Error>;
+
+    /// Reset the executor.
+    fn reset(&mut self);
 }
