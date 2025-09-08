@@ -45,6 +45,10 @@ where
     ) -> Self {
         Self { rollup_config, trie_provider, trie_hinter, inner }
     }
+
+    pub fn inner_builder(&self) -> Option<&E> {
+        self.inner.as_ref()
+    }
 }
 
 #[async_trait]
