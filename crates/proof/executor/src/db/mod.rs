@@ -110,7 +110,7 @@ where
     /// - `Err(_)`: If the state root hash could not be computed.
     pub fn world_states<'a>(
         &mut self,
-        account_diff: impl IntoIterator<Item = (&'a Pubkey, &'a AccountSharedData)>,
+        account_diff: impl IntoIterator<Item = &'a (Pubkey, AccountSharedData)>,
     ) -> TrieDBResult<(B256, B256)> {
         debug!(target: "client_executor", "Recomputing state root");
 
@@ -141,7 +141,7 @@ where
     /// - `Err(_)` if the accounts could not be updated.
     fn update_accounts<'a>(
         &mut self,
-        account_diff: impl IntoIterator<Item = (&'a Pubkey, &'a AccountSharedData)>,
+        account_diff: impl IntoIterator<Item = &'a (Pubkey, AccountSharedData)>,
     ) -> TrieDBResult<()> {
         // Sort the account keys prior to applying the changeset, to ensure that the order of
         // application is deterministic between runs.

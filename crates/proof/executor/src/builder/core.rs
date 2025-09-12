@@ -7,6 +7,7 @@ use alloc::string::ToString;
 use alloc::sync::Arc;
 use alloy_primitives::B256;
 use fraud_executor::outcome::BlockBuildingOutcome;
+use fraud_executor::utils::modified_accounts;
 use fraud_executor::{accounts::SoonAccounts, executor::FraudExecutor};
 use kona_mpt::TrieHinter;
 use litesvm::{L2Block, L2Transaction, LiteSVM};
@@ -125,8 +126,9 @@ where
 
         // Step 4. Store data to calculate output root
         let diff_accounts = executor.export_diff_accounts();
+        let modified_accounts = modified_accounts(&mut self.accounts_diff, diff_accounts.iter());
         self.accounts_diff.extend(diff_accounts);
-        let (state_root, withdrawal_root) = self.trie_db.world_states(self.accounts_diff.iter())?;
+        let (state_root, withdrawal_root) = self.trie_db.world_states(modified_accounts.iter())?;
         outcome.state_root = state_root;
         outcome.withdraw_root = withdrawal_root;
 

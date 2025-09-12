@@ -1,15 +1,16 @@
-use std::collections::HashSet;
+use std::collections::btree_map::Entry;
+use std::collections::{BTreeMap, HashSet};
 
-use crate::accounts::SoonAccounts;
+use crate::accounts::{AccountPairs, SoonAccounts};
 use crate::error::{Error, Result};
 use alloy_primitives::{B256, keccak256};
 use litesvm::LiteSVM;
 use litesvm::accounts_callback::AccountsCallback;
 use litesvm::types::TransactionMetadata;
-use solana_sdk::account::{AccountSharedData, ReadableAccount};
+use solana_sdk::account::{AccountSharedData, ReadableAccount, accounts_equal};
 use solana_sdk::pubkey::Pubkey;
-use soon_primitives::mpt::account::TrieSolanaAccount as MptAccount;
 use soon_primitives::blocks::RawBlock;
+use soon_primitives::mpt::account::TrieSolanaAccount as MptAccount;
 use soon_primitives::mpt::account_from_solana_native;
 
 // pub fn init_litesvm_with_accounts<CB: AccountsCallback>(accounts: &SoonAccounts) -> Result<LiteSVM<CB>> {
@@ -468,4 +469,17 @@ pub fn litesvm_new_block(
         tx_results.push(tx_result);
     }
     Ok(tx_results)
+}
+
+pub fn modified_accounts<'a>(
+    raw: &mut BTreeMap<Pubkey, AccountSharedData>,
+    diff: impl IntoIterator<Item = &'a (Pubkey, AccountSharedData)>,
+) -> AccountPairs {
+    diff.into_iter()
+        .filter(|(k, v)| {
+            // Include if account doesn't exist or is different
+            raw.get(k).map_or(true, |existing| !accounts_equal(v, existing))
+        })
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect()
 }

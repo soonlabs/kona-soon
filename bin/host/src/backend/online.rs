@@ -142,6 +142,7 @@ where
         }
 
         // Use a loop to keep retrying the prefetch as long as the key is not found
+        let mut count = 0;
         while preimage.is_none() {
             if let Some(hint) = self.last_hint.read().await.as_ref() {
                 info!(target: "host_backend", "Looping query preimage {key}, new hint: {:?}", hint.ty);
@@ -156,6 +157,10 @@ where
 
                 let kv_lock = self.kv.read().await;
                 preimage = kv_lock.get(key.into());
+            }
+            count += 1;
+            if count > 10 {
+                return Err(PreimageOracleError::Other("query hint over time".to_string()));
             }
         }
         preimage.ok_or(PreimageOracleError::KeyNotFound)
