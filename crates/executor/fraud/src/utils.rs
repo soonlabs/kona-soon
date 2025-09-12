@@ -8,8 +8,8 @@ use litesvm::accounts_callback::AccountsCallback;
 use litesvm::types::TransactionMetadata;
 use solana_sdk::account::{AccountSharedData, ReadableAccount};
 use solana_sdk::pubkey::Pubkey;
-use soon_primitives::mpt::account::TrieSolanaAccount as MptAccount;
 use soon_primitives::blocks::RawBlock;
+use soon_primitives::mpt::account::TrieSolanaAccount as MptAccount;
 use soon_primitives::mpt::account_from_solana_native;
 
 // pub fn init_litesvm_with_accounts<CB: AccountsCallback>(accounts: &SoonAccounts) -> Result<LiteSVM<CB>> {

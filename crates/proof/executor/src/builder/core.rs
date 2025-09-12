@@ -70,7 +70,7 @@ where
     /// Creates a new [StatelessL2Builder] instance.
     fn new(
         config: Arc<SoonRollupConfig>,
-        provider: P,
+        _provider: P,
         parent_header: L2BlockHeader,
         last_accounts_diff: SoonAccounts,
         trie_db: TrieDB<P, H>,

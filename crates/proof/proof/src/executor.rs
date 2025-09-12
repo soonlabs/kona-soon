@@ -46,6 +46,7 @@ where
         Self { rollup_config, trie_provider, trie_hinter, inner }
     }
 
+    /// Returns the inner builder.
     pub fn inner_builder(&self) -> Option<&E> {
         self.inner.as_ref()
     }

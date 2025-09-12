@@ -231,7 +231,7 @@ where
         let account_bytes = self
             .fetcher
             .data_by_hash(keccak256(pubkey))
-            .map_err(|e| TrieDBError::MissingAccountInfo)?;
+            .map_err(|_e| TrieDBError::MissingAccountInfo)?;
         if account_bytes.len() == 0 {
             return Ok(None);
         }

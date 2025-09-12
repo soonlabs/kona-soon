@@ -2,7 +2,6 @@
 //! headers.
 
 use crate::TrieNode;
-use alloc::string::String;
 use alloy_primitives::B256;
 use core::fmt::Display;
 use solana_sdk::pubkey::Pubkey;

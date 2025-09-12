@@ -347,7 +347,7 @@ fn into_address_loader_error(err: AddressLookupError) -> AddressLoaderError {
 impl<CB: AccountsCallback> AddressLoader for &AccountsDb<CB> {
     fn load_addresses(
         self,
-        lookups: &[MessageAddressTableLookup],
+        _lookups: &[MessageAddressTableLookup],
     ) -> Result<LoadedAddresses, AddressLoaderError> {
         // Since we can't mutate self, we'll return an error for now
         // This is a limitation of the current design

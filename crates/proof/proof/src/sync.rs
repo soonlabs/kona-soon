@@ -8,7 +8,7 @@ use core::fmt::Debug;
 use kona_driver::{PipelineCursor, TipCursor};
 use soon_derive::traits::ChainProvider;
 use soon_derive::traits::L2ChainProvider;
-use soon_primitives::blocks::{L2BlockHeader, L2BlockInfo};
+use soon_primitives::blocks::L2BlockHeader;
 use soon_primitives::rollup_config::SoonRollupConfig;
 use spin::RwLock;
 
