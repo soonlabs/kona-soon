@@ -74,6 +74,7 @@ impl<T: CommsClient> CursorSetter for OracleL2ChainProvider<T> {
 }
 
 impl<T: CommsClient> OracleL2ChainProvider<T> {
+    /// Fetches L2 block info by block number.
     pub async fn get_l2_block_info_by_number(
         &self,
         number: u64,
@@ -109,6 +110,7 @@ impl<T: CommsClient> OracleL2ChainProvider<T> {
         }
     }
 
+    /// Fetches L2 block by block number.
     pub async fn get_block_by_number(&self, number: u64) -> Result<L2Block, OracleProviderError> {
         let number_bytes = number.to_be_bytes();
         HintType::L2BlockData

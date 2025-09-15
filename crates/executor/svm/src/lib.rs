@@ -28,7 +28,7 @@ use solana_program_runtime::timings::ExecuteTimings;
 use solana_program_runtime::{
     invoke_context::{EnvironmentConfig, InvokeContext},
     loaded_programs::{ProgramCacheEntry, ProgramRuntimeEnvironments},
-    log_collector::{LogCollector, log::info},
+    log_collector::LogCollector,
 };
 use solana_sdk::{
     account::{Account, AccountSharedData, ReadableAccount, WritableAccount},
@@ -471,7 +471,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         u64, // fee_payer_rent_debit
     ) {
         let CheckedTransactionDetails {
-            nonce, // TODO: where should use the nonce?
+            nonce: _, // TODO: where should use the nonce?
             lamports_per_signature,
         } = tx_details;
         let blockhash = tx.message().recent_blockhash();
@@ -713,7 +713,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
                     result,
                     compute_units_consumed,
                     context,
-                    fee_payer_rent_debit, // TODO: return rent debit if tx failed
+                    fee_payer_rent_debit: _, // TODO: return rent debit if tx failed
                 },
             fee,
             payer_key,
@@ -1191,6 +1191,7 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     }
 }
 
+#[allow(dead_code)]
 struct CheckAndProcessTransactionSuccessCore {
     result: Result<(), TransactionError>,
     compute_units_consumed: u64,

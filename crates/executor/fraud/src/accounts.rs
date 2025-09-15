@@ -63,6 +63,7 @@ impl From<SoonAccounts> for BTreeMap<Pubkey, AccountSharedData> {
 use hash_db::Hasher;
 use plain_hasher::PlainHasher;
 
+#[derive(Debug)]
 pub struct KeccakHasher;
 
 impl Hasher for KeccakHasher {

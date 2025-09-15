@@ -10,7 +10,6 @@ use alloc::{boxed::Box, string::ToString, vec, vec::Vec};
 use alloy_primitives::{B256, Bytes, keccak256};
 use alloy_rlp::{Buf, Decodable, EMPTY_STRING_CODE, Encodable, Header, length_of_length};
 use alloy_trie::{EMPTY_ROOT_HASH, Nibbles};
-use tracing::info;
 
 /// The length of the branch list when RLP encoded
 const BRANCH_LIST_LENGTH: usize = 17;
@@ -289,7 +288,7 @@ impl TrieNode {
                 let branch_nibble = path[0] as usize;
                 stack[branch_nibble].insert(&path.slice(BRANCH_NODE_NIBBLES..), value, fetcher)
             }
-            Self::Blinded { commitment } => {
+            Self::Blinded { commitment: _ } => {
                 // If a blinded node is approached, reveal the node and continue the insertion
                 // recursion.
                 self.unblind(fetcher)?;

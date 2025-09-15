@@ -21,7 +21,7 @@ impl<T: CommsClient> OracleDaProvider<T> {
 impl<T: CommsClient + Sync + Send> DAProvider for OracleDaProvider<T> {
     type Error = OracleProviderError;
 
-    async fn set_input(&self, data: Vec<u8>) -> Result<Vec<u8>, Self::Error> {
+    async fn set_input(&self, _data: Vec<u8>) -> Result<Vec<u8>, Self::Error> {
         unimplemented!()
     }
     /// fetch data by key from DA provider
