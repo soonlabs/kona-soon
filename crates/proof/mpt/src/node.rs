@@ -302,6 +302,7 @@ impl TrieNode {
     /// ## Takes
     /// - `self` - The root trie node
     /// - `path` - The nibbles representation of the path to the leaf node
+    /// - `walked_prefix` - The path prefix (not include node self)
     ///
     /// ## Returns
     /// - `Err(_)` - Could not delete the node at the given path in the trie.
@@ -311,6 +312,8 @@ impl TrieNode {
         path: &Nibbles,
         fetcher: &F,
         hinter: &H,
+        walked_prefix: Nibbles,
+        last_slot: u64,
     ) -> TrieNodeResult<()> {
         match self {
             Self::Empty => Err(TrieNodeError::KeyNotFound),
@@ -331,21 +334,35 @@ impl TrieNode {
                     return Ok(());
                 }
 
-                node.delete(&path.slice(prefix.len()..), fetcher, hinter)?;
+                node.delete(
+                    &path.slice(prefix.len()..),
+                    fetcher,
+                    hinter,
+                    walked_prefix.join(&prefix),
+                    last_slot,
+                )?;
 
                 // Simplify extension if possible after the deletion
-                self.collapse_if_possible(fetcher, hinter)
+                self.collapse_if_possible(fetcher, hinter, walked_prefix, last_slot)
             }
             Self::Branch { stack } => {
                 let branch_nibble = path[0] as usize;
-                stack[branch_nibble].delete(&path.slice(BRANCH_NODE_NIBBLES..), fetcher, hinter)?;
+                let mut n = walked_prefix.clone();
+                n.push(path[0]);
+                stack[branch_nibble].delete(
+                    &path.slice(BRANCH_NODE_NIBBLES..),
+                    fetcher,
+                    hinter,
+                    n,
+                    last_slot,
+                )?;
 
                 // Simplify the branch if possible after the deletion
-                self.collapse_if_possible(fetcher, hinter)
+                self.collapse_if_possible(fetcher, hinter, walked_prefix, last_slot)
             }
             Self::Blinded { .. } => {
                 self.unblind(fetcher)?;
-                self.delete(path, fetcher, hinter)
+                self.delete(path, fetcher, hinter, walked_prefix, last_slot)
             }
         }
     }
@@ -362,6 +379,8 @@ impl TrieNode {
         &mut self,
         fetcher: &F,
         hinter: &H,
+        walked_prefix: Nibbles,
+        last_slot: u64,
     ) -> TrieNodeResult<()> {
         match self {
             Self::Extension { prefix, node } => match node.as_mut() {
@@ -420,16 +439,33 @@ impl TrieNode {
                                 node: Box::new(non_empty_node.clone()),
                             };
                         }
-                        Self::Blinded { commitment } => {
+                        Self::Blinded { .. } => {
                             // In this special case, we need to send a hint to fetch the preimage of
                             // the blinded node, since it is outside of the paths that have been
                             // traversed so far.
+                            // hinter
+                            //     .hint_trie_node(*commitment)
+                            //     .map_err(|e| TrieNodeError::Provider(e.to_string()))?;
+
+                            // NOTE: soon doesn't support hint commitment, so we just mock an no-existed node
+                            // and hint l2 proof to hint commitment indirectly.
+                            let hash = {
+                                let mut full_path = walked_prefix.clone();
+                                full_path.push(*index as u8);
+                                let pad = 64 - full_path.len();
+                                for _ in 0..pad {
+                                    full_path.push(0u8);
+                                }
+                                let pack_path = full_path.pack();
+                                B256::from_slice(&pack_path.as_slice())
+                            };
+
                             hinter
-                                .hint_trie_node(*commitment)
+                                .hint_account_proof(hash, last_slot)
                                 .map_err(|e| TrieNodeError::Provider(e.to_string()))?;
 
                             non_empty_node.unblind(fetcher)?;
-                            self.collapse_if_possible(fetcher, hinter)?;
+                            self.collapse_if_possible(fetcher, hinter, walked_prefix, last_slot)?;
                         }
                         _ => {}
                     };
@@ -839,7 +875,7 @@ mod test {
 
             // Delete the keys that were randomly selected from the trie node.
             for deleted_key in deleted_keys {
-                node.delete(&Nibbles::unpack(deleted_key), &NoopTrieProvider, &NoopTrieHinter)
+                node.delete(&Nibbles::unpack(deleted_key), &NoopTrieProvider, &NoopTrieHinter, Nibbles::new(), 0)
                     .unwrap();
             }
 

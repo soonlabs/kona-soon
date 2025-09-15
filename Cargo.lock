@@ -11270,7 +11270,6 @@ dependencies = [
  "op-alloy-consensus 0.15.4",
  "op-alloy-rpc-types-engine",
  "solana-sdk",
- "solana-transaction-status",
  "soon-miniz-oxide",
  "soon-primitives",
  "thiserror 1.0.64",

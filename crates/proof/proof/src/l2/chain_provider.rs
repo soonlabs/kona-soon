@@ -4,7 +4,7 @@ use crate::alloc::string::ToString;
 use crate::{HintType, errors::OracleProviderError};
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use alloy_eips::BlockNumHash;
-use alloy_primitives::{Address, B256, Bytes, U160, keccak256};
+use alloy_primitives::{Address, B256, Bytes, U160};
 use alloy_rlp::Decodable;
 use async_trait::async_trait;
 use kona_driver::PipelineCursor;
@@ -12,7 +12,6 @@ use kona_executor::TrieDBProvider;
 use kona_mpt::{TrieHinter, TrieNode, TrieProvider};
 use kona_preimage::{CommsClient, PreimageKey, PreimageKeyType};
 use l1_block_info::instruction::L1BlockInfoInstruction;
-use solana_sdk::pubkey::Pubkey;
 use soon_derive::traits::L2ChainProvider;
 use soon_primitives::blocks::{BlockInfo, L2BlockInfo, str_block_hash_to};
 use soon_primitives::l2blocks::L2Block;
@@ -248,12 +247,11 @@ impl<T: CommsClient> TrieHinter for OracleL2ChainProvider<T> {
         })
     }
 
-    fn hint_account_proof(&self, pubkey: &Pubkey, block_number: u64) -> Result<(), Self::Error> {
+    fn hint_account_proof(&self, hashed_key: B256, block_number: u64) -> Result<(), Self::Error> {
         crate::block_on(async move {
-            let hashed_address = keccak256(pubkey.as_ref());
-            info!("hint_account_proof, pubkey: {:?}, hashed_address: {:?}", pubkey, hashed_address);
+            info!("hint_account_proof hashed_address: {:?}", hashed_key);
             HintType::L2AccountProof
-                .with_data(&[block_number.to_be_bytes().as_ref(), hashed_address.as_ref()])
+                .with_data(&[block_number.to_be_bytes().as_ref(), hashed_key.as_ref()])
                 .send(self.oracle.as_ref())
                 .await
         })

@@ -128,7 +128,8 @@ where
         let diff_accounts = executor.export_diff_accounts();
         let modified_accounts = modified_accounts(&mut self.accounts_diff, diff_accounts.iter());
         self.accounts_diff.extend(diff_accounts);
-        let (state_root, withdrawal_root) = self.trie_db.world_states(modified_accounts.iter())?;
+        let (state_root, withdrawal_root) =
+            self.trie_db.world_states(modified_accounts.iter(), self.parent_slot)?;
         outcome.state_root = state_root;
         outcome.withdraw_root = withdrawal_root;
 

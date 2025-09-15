@@ -111,11 +111,12 @@ where
     pub fn world_states<'a>(
         &mut self,
         account_diff: impl IntoIterator<Item = &'a (Pubkey, AccountSharedData)>,
+        last_slot: u64,
     ) -> TrieDBResult<(B256, B256)> {
         debug!(target: "client_executor", "Recomputing state root");
 
         // Update the accounts in the trie with the changeset.
-        self.update_accounts(account_diff)?;
+        self.update_accounts(account_diff, last_slot)?;
 
         // Recompute the root hash of the trie.
         let state_root = self.root_node.blind();
@@ -142,6 +143,7 @@ where
     fn update_accounts<'a>(
         &mut self,
         account_diff: impl IntoIterator<Item = &'a (Pubkey, AccountSharedData)>,
+        last_slot: u64,
     ) -> TrieDBResult<()> {
         // Sort the account keys prior to applying the changeset, to ensure that the order of
         // application is deterministic between runs.
@@ -158,9 +160,21 @@ where
 
             // If the account was destroyed, delete it from the trie.
             if bundle_account.lamports() == 0 {
-                self.root_node.delete(&account_path, &self.fetcher, &self.hinter)?;
+                self.root_node.delete(
+                    &account_path,
+                    &self.fetcher,
+                    &self.hinter,
+                    Nibbles::new(),
+                    last_slot,
+                )?;
                 if is_withdrawal {
-                    self.withdrawal_node.delete(&account_path, &self.fetcher, &self.hinter)?;
+                    self.withdrawal_node.delete(
+                        &account_path,
+                        &self.fetcher,
+                        &self.hinter,
+                        Nibbles::new(),
+                        last_slot,
+                    )?;
                 }
                 continue;
             }
@@ -226,7 +240,10 @@ where
         pubkey: &Pubkey,
     ) -> Result<Option<AccountSharedData>, Self::Error> {
         self.hinter
-            .hint_account_proof(pubkey, self.parent_block_header.block_info.number)
+            .hint_account_proof(
+                keccak256(pubkey.as_ref()),
+                self.parent_block_header.block_info.number,
+            )
             .map_err(|e| TrieDBError::Provider(e.to_string()))?;
         let account_bytes = self
             .fetcher

@@ -4,7 +4,6 @@
 use crate::TrieNode;
 use alloy_primitives::B256;
 use core::fmt::Display;
-use solana_sdk::pubkey::Pubkey;
 
 /// The [TrieProvider] trait defines the synchronous interface for fetching trie node preimages.
 pub trait TrieProvider {
@@ -58,13 +57,13 @@ pub trait TrieHinter {
     /// Hints the host to fetch the trie node preimages on the path to the given address.
     ///
     /// ## Takes
-    /// - `pubkey` - The pubkey of the account whose trie node preimages are to be fetched.
+    /// - `hashed_key` - The keccak of pubkey of the account whose trie node preimages are to be fetched.
     /// - `block_number` - The block number at which the trie node preimages are to be fetched.
     ///
     /// ## Returns
     /// - Ok(()): If the hint was successful.
     /// - Err(Self::Error): If the hint was unsuccessful.
-    fn hint_account_proof(&self, pubkey: &Pubkey, block_number: u64) -> Result<(), Self::Error>;
+    fn hint_account_proof(&self, hashed_key: B256, block_number: u64) -> Result<(), Self::Error>;
 
     /// Hints the host to fetch the bank hash for the given block number.
     ///
