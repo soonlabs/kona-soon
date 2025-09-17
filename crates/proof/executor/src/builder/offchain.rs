@@ -1,19 +1,15 @@
 use crate::{ExecutorError, ExecutorResult, L2BlockBuilder, TrieDB, TrieDBProvider};
-use alloc::collections::BTreeMap;
-use alloc::string::ToString;
-use alloc::sync::Arc;
+use alloc::{collections::BTreeMap, string::ToString, sync::Arc};
 use alloy_primitives::{B256, Keccak256};
 use core::marker::PhantomData;
-use fraud_executor::accounts::SoonAccounts;
-use fraud_executor::executor::FraudExecutor;
-use fraud_executor::outcome::BlockBuildingOutcome;
+use fraud_executor::{
+    accounts::SoonAccounts, executor::FraudExecutor, outcome::BlockBuildingOutcome,
+};
 use kona_mpt::TrieHinter;
-use litesvm::accounts_callback::AccountsCallback;
-use litesvm::{L2Block, L2Transaction, LiteSVM};
+use litesvm::{L2Block, L2Transaction, LiteSVM, accounts_callback::AccountsCallback};
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use solana_sdk::hash::Hash;
-use soon_primitives::blocks::L2BlockHeader;
-use soon_primitives::rollup_config::SoonRollupConfig;
+use soon_primitives::{blocks::L2BlockHeader, rollup_config::SoonRollupConfig};
 
 /// The [`OffchainL2Builder`] is an OP Stack block builder that uses the offchain data to build a
 /// block.

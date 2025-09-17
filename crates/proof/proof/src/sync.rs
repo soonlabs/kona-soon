@@ -6,10 +6,8 @@ use alloy_eips::BlockNumberOrTag;
 use alloy_primitives::B256;
 use core::fmt::Debug;
 use kona_driver::{PipelineCursor, TipCursor};
-use soon_derive::traits::ChainProvider;
-use soon_derive::traits::L2ChainProvider;
-use soon_primitives::blocks::L2BlockHeader;
-use soon_primitives::rollup_config::SoonRollupConfig;
+use soon_derive::traits::{ChainProvider, L2ChainProvider};
+use soon_primitives::{blocks::L2BlockHeader, rollup_config::SoonRollupConfig};
 use spin::RwLock;
 
 /// Constructs a [`PipelineCursor`] from the caching oracle, boot info, and providers.

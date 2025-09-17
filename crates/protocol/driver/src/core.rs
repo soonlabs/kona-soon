@@ -9,9 +9,11 @@ use soon_derive::{
     errors::{PipelineError, PipelineErrorKind},
     traits::{Pipeline, SignalReceiver},
 };
-use soon_primitives::blocks::{L2BlockHeader, L2BlockInfo};
-use soon_primitives::derive::OpAttributesWithParent;
-use soon_primitives::rollup_config::SoonRollupConfig;
+use soon_primitives::{
+    blocks::{L2BlockHeader, L2BlockInfo},
+    derive::OpAttributesWithParent,
+    rollup_config::SoonRollupConfig,
+};
 use spin::RwLock;
 
 /// The Rollup Driver entrypoint.

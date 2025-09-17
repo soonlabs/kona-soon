@@ -7,11 +7,16 @@ use alloy_primitives::{B256, keccak256};
 use alloy_rlp::Decodable;
 use kona_mpt::{Nibbles, TrieHinter, TrieNode};
 use litesvm::accounts_callback::AccountsCallback;
-use solana_sdk::account::{AccountSharedData, ReadableAccount};
-use solana_sdk::pubkey::Pubkey;
-use soon_primitives::mpt::encoder::{sol_account_encoder, withdrawal_account_encoder};
+use solana_sdk::{
+    account::{AccountSharedData, ReadableAccount},
+    pubkey::Pubkey,
+};
 use soon_primitives::{
-    blocks::L2BlockHeader, mpt::WrappedSolanaAccount, mpt::account_from_solana_native,
+    blocks::L2BlockHeader,
+    mpt::{
+        WrappedSolanaAccount, account_from_solana_native,
+        encoder::{sol_account_encoder, withdrawal_account_encoder},
+    },
 };
 
 mod traits;
@@ -41,7 +46,6 @@ pub use traits::{NoopTrieDBProvider, TrieDBProvider};
 ///   `HeaderByHashFetcher` is consulted to walk back to the desired block number by revealing the
 ///   parent hash of block headers until the desired block number is reached, up to a maximum of
 ///   [BLOCK_HASH_HISTORY] blocks back relative to the current parent block hash.
-///
 #[derive(Debug, Clone)]
 pub struct TrieDB<F, H>
 where
@@ -155,8 +159,8 @@ where
             // Compute the path to the account in the trie.
             info!("update accounts: {:?} <-> {}", pubkey, hashed_address);
             let account_path = Nibbles::unpack(hashed_address.as_slice());
-            let is_withdrawal = bundle_account.owner().to_bytes()
-                == soon_primitives::mpt::WITHDRAWAL_PROGRAM_PUBKEY.to_bytes();
+            let is_withdrawal = bundle_account.owner().to_bytes() ==
+                soon_primitives::mpt::WITHDRAWAL_PROGRAM_PUBKEY.to_bytes();
 
             // If the account was destroyed, delete it from the trie.
             if bundle_account.lamports() == 0 {

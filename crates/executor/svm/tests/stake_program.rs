@@ -1,30 +1,28 @@
 // ported from https://github.com/solana-program/stake-program/blob/master/tests/tests.rs
 
-use {
-    litesvm::LiteSVM,
-    solana_sdk::{
-        account::Account,
-        entrypoint::ProgramResult,
-        epoch_schedule::EpochSchedule,
-        hash::Hash,
-        instruction::Instruction,
-        program_error::ProgramError,
-        pubkey::Pubkey,
-        signature::{Keypair, Signer},
-        signers::Signers,
-        stake::{
-            self,
-            instruction::{self as ixn, LockupArgs},
-            state::{Authorized, Delegation, Lockup, Meta, Stake, StakeAuthorize, StakeStateV2},
-        },
-        system_instruction, system_program,
-        sysvar::{clock::Clock, rent::Rent},
-        transaction::{Transaction, TransactionError},
+use litesvm::LiteSVM;
+use solana_sdk::{
+    account::Account,
+    entrypoint::ProgramResult,
+    epoch_schedule::EpochSchedule,
+    hash::Hash,
+    instruction::Instruction,
+    program_error::ProgramError,
+    pubkey::Pubkey,
+    signature::{Keypair, Signer},
+    signers::Signers,
+    stake::{
+        self,
+        instruction::{self as ixn, LockupArgs},
+        state::{Authorized, Delegation, Lockup, Meta, Stake, StakeAuthorize, StakeStateV2},
     },
-    solana_vote_program::{
-        vote_instruction,
-        vote_state::{self, VoteInit, VoteState, VoteStateVersions},
-    },
+    system_instruction, system_program,
+    sysvar::{clock::Clock, rent::Rent},
+    transaction::{Transaction, TransactionError},
+};
+use solana_vote_program::{
+    vote_instruction,
+    vote_state::{self, VoteInit, VoteState, VoteStateVersions},
 };
 
 fn increment_vote_account_credits(

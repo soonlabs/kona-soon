@@ -1,5 +1,20 @@
 #![allow(missing_docs)]
 
+pub mod accounts_callback;
+pub mod error;
+pub mod genesis;
+pub mod sysvar;
+pub mod types;
+
+mod accounts_db;
+mod builtin;
+// mod spl;
+mod block;
+mod blockhash_queue;
+mod entry;
+mod leader_schedule;
+mod utils;
+
 use crate::{
     accounts_db::AccountsDb,
     builtin::BUILTINS,
@@ -16,13 +31,14 @@ use solana_compute_budget::{
     compute_budget_processor::{ComputeBudgetLimits, process_compute_budget_instructions},
 };
 use solana_loader_v4_program::create_program_runtime_environment_v2;
-use solana_program::clock::{Clock, Epoch, INITIAL_RENT_EPOCH, MAX_PROCESSING_AGE, Slot};
-use solana_program::epoch_schedule::EpochSchedule;
-use solana_program::fee_calculator::FeeRateGovernor;
-use solana_program::hash::Hash;
-use solana_program::nonce;
-use solana_program::sysvar as solana_sysvar;
-use solana_program::sysvar::recent_blockhashes::IntoIterSorted;
+use solana_program::{
+    clock::{Clock, Epoch, INITIAL_RENT_EPOCH, MAX_PROCESSING_AGE, Slot},
+    epoch_schedule::EpochSchedule,
+    fee_calculator::FeeRateGovernor,
+    hash::Hash,
+    nonce, sysvar as solana_sysvar,
+    sysvar::recent_blockhashes::IntoIterSorted,
+};
 #[cfg(not(target_os = "zkvm"))]
 use solana_program_runtime::timings::ExecuteTimings;
 use solana_program_runtime::{
@@ -52,34 +68,21 @@ use solana_sdk::{
     transaction::{MessageHash, SanitizedTransaction, TransactionError, VersionedTransaction},
     transaction_context::{ExecutionRecord, IndexOfAccount, TransactionContext},
 };
-use solana_svm::account_loader::{CheckedTransactionDetails, TransactionCheckResult};
-use solana_svm::nonce_info::NoncePartial;
-use solana_svm::{account_loader::collect_rent_from_account, message_processor::MessageProcessor};
+use solana_svm::{
+    account_loader::{
+        CheckedTransactionDetails, TransactionCheckResult, collect_rent_from_account,
+    },
+    message_processor::MessageProcessor,
+    nonce_info::NoncePartial,
+};
 use solana_system_program::{SystemAccountKind, get_system_account_kind};
-use std::collections::BinaryHeap;
-use std::fmt::Debug;
-use std::{cell::RefCell, rc::Rc, sync::Arc};
+use std::{cell::RefCell, collections::BinaryHeap, fmt::Debug, rc::Rc, sync::Arc};
 use tracing::error;
 use types::SimulatedTransactionInfo;
 use utils::{
     construct_instructions_account,
     inner_instructions::inner_instructions_list_from_instruction_trace,
 };
-
-pub mod accounts_callback;
-pub mod error;
-pub mod genesis;
-pub mod sysvar;
-pub mod types;
-
-mod accounts_db;
-mod builtin;
-// mod spl;
-mod block;
-mod blockhash_queue;
-mod entry;
-mod leader_schedule;
-mod utils;
 
 pub use block::{L2Block, L2Transaction, RawBlock};
 pub use blockhash_queue::BlockhashQueue;
@@ -172,7 +175,6 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     pub fn new_soon() -> Self {
         Self::default()
             .with_builtins()
-            // .with_sigverify(true)
             .with_compute_budget(soon_compute_budget())
             .with_epoch_schedule(soon_epoch_schedule())
             .with_rent(soon_rent())
@@ -186,7 +188,8 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         self.accounts.set_slot(self.slot);
         self.accounts.set_epoch(self.epoch);
         // update fee rate governer
-        let fee_rate_governor = self.get_sysvar::<sysvar::SoonFeeRateGovernor>()?;
+        let fee_rate_governor =
+            self.get_sysvar::<sysvar::fee_rate_governor::SoonFeeRateGovernor>()?;
         self.fee_rate_governor = fee_rate_governor.new_derived();
 
         // create environments
@@ -209,10 +212,15 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         self.update_slot_history()?;
 
         // update blockhash queue
-        #[allow(deprecated)]
-        let blockhash_queue =
-            self.get_sysvar::<solana_sysvar::recent_blockhashes::RecentBlockhashes>()?;
-        self.blockhash_queue = blockhash_queue.into();
+        if self.parent_slot == 0 {
+            // when parent slot is genesis, the soon recent blockhashes has not been initialized
+            #[allow(deprecated)]
+            let blockhash_queue = self.get_sysvar::<solana_sysvar::recent_blockhashes::RecentBlockhashes>()?;
+            self.blockhash_queue = blockhash_queue.into();
+        } else {
+            let blockhash_queue = self.get_sysvar::<sysvar::recent_blockhashes::SoonRecentBlockhashes>()?;
+            self.blockhash_queue = blockhash_queue.into();
+        }
         self.parent_blockhash = Some(self.blockhash_queue.last_hash());
 
         // fill sysvars cache
@@ -501,8 +509,8 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
                         .load_account(key)
                         .map_err(|_| TransactionError::AccountNotFound)?
                         .unwrap_or_default();
-                    if !validated_fee_payer
-                        && (!message.is_invoked(i) || message.is_instruction_account(i))
+                    if !validated_fee_payer &&
+                        (!message.is_invoked(i) || message.is_instruction_account(i))
                     {
                         fee_payer_rent_debit = collect_rent_from_account(
                             &self.feature_set,
@@ -995,11 +1003,6 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         self.feature_set.clone()
     }
 
-    // fn check_transaction_age(&self, tx: &SanitizedTransaction) -> Result<(), ExecutionResult> {
-    //     self.check_transaction_age_inner(tx)
-    //         .map_err(|e| ExecutionResult { tx_result: Err(e), ..Default::default() })
-    // }
-
     fn check_transaction_age(
         &mut self,
         tx: &SanitizedTransaction,
@@ -1021,8 +1024,8 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
                 lamports_per_signature: nonce_data.get_lamports_per_signature(),
             })
         } else if tx.message().fee_payer() == &NO_SIG_TX_PAYER {
-            // TODO: should use native transaction verification logic, only use fee payer is not correct
-            // Native transaction do not pay fees
+            // TODO: should use native transaction verification logic, only use fee payer is not
+            // correct Native transaction do not pay fees
             Ok(CheckedTransactionDetails { nonce: None, lamports_per_signature: 0 })
         } else {
             Err(TransactionError::BlockhashNotFound)
@@ -1093,16 +1096,23 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
     fn update_recent_blockhashes_locked(&mut self) -> Result<(), LiteSVMError> {
         let recent_blockhash_iter = self.get_blockhash_queue().get_recent_blockhashes();
         let sorted = BinaryHeap::from_iter(recent_blockhash_iter);
-        let recent_blockhashes: solana_sysvar::recent_blockhashes::RecentBlockhashes =
-            IntoIterSorted::new(sorted)
+        // solana recent blockhashes sysvar
+        let solana_recent_blockhashes: solana_sysvar::recent_blockhashes::RecentBlockhashes =
+            IntoIterSorted::new(sorted.clone())
                 .take(solana_sysvar::recent_blockhashes::MAX_ENTRIES)
                 .collect();
-        self.update_sysvar(recent_blockhashes)?;
+        // soon recent blockhashes sysvar
+        let soon_recent_blockhashes: sysvar::recent_blockhashes::SoonRecentBlockhashes =
+            IntoIterSorted::new(sorted).take(sysvar::recent_blockhashes::MAX_ENTRIES).collect();
+        // update both sysvars
+        self.update_sysvar(solana_recent_blockhashes)?;
+        self.update_sysvar(soon_recent_blockhashes)?;
+
         Ok(())
     }
 
     fn update_fee_rate_governor(&mut self) -> Result<(), LiteSVMError> {
-        let fee_rate_governor = sysvar::SoonFeeRateGovernor {
+        let fee_rate_governor = sysvar::fee_rate_governor::SoonFeeRateGovernor {
             fee_rate_governor: self.fee_rate_governor.clone(),
             signature_count: self.signature_count,
         };
@@ -1327,8 +1337,8 @@ fn check_rent_state_with_account(
     address: &Pubkey,
     account_index: IndexOfAccount,
 ) -> solana_sdk::transaction::Result<()> {
-    if !solana_sdk::incinerator::check_id(address)
-        && !post_rent_state.transition_allowed_from(pre_rent_state)
+    if !solana_sdk::incinerator::check_id(address) &&
+        !post_rent_state.transition_allowed_from(pre_rent_state)
     {
         let account_index = account_index as u8;
         error!("Transaction would leave account {address} with insufficient funds for rent");

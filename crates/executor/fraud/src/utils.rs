@@ -1,25 +1,28 @@
 use std::collections::{BTreeMap, HashSet};
 
-use crate::accounts::{AccountPairs, SoonAccounts};
-use crate::error::{Error, Result};
+use crate::{
+    accounts::{AccountPairs, SoonAccounts},
+    error::{Error, Result},
+};
 use alloy_primitives::{B256, keccak256};
-use litesvm::LiteSVM;
-use litesvm::accounts_callback::AccountsCallback;
-use litesvm::types::TransactionMetadata;
-use solana_sdk::account::{AccountSharedData, ReadableAccount, accounts_equal};
-use solana_sdk::pubkey::Pubkey;
-use soon_primitives::blocks::RawBlock;
-use soon_primitives::mpt::account::TrieSolanaAccount as MptAccount;
-use soon_primitives::mpt::account_from_solana_native;
+use litesvm::{LiteSVM, accounts_callback::AccountsCallback, types::TransactionMetadata};
+use solana_sdk::{
+    account::{AccountSharedData, ReadableAccount, accounts_equal},
+    pubkey::Pubkey,
+};
+use soon_primitives::{
+    blocks::RawBlock,
+    mpt::{account::TrieSolanaAccount as MptAccount, account_from_solana_native},
+};
 
-// pub fn init_litesvm_with_accounts<CB: AccountsCallback>(accounts: &SoonAccounts) -> Result<LiteSVM<CB>> {
-//     let mut litesvm = LiteSVM::default().with_builtins().with_precompiles();
-//     litesvm_import_accounts(&mut litesvm, accounts)?;
-//     Ok(litesvm)
+// pub fn init_litesvm_with_accounts<CB: AccountsCallback>(accounts: &SoonAccounts) ->
+// Result<LiteSVM<CB>> {     let mut litesvm =
+// LiteSVM::default().with_builtins().with_precompiles();     litesvm_import_accounts(&mut litesvm,
+// accounts)?;     Ok(litesvm)
 // }
 //
-// pub fn litesvm_import_accounts(litesvm: &mut LiteSVM<impl AccountsCallback>, accounts: &SoonAccounts) -> Result<()> {
-//     litesvm.import_accounts(accounts.accounts.clone())?;
+// pub fn litesvm_import_accounts(litesvm: &mut LiteSVM<impl AccountsCallback>, accounts:
+// &SoonAccounts) -> Result<()> {     litesvm.import_accounts(accounts.accounts.clone())?;
 //     Ok(())
 // }
 //
@@ -47,8 +50,8 @@ use soon_primitives::mpt::account_from_solana_native;
 //                 // if account exists but differs, use the Soon storage version (overwrite)
 //                 let existing_shared_data: AccountSharedData = existing_account.into();
 //                 if existing_shared_data != *account {
-//                     litesvm.set_account(*pubkey, (*account).clone().into()).map(|_| "overwritten")
-//                 } else {
+//                     litesvm.set_account(*pubkey, (*account).clone().into()).map(|_|
+// "overwritten")                 } else {
 //                     Ok("identical")
 //                 }
 //             } else {
@@ -136,16 +139,16 @@ pub fn classify_account(pubkey: &Pubkey, account: &AccountSharedData) -> String 
     let pubkey_str = pubkey.to_string();
 
     // first check if it's a known sysvar account
-    if pubkey_str.starts_with("SysVar")
-        || is_known_sysvar(&pubkey_str)
-        || *account.owner() == solana_sdk::sysvar::id()
+    if pubkey_str.starts_with("SysVar") ||
+        is_known_sysvar(&pubkey_str) ||
+        *account.owner() == solana_sdk::sysvar::id()
     {
         return format!("Sysvar ({})", pubkey_str);
     }
 
     // check special config accounts (also a sysvar)
-    if pubkey_str == "StakeConfig11111111111111111111111111111111"
-        || *account.owner() == solana_sdk::config::program::id()
+    if pubkey_str == "StakeConfig11111111111111111111111111111111" ||
+        *account.owner() == solana_sdk::config::program::id()
     {
         return format!("Sysvar ({})", pubkey_str);
     }
@@ -416,11 +419,11 @@ pub fn analyze_account_sets(
     for pubkey in &common_accounts {
         let soon_account = soon_map[pubkey];
         let litesvm_account = litesvm_map[pubkey];
-        if soon_account.lamports() != litesvm_account.lamports()
-            || soon_account.data() != litesvm_account.data()
-            || soon_account.owner() != litesvm_account.owner()
-            || soon_account.executable() != litesvm_account.executable()
-            || soon_account.rent_epoch() != litesvm_account.rent_epoch()
+        if soon_account.lamports() != litesvm_account.lamports() ||
+            soon_account.data() != litesvm_account.data() ||
+            soon_account.owner() != litesvm_account.owner() ||
+            soon_account.executable() != litesvm_account.executable() ||
+            soon_account.rent_epoch() != litesvm_account.rent_epoch()
         {
             mismatched += 1;
             mismatched_accounts.push((pubkey, soon_account, litesvm_account));

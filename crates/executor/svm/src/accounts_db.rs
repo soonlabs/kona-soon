@@ -1,10 +1,12 @@
-use crate::accounts_callback::AccountsCallback;
-use crate::error::{InvalidSysvarDataError, LiteSVMError};
-use solana_program::clock::{Epoch, Slot};
+use crate::{
+    accounts_callback::AccountsCallback,
+    error::{InvalidSysvarDataError, LiteSVMError},
+};
 use solana_program::{
     address_lookup_table::{self, error::AddressLookupError, state::AddressLookupTable},
     bpf_loader, bpf_loader_deprecated,
     bpf_loader_upgradeable::{self, UpgradeableLoaderState},
+    clock::{Epoch, Slot},
     instruction::InstructionError,
     loader_v4::{self, LoaderV4State},
     message::{

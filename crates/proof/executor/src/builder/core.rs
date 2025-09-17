@@ -1,22 +1,19 @@
 //! The [StatelessL2Builder] is a block builder that pulls state from a [TrieDB] during execution.
 
-use crate::ExecutorError;
-use crate::{ExecutorResult, TrieDB, TrieDBProvider, builder::L2BlockBuilder};
-use alloc::collections::BTreeMap;
-use alloc::string::ToString;
-use alloc::sync::Arc;
+use crate::{ExecutorError, ExecutorResult, TrieDB, TrieDBProvider, builder::L2BlockBuilder};
+use alloc::{collections::BTreeMap, string::ToString, sync::Arc};
 use alloy_primitives::B256;
-use fraud_executor::outcome::BlockBuildingOutcome;
-use fraud_executor::utils::modified_accounts;
-use fraud_executor::{accounts::SoonAccounts, executor::FraudExecutor};
+use fraud_executor::{
+    accounts::SoonAccounts, executor::FraudExecutor, outcome::BlockBuildingOutcome,
+    utils::modified_accounts,
+};
 use kona_mpt::TrieHinter;
 use litesvm::{L2Block, L2Transaction, LiteSVM};
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
-use solana_sdk::account::AccountSharedData;
-use solana_sdk::pubkey::Pubkey;
-use soon_primitives::blocks::L2BlockHeader;
-use soon_primitives::output_root::OutputRoot;
-use soon_primitives::rollup_config::SoonRollupConfig;
+use solana_sdk::{account::AccountSharedData, pubkey::Pubkey};
+use soon_primitives::{
+    blocks::L2BlockHeader, output_root::OutputRoot, rollup_config::SoonRollupConfig,
+};
 
 /// The [`StatelessL2Builder`] is an OP Stack block builder that traverses a merkle patricia trie
 /// via the [`TrieDB`] during execution.

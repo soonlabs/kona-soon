@@ -1,8 +1,9 @@
+use crate::sysvar as soon_sysvar;
 use serde::{Deserialize, Serialize};
-use solana_program::clock::MAX_RECENT_BLOCKHASHES;
-use solana_program::fee_calculator::FeeCalculator;
-use solana_program::hash::Hash;
-use solana_program::sysvar;
+use solana_program::{
+    clock::MAX_RECENT_BLOCKHASHES, fee_calculator::FeeCalculator, hash::Hash,
+    sysvar as solana_sysvar,
+};
 use std::collections::HashMap;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -69,9 +70,9 @@ impl BlockhashQueue {
     #[allow(deprecated)]
     pub(crate) fn get_recent_blockhashes(
         &self,
-    ) -> impl Iterator<Item = sysvar::recent_blockhashes::IterItem<'_>> {
+    ) -> impl Iterator<Item = solana_sysvar::recent_blockhashes::IterItem<'_>> {
         self.hashes.iter().map(|(k, v)| {
-            sysvar::recent_blockhashes::IterItem(
+            solana_sysvar::recent_blockhashes::IterItem(
                 v.hash_index,
                 k,
                 v.fee_calculator.lamports_per_signature,
@@ -85,8 +86,35 @@ impl BlockhashQueue {
 }
 
 #[allow(deprecated)]
-impl From<sysvar::recent_blockhashes::RecentBlockhashes> for BlockhashQueue {
-    fn from(recent_blockhashes: sysvar::recent_blockhashes::RecentBlockhashes) -> Self {
+impl From<soon_sysvar::recent_blockhashes::SoonRecentBlockhashes> for BlockhashQueue {
+    fn from(recent_blockhashes: soon_sysvar::recent_blockhashes::SoonRecentBlockhashes) -> Self {
+        let len = recent_blockhashes.len() as u64;
+        let hashes = recent_blockhashes
+            .iter()
+            .enumerate()
+            .map(|(index, entry)| {
+                (
+                    entry.blockhash,
+                    HashInfo {
+                        fee_calculator: entry.fee_calculator,
+                        hash_index: len - index as u64, // This will be set later
+                        timestamp: 0,                   // This will be set later
+                    },
+                )
+            })
+            .collect::<HashMap<_, _>>();
+        BlockhashQueue {
+            hashes,
+            last_hash_index: len,
+            last_hash: recent_blockhashes.first().map(|entry| entry.blockhash),
+            max_age: MAX_RECENT_BLOCKHASHES,
+        }
+    }
+}
+
+#[allow(deprecated)]
+impl From<solana_sysvar::recent_blockhashes::RecentBlockhashes> for BlockhashQueue {
+    fn from(recent_blockhashes: solana_sysvar::recent_blockhashes::RecentBlockhashes) -> Self {
         let len = recent_blockhashes.len() as u64;
         let hashes = recent_blockhashes
             .iter()

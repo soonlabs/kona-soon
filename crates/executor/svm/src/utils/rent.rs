@@ -47,7 +47,8 @@ impl RentState {
 
 #[cfg(test)]
 mod tests {
-    use {super::*, solana_sdk::pubkey::Pubkey};
+    use super::*;
+    use solana_sdk::pubkey::Pubkey;
 
     #[test]
     fn test_from_account() {

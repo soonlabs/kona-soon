@@ -13,10 +13,8 @@ use kona_proof::{
     l2::OracleL2ChainProvider,
     sync::new_oracle_pipeline_cursor,
 };
-use soon_derive::errors::PipelineErrorKind;
-use soon_derive::sources::DAServerSource;
-use soon_primitives::blocks::L2BlockHeader;
-use soon_primitives::output_root::OutputRoot;
+use soon_derive::{errors::PipelineErrorKind, sources::DAServerSource};
+use soon_primitives::{blocks::L2BlockHeader, output_root::OutputRoot};
 use thiserror::Error;
 use tracing::{error, info};
 

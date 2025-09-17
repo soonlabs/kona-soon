@@ -1,7 +1,6 @@
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use solana_program::clock::Slot;
-use solana_program::pubkey::Pubkey;
+use solana_program::{clock::Slot, pubkey::Pubkey};
 
 #[derive(Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct LeaderSchedule {

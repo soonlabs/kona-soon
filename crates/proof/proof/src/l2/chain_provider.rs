@@ -1,7 +1,6 @@
 //! Contains the concrete implementation of the [L2ChainProvider] trait for the client program.
 
-use crate::alloc::string::ToString;
-use crate::{HintType, errors::OracleProviderError};
+use crate::{HintType, alloc::string::ToString, errors::OracleProviderError};
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use alloy_eips::BlockNumHash;
 use alloy_primitives::{Address, B256, Bytes, U160};
@@ -13,10 +12,12 @@ use kona_mpt::{TrieHinter, TrieNode, TrieProvider};
 use kona_preimage::{CommsClient, PreimageKey, PreimageKeyType};
 use l1_block_info::instruction::L1BlockInfoInstruction;
 use soon_derive::traits::L2ChainProvider;
-use soon_primitives::blocks::{BlockInfo, L2BlockInfo, str_block_hash_to};
-use soon_primitives::l2blocks::L2Block;
-use soon_primitives::rollup_config::SoonRollupConfig;
-use soon_primitives::system::SystemConfig;
+use soon_primitives::{
+    blocks::{BlockInfo, L2BlockInfo, str_block_hash_to},
+    l2blocks::L2Block,
+    rollup_config::SoonRollupConfig,
+    system::SystemConfig,
+};
 use spin::RwLock;
 
 /// Trait for setting a pipeline cursor.

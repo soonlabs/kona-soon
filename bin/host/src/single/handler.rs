@@ -130,8 +130,8 @@ impl HintHandler for SingleChainHintHandler {
                 return Ok(());
                 // ensure!(hint.data.len() == 32, "Invalid hint data length");
                 // let hash: B256 = hint.data.as_ref().try_into()?;
-                // warn!(target: "single_hint_handler", "L2StateNode hint was sent for node hash: {}", hash);
-                // warn!(
+                // warn!(target: "single_hint_handler", "L2StateNode hint was sent for node hash:
+                // {}", hash); warn!(
                 //     target: "single_hint_handler",
                 //     "`debug_executePayload` failed to return a complete witness."
                 // );

@@ -8,10 +8,8 @@ use kona_preimage::{
     errors::{PreimageOracleError, PreimageOracleResult},
 };
 use kona_proof::{Hint, errors::HintParsingError};
-use std::time::Duration;
-use std::{collections::HashSet, fmt::Debug, hash::Hash, str::FromStr, sync::Arc};
-use tokio::sync::RwLock;
-use tokio::time::sleep;
+use std::{collections::HashSet, fmt::Debug, hash::Hash, str::FromStr, sync::Arc, time::Duration};
+use tokio::{sync::RwLock, time::sleep};
 use tracing::{debug, error, info, trace};
 
 /// The [OnlineHostBackendCfg] trait is used to define the type configuration for the

@@ -59,8 +59,8 @@ fn criterion_benchmark(c: &mut Criterion) {
         })
     });
     group.bench_function("max_perf_banks_client", |b| {
-        // this has to do more work than max_perf_litesvm because you can't turn off blockhash checking.
-        // That's ok, the point is that litesvm lets you strip away more stuff.
+        // this has to do more work than max_perf_litesvm because you can't turn off blockhash
+        // checking. That's ok, the point is that litesvm lets you strip away more stuff.
         b.iter(|| {
             let rt = tokio::runtime::Runtime::new().unwrap();
             rt.block_on(async {

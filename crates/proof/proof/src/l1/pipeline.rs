@@ -16,10 +16,12 @@ use soon_derive::{
     },
     types::{PipelineResult, ResetSignal, Signal, StepResult},
 };
-use soon_primitives::blocks::{BlockInfo, L2BlockInfo};
-use soon_primitives::derive::OpAttributesWithParent;
-use soon_primitives::rollup_config::SoonRollupConfig;
-use soon_primitives::system::SystemConfig;
+use soon_primitives::{
+    blocks::{BlockInfo, L2BlockInfo},
+    derive::OpAttributesWithParent,
+    rollup_config::SoonRollupConfig,
+    system::SystemConfig,
+};
 use spin::RwLock;
 
 /// An oracle-backed derivation pipeline.

@@ -3,8 +3,7 @@
 use alloc::{boxed::Box, sync::Arc};
 use alloy_primitives::B256;
 use async_trait::async_trait;
-use fraud_executor::accounts::SoonAccounts;
-use fraud_executor::outcome::BlockBuildingOutcome;
+use fraud_executor::{accounts::SoonAccounts, outcome::BlockBuildingOutcome};
 use kona_driver::Executor;
 pub use kona_executor::{L2BlockBuilder, OffchainL2Builder, StatelessL2Builder};
 use kona_executor::{TrieDB, TrieDBProvider};

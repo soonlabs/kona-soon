@@ -1,17 +1,15 @@
 // ported from https://github.com/solana-program/config/blob/main/program/tests/functional.rs
-use {
-    bincode::{deserialize, serialized_size},
-    litesvm::LiteSVM,
-    serde::{Deserialize, Serialize},
-    solana_config_program::{ConfigKeys, ConfigState, config_instruction, get_config_data},
-    solana_sdk::{
-        account::{Account, ReadableAccount},
-        instruction::{AccountMeta, InstructionError},
-        pubkey::Pubkey,
-        rent::Rent,
-        signature::{Keypair, Signer},
-        transaction::{Transaction, TransactionError},
-    },
+use bincode::{deserialize, serialized_size};
+use litesvm::LiteSVM;
+use serde::{Deserialize, Serialize};
+use solana_config_program::{ConfigKeys, ConfigState, config_instruction, get_config_data};
+use solana_sdk::{
+    account::{Account, ReadableAccount},
+    instruction::{AccountMeta, InstructionError},
+    pubkey::Pubkey,
+    rent::Rent,
+    signature::{Keypair, Signer},
+    transaction::{Transaction, TransactionError},
 };
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
@@ -52,8 +50,8 @@ fn setup_test_context() -> TestContext {
 
 fn get_config_space(key_len: usize) -> usize {
     let entry_size = bincode::serialized_size(&(Pubkey::default(), true)).unwrap() as usize;
-    bincode::serialized_size(&(ConfigKeys::default(), MyConfig::default())).unwrap() as usize
-        + key_len * entry_size
+    bincode::serialized_size(&(ConfigKeys::default(), MyConfig::default())).unwrap() as usize +
+        key_len * entry_size
 }
 
 fn create_config_account(

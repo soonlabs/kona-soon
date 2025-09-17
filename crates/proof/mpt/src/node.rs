@@ -447,8 +447,9 @@ impl TrieNode {
                             //     .hint_trie_node(*commitment)
                             //     .map_err(|e| TrieNodeError::Provider(e.to_string()))?;
 
-                            // NOTE: soon doesn't support hint commitment, so we just mock an no-existed node
-                            // and hint l2 proof to hint commitment indirectly.
+                            // NOTE: soon doesn't support hint commitment, so we just mock an
+                            // no-existed node and hint l2 proof to hint
+                            // commitment indirectly.
                             let hash = {
                                 let mut full_path = walked_prefix.clone();
                                 full_path.push(*index as u8);

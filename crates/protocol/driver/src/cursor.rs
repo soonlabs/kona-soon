@@ -2,8 +2,7 @@
 
 use alloc::collections::{btree_map::BTreeMap, vec_deque::VecDeque};
 use alloy_primitives::{B256, map::HashMap};
-use soon_primitives::blocks::L2BlockInfo;
-use soon_primitives::blocks::{BlockInfo, L2BlockHeader};
+use soon_primitives::blocks::{BlockInfo, L2BlockHeader, L2BlockInfo};
 
 use crate::TipCursor;
 

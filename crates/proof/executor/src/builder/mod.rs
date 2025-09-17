@@ -3,13 +3,11 @@ use alloc::sync::Arc;
 use alloy_primitives::B256;
 use kona_mpt::TrieHinter;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
-use soon_primitives::blocks::L2BlockHeader;
-use soon_primitives::rollup_config::SoonRollupConfig;
+use soon_primitives::{blocks::L2BlockHeader, rollup_config::SoonRollupConfig};
 
 mod core;
 pub use core::StatelessL2Builder;
-use fraud_executor::accounts::SoonAccounts;
-use fraud_executor::outcome::BlockBuildingOutcome;
+use fraud_executor::{accounts::SoonAccounts, outcome::BlockBuildingOutcome};
 
 mod offchain;
 pub use offchain::{

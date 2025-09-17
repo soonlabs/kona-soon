@@ -2,8 +2,11 @@
 
 use crate::{HintType, errors::OracleProviderError};
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
-use alloy_consensus::TxEip4844Variant::{TxEip4844, TxEip4844WithSidecar};
-use alloy_consensus::{Header, Receipt, ReceiptEnvelope, TxEnvelope};
+use alloy_consensus::{
+    Header, Receipt, ReceiptEnvelope,
+    TxEip4844Variant::{TxEip4844, TxEip4844WithSidecar},
+    TxEnvelope,
+};
 use alloy_eips::{BlockNumberOrTag, Decodable2718};
 use alloy_primitives::B256;
 use alloy_rlp::Decodable;

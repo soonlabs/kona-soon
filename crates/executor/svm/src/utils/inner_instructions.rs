@@ -11,8 +11,8 @@ pub(crate) fn inner_instructions_list_from_instruction_trace(
     debug_assert!(
         transaction_context
             .get_instruction_context_at_index_in_trace(0)
-            .map(|instruction_context| instruction_context.get_stack_height()
-                == TRANSACTION_LEVEL_STACK_HEIGHT)
+            .map(|instruction_context| instruction_context.get_stack_height() ==
+                TRANSACTION_LEVEL_STACK_HEIGHT)
             .unwrap_or(true)
     );
     let mut outer_instructions = Vec::new();

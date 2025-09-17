@@ -57,7 +57,8 @@ pub trait TrieHinter {
     /// Hints the host to fetch the trie node preimages on the path to the given address.
     ///
     /// ## Takes
-    /// - `hashed_key` - The keccak of pubkey of the account whose trie node preimages are to be fetched.
+    /// - `hashed_key` - The keccak of pubkey of the account whose trie node preimages are to be
+    ///   fetched.
     /// - `block_number` - The block number at which the trie node preimages are to be fetched.
     ///
     /// ## Returns

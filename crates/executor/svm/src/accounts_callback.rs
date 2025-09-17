@@ -1,15 +1,18 @@
 use crate::builtin::BUILTINS;
 use serde::{Deserialize, Serialize};
-use solana_program::clock::INITIAL_RENT_EPOCH;
-use solana_program::pubkey::Pubkey;
-use solana_program::rent::Rent;
-use solana_program::sysvar::{Sysvar, SysvarId};
-use solana_sdk::account::{AccountSharedData, WritableAccount};
-use solana_sdk::feature_set::FeatureSet;
-use solana_sdk::native_loader;
-use solana_sdk::precompiles::get_precompiles;
-use std::collections::HashMap;
-use std::fmt::Debug;
+use solana_program::{
+    clock::INITIAL_RENT_EPOCH,
+    pubkey::Pubkey,
+    rent::Rent,
+    sysvar::{Sysvar, SysvarId},
+};
+use solana_sdk::{
+    account::{AccountSharedData, WritableAccount},
+    feature_set::FeatureSet,
+    native_loader,
+    precompiles::get_precompiles,
+};
+use std::{collections::HashMap, fmt::Debug};
 use tracing::debug;
 
 /// Fetch account data for a given public key at a specific slot.

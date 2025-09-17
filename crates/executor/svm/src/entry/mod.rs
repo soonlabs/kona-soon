@@ -4,8 +4,7 @@ mod poh;
 use merkle_tree::MerkleTree;
 use poh::Poh;
 use serde::{Deserialize, Serialize};
-use solana_sdk::hash::Hash;
-use solana_sdk::transaction::VersionedTransaction;
+use solana_sdk::{hash::Hash, transaction::VersionedTransaction};
 
 /// Each Entry contains three pieces of data. The `num_hashes` field is the number
 /// of hashes performed since the previous entry.  The `hash` field is the result

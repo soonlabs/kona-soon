@@ -1,7 +1,5 @@
-use solana_program::lamports::LamportsError;
-use solana_program::pubkey::Pubkey;
-use solana_sdk::instruction::InstructionError;
-use solana_sdk::transaction::TransactionError;
+use solana_program::{lamports::LamportsError, pubkey::Pubkey};
+use solana_sdk::{instruction::InstructionError, transaction::TransactionError};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
