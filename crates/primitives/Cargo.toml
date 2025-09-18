@@ -1,0 +1,38 @@
+[package]
+name = "soon-primitives"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+license.workspace = true
+edition.workspace = true
+
+[dependencies]
+alloy-eips = { workspace = true }
+alloy-primitives = { workspace = true }
+alloy-consensus = { workspace = true, features = ["k256"] }
+alloy-sol-types.workspace = true
+alloy-rlp = { workspace = true }
+bincode = { workspace = true }
+op-alloy-rpc-types-engine = { workspace = true }
+solana-sdk = { workspace = true }
+solana-program = { workspace = true }
+solana-transaction-status = { workspace = true }
+solana-account-decoder = { workspace = true }
+#solana-runtime = { workspace = true }
+spl-token = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+hex-literal = { workspace = true }
+bridge = { workspace = true, features = ["no-entrypoint"] }
+l1-block-info = { workspace = true, features = ["no-entrypoint"] }
+num-bigint = { workspace = true }
+serde_json = { workspace = true }
+log = { workspace = true }
+derive_more = { workspace = true, features = ["from", "display", "deref"] }
+once_cell.workspace = true
+smallvec.workspace = true
+
+[dev-dependencies]
+anyhow = { workspace = true }
+solana-runtime = { workspace = true, features = ["dev-context-only-utils"] }

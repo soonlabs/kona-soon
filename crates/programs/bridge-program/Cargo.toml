@@ -1,0 +1,40 @@
+[package]
+name = "bridge"
+description = "Soon bridge program"
+version = "1.0.0"
+authors = ["Soon Labs <maintainers@soon.foundation>"]
+repository = "https://github.com/soonlabs/soon/contracts/l2/svm-withdraw-bridge"
+homepage = "https://www.soo.network/"
+license = "Apache-2.0"
+edition = "2021"
+
+[features]
+no-entrypoint = []
+test-sbf = []
+
+[dependencies]
+arrayref = "0.3.7"
+num-derive = "0.4"
+num-traits = "0.2"
+solana-program = { workspace = true }
+thiserror = "1.0"
+ethnum = "1.5.0"
+serde = "1.0.203"
+ethabi = "18.0.0"
+keccak-hash = "0.10.0"
+spl-token = { version = "6.0.0", features = ["no-entrypoint"] }
+spl-associated-token-account = { version = "4.0.0", features = ["no-entrypoint"] }
+mpl-token-metadata = "5.1.0"
+
+[dev-dependencies]
+anyhow = "1.0"
+bincode = "1.0"
+solana-sdk = { workspace = true }
+serial_test = "2.0"
+
+[lib]
+name = "bridge"
+crate-type = ["cdylib", "lib"]
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]

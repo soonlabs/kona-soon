@@ -1,0 +1,88 @@
+[package]
+name = "soon-derive"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+license.workspace = true
+edition.workspace = true
+
+
+[dependencies]
+# Alloy
+alloy-eips = { workspace = true }
+alloy-rpc-types-engine = { workspace = true }
+alloy-rlp = { workspace = true, features = ["derive"] }
+alloy-consensus = { workspace = true, features = ["k256"] }
+alloy-primitives = { workspace = true, features = ["rlp", "k256", "map"] }
+
+# Op Alloy
+op-alloy-consensus = { workspace = true }
+op-alloy-rpc-types-engine = { workspace = true }
+
+# soon
+soon-primitives = { workspace = true }
+
+#solana
+solana-sdk = { workspace = true }
+
+# General
+thiserror = { git = "https://github.com/quartiq/thiserror", rev = "e779e1b", default-features = false }
+brotli = { workspace = true }
+tracing = { workspace = true }
+soon-miniz-oxide = { workspace = true }
+async-trait = { workspace = true }
+unsigned-varint = { workspace = true }
+alloc-no-stdlib = { workspace = true }
+bincode = { workspace = true }
+
+# `serde` feature dependencies
+serde = { workspace = true, optional = true, features = ["derive"] }
+
+# `metrics` feature dependencies
+lazy_static = { workspace = true, optional = true }
+prometheus = { workspace = true, optional = true, features = ["process"] }
+
+# `test-utils` feature dependencies
+spin = { workspace = true, optional = true }
+anyhow = { workspace = true, optional = true }
+alloy-rpc-client = { workspace = true, optional = true }
+alloy-node-bindings = { workspace = true, optional = true }
+alloy-transport-http = { workspace = true, optional = true }
+tracing-subscriber = { workspace = true, optional = true, features = ["fmt"] }
+
+[dev-dependencies]
+spin = { workspace = true }
+anyhow = { workspace = true }
+proptest = { workspace = true }
+serde_json = { workspace = true }
+alloy = { workspace = true, features = ["full"] }
+alloy-rpc-client = { workspace = true }
+alloy-node-bindings = { workspace = true }
+alloy-transport-http = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+tracing-subscriber = { workspace = true, features = ["fmt"] }
+alloy-primitives = { workspace = true, features = [
+  "rlp",
+  "k256",
+  "map",
+  "arbitrary",
+] }
+
+
+
+[features]
+default = []
+serde = [
+  "dep:serde",
+  "alloy-primitives/serde",
+  "alloy-consensus/serde",
+  "alloy-primitives/serde",
+  "alloy-consensus/serde",
+  "op-alloy-rpc-types-engine/serde",
+]
+test-utils = [
+  "dep:spin",
+  "dep:tracing-subscriber",
+]
+

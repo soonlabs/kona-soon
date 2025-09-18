@@ -215,10 +215,12 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         if self.parent_slot == 0 {
             // when parent slot is genesis, the soon recent blockhashes has not been initialized
             #[allow(deprecated)]
-            let blockhash_queue = self.get_sysvar::<solana_sysvar::recent_blockhashes::RecentBlockhashes>()?;
+            let blockhash_queue =
+                self.get_sysvar::<solana_sysvar::recent_blockhashes::RecentBlockhashes>()?;
             self.blockhash_queue = blockhash_queue.into();
         } else {
-            let blockhash_queue = self.get_sysvar::<sysvar::recent_blockhashes::SoonRecentBlockhashes>()?;
+            let blockhash_queue =
+                self.get_sysvar::<sysvar::recent_blockhashes::SoonRecentBlockhashes>()?;
             self.blockhash_queue = blockhash_queue.into();
         }
         self.parent_blockhash = Some(self.blockhash_queue.last_hash());
@@ -509,8 +511,8 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
                         .load_account(key)
                         .map_err(|_| TransactionError::AccountNotFound)?
                         .unwrap_or_default();
-                    if !validated_fee_payer &&
-                        (!message.is_invoked(i) || message.is_instruction_account(i))
+                    if !validated_fee_payer
+                        && (!message.is_invoked(i) || message.is_instruction_account(i))
                     {
                         fee_payer_rent_debit = collect_rent_from_account(
                             &self.feature_set,
@@ -1337,8 +1339,8 @@ fn check_rent_state_with_account(
     address: &Pubkey,
     account_index: IndexOfAccount,
 ) -> solana_sdk::transaction::Result<()> {
-    if !solana_sdk::incinerator::check_id(address) &&
-        !post_rent_state.transition_allowed_from(pre_rent_state)
+    if !solana_sdk::incinerator::check_id(address)
+        && !post_rent_state.transition_allowed_from(pre_rent_state)
     {
         let account_index = account_index as u8;
         error!("Transaction would leave account {address} with insufficient funds for rent");

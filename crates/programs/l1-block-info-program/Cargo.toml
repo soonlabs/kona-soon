@@ -1,0 +1,27 @@
+[package]
+name = "l1-block-info"
+description = "Solana l1 block info program"
+version = "1.0.0"
+authors = ["Soon Labs <maintainers@soon.foundation>"]
+repository = "https://github.com/soonl2/soon/contracts/l2/svm-withdraw-bridge"
+homepage = "https://www.soo.network/"
+license = "Apache-2.0"
+edition = "2021"
+
+[features]
+no-entrypoint = []
+test-sbf = []
+
+[dependencies]
+arrayref = "0.3.7"
+num-derive = "0.4"
+num-traits = "0.2"
+solana-program = { workspace = true }
+thiserror = "1.0"
+
+[lib]
+name = "l1_block_info"
+crate-type = ["cdylib", "lib"]
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]

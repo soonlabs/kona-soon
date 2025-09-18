@@ -1,0 +1,35 @@
+[package]
+name = "soon-l2-chain-provider"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+license.workspace = true
+edition.workspace = true
+
+[dependencies]
+soon-derive = { workspace = true }
+soon-primitives = { workspace = true }
+l1-block-info = { workspace = true }
+alloy-eips.workspace = true
+alloy-primitives.workspace = true
+
+#Solana
+solana-client = { workspace = true }
+solana-transaction-status = { workspace = true }
+solana-sdk = { workspace = true }
+
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros"] }
+futures = { workspace = true}
+async-trait = { workspace = true }
+lru = { workspace = true }
+reqwest = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_derive = { workspace = true }
+jsonrpsee = { workspace = true, features = ["http-client"] }
+hex = { workspace = true }
+
