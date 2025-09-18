@@ -1,7 +1,6 @@
 //! This module contains functionality for compression.
 
-use crate::alloc::vec;
-use crate::alloc::vec::Vec;
+use crate::alloc::{vec, vec::Vec};
 
 mod buffer;
 pub mod core;

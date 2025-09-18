@@ -1,8 +1,10 @@
 use serde::{Deserialize, Serialize};
-use solana_program::declare_id;
-use solana_program::fee_calculator::FeeRateGovernor;
-use solana_program::pubkey::Pubkey;
-use solana_program::sysvar::{Sysvar, SysvarId};
+use solana_program::{
+    declare_id,
+    fee_calculator::FeeRateGovernor,
+    pubkey::Pubkey,
+    sysvar::{Sysvar, SysvarId},
+};
 
 declare_id!("SoonFeeRateGovernor111111111111111111111111");
 

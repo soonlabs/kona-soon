@@ -2,13 +2,11 @@ pub mod account;
 pub mod encoder;
 
 use self::account::{TrieSolanaAccount as Account, TrieSolanaPubkey};
-use alloy_primitives::U256;
-use alloy_primitives::{B256, keccak256};
+use alloy_primitives::{B256, U256, keccak256};
 use alloy_rlp::{BufMut, Decodable, Encodable, RlpDecodable, RlpEncodable};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use solana_program::clock::Slot;
-use solana_program::pubkey::Pubkey;
+use solana_program::{clock::Slot, pubkey::Pubkey};
 use solana_sdk::account::{AccountSharedData, ReadableAccount};
 
 pub const WITHDRAWAL_PROGRAM: &str = "Bridge1111111111111111111111111111111111111";

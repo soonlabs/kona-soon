@@ -1,11 +1,12 @@
 use crate::error::RollupConfigError;
 use alloy_primitives::Address;
 use core::str::FromStr;
-use solana_program::clock::Slot;
-use solana_program::hash::Hash;
-use solana_program::pubkey::{ParsePubkeyError, Pubkey};
-use std::collections::HashMap;
-use std::default::Default;
+use solana_program::{
+    clock::Slot,
+    hash::Hash,
+    pubkey::{ParsePubkeyError, Pubkey},
+};
+use std::{collections::HashMap, default::Default};
 
 /// `UpgradeSchedules` configures when network upgrades activate.
 pub type UpgradeSchedules = HashMap<String, Option<Slot>>;

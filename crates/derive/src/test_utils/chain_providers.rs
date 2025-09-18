@@ -1,7 +1,9 @@
 //! Test Utilities for chain provider traits
 
-use crate::errors::{PipelineError, PipelineErrorKind};
-use crate::traits::{ChainProvider, DAProvider, L2ChainProvider};
+use crate::{
+    errors::{PipelineError, PipelineErrorKind},
+    traits::{ChainProvider, DAProvider, L2ChainProvider},
+};
 use alloc::{sync::Arc, vec::Vec};
 use alloy_consensus::{Header, Receipt};
 use alloy_eips::BlockNumberOrTag;
@@ -9,9 +11,11 @@ use alloy_primitives::{B256, keccak256, map::HashMap};
 use async_trait::async_trait;
 use solana_sdk::hash::Hash;
 use solana_transaction_status::VersionedConfirmedBlock;
-use soon_primitives::blocks::{BlockInfo, L1Header, L1Transaction, L2BlockInfo};
-use soon_primitives::l2blocks::L2Block;
-use soon_primitives::system::SystemConfig;
+use soon_primitives::{
+    blocks::{BlockInfo, L1Header, L1Transaction, L2BlockInfo},
+    l2blocks::L2Block,
+    system::SystemConfig,
+};
 use std::sync::Mutex;
 
 /// A mock chain provider for testing.

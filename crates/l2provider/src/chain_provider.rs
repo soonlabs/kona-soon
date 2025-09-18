@@ -2,29 +2,32 @@ use std::fmt;
 
 use crate::error::L2ChainProviderError;
 use alloy_eips::BlockNumHash;
-use alloy_primitives::U160;
-use alloy_primitives::hex::FromHex;
-use alloy_primitives::{Address, B256};
+use alloy_primitives::{Address, B256, U160, hex::FromHex};
 use async_trait::async_trait;
 use hex;
-use jsonrpsee::core::client::ClientT;
-use jsonrpsee::http_client::{HttpClient, HttpClientBuilder};
-use jsonrpsee::rpc_params;
-use l1_block_info::instruction::L1BlockInfoInstruction;
-use l1_block_info::solana_program::clock::UnixTimestamp;
+use jsonrpsee::{
+    core::client::ClientT,
+    http_client::{HttpClient, HttpClientBuilder},
+    rpc_params,
+};
+use l1_block_info::{instruction::L1BlockInfoInstruction, solana_program::clock::UnixTimestamp};
 use serde_json::Value;
 use solana_client::rpc_config::RpcBlockConfig;
-use solana_sdk::account::AccountSharedData;
-use solana_sdk::commitment_config::{CommitmentConfig, CommitmentLevel};
+use solana_sdk::{
+    account::AccountSharedData,
+    commitment_config::{CommitmentConfig, CommitmentLevel},
+};
 use solana_transaction_status::UiTransactionEncoding;
 use soon_derive::prelude::L2ChainProvider;
-use soon_primitives::blocks::{BlockInfo, L2BlockInfo, str_block_hash_to};
-use soon_primitives::l2blocks::L2Block;
-use soon_primitives::mpt::{AccountWithTrie, WrappedSolanaAccount};
-use soon_primitives::output_root::OutputRoot;
-use soon_primitives::rpc::{OutputAtBlockResp, SoonGetAccountProofResp};
-use soon_primitives::system::SystemConfig;
-use soon_primitives::ui::UiConfirmedBlockWithEntries;
+use soon_primitives::{
+    blocks::{BlockInfo, L2BlockInfo, str_block_hash_to},
+    l2blocks::L2Block,
+    mpt::{AccountWithTrie, WrappedSolanaAccount},
+    output_root::OutputRoot,
+    rpc::{OutputAtBlockResp, SoonGetAccountProofResp},
+    system::SystemConfig,
+    ui::UiConfirmedBlockWithEntries,
+};
 
 #[derive(Clone)]
 pub struct L2BlockFetcher {

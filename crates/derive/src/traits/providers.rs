@@ -7,9 +7,11 @@ use alloy_eips::BlockNumberOrTag;
 use alloy_primitives::B256;
 use async_trait::async_trait;
 use core::fmt::Display;
-use soon_primitives::blocks::{BlockInfo, L1Header, L1Transaction, L2BlockInfo};
-use soon_primitives::l2blocks::L2Block;
-use soon_primitives::system::SystemConfig;
+use soon_primitives::{
+    blocks::{BlockInfo, L1Header, L1Transaction, L2BlockInfo},
+    l2blocks::L2Block,
+    system::SystemConfig,
+};
 
 #[async_trait]
 pub trait DAProvider {

@@ -1,15 +1,14 @@
 //! Defines the interface for the core derivation pipeline.
 
 use super::OriginProvider;
-use crate::errors::PipelineErrorKind;
-use crate::types::StepResult;
+use crate::{errors::PipelineErrorKind, types::StepResult};
 use alloc::boxed::Box;
 use async_trait::async_trait;
 use core::iter::Iterator;
-use soon_primitives::blocks::L2BlockInfo;
-use soon_primitives::derive::OpAttributesWithParent;
-use soon_primitives::rollup_config::SoonRollupConfig;
-use soon_primitives::system::SystemConfig;
+use soon_primitives::{
+    blocks::L2BlockInfo, derive::OpAttributesWithParent, rollup_config::SoonRollupConfig,
+    system::SystemConfig,
+};
 
 /// This trait defines the interface for interacting with the derivation pipeline.
 #[async_trait]

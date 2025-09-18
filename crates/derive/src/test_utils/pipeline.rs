@@ -3,9 +3,11 @@
 
 use crate::test_utils::{TestChainProvider, TestL2ChainProvider};
 use alloc::{boxed::Box, sync::Arc};
-use soon_primitives::blocks::{BlockInfo, L2BlockInfo};
-use soon_primitives::derive::OpAttributesWithParent;
-use soon_primitives::rollup_config::SoonRollupConfig;
+use soon_primitives::{
+    blocks::{BlockInfo, L2BlockInfo},
+    derive::OpAttributesWithParent,
+    rollup_config::SoonRollupConfig,
+};
 // Re-export these types used internally to the test pipeline.
 use crate::{
     errors::PipelineError,

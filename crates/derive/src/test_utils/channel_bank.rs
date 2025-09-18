@@ -10,8 +10,7 @@ use crate::{
 };
 use alloc::{boxed::Box, vec::Vec};
 use async_trait::async_trait;
-use soon_primitives::blocks::BlockInfo;
-use soon_primitives::da::frame::Frame;
+use soon_primitives::{blocks::BlockInfo, da::frame::Frame};
 
 /// A mock [NextFrameProvider] for testing the [ChannelBank] stage.
 ///

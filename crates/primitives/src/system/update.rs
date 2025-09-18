@@ -1,9 +1,11 @@
 //! Contains the [`SystemConfigUpdate`].
 
-use crate::system::{SystemConfig, SystemConfigUpdateKind};
-use crate::system_update::{
-    BatcherUpdate, Eip1559Update, GasConfigUpdate, GasLimitUpdate, OperatorFeeUpdate,
-    UnsafeBlockSignerUpdate,
+use crate::{
+    system::{SystemConfig, SystemConfigUpdateKind},
+    system_update::{
+        BatcherUpdate, Eip1559Update, GasConfigUpdate, GasLimitUpdate, OperatorFeeUpdate,
+        UnsafeBlockSignerUpdate,
+    },
 };
 
 /// The system config update is an update

@@ -1,6 +1,5 @@
 use bridge::instruction::BridgeInstruction;
-use solana_program::instruction::CompiledInstruction;
-use solana_program::pubkey::Pubkey;
+use solana_program::{instruction::CompiledInstruction, pubkey::Pubkey};
 use solana_sdk::transaction::{SanitizedTransaction, Transaction, VersionedTransaction};
 
 /// Trait to check if a transaction has native instructions
@@ -28,8 +27,8 @@ impl HasNativeInstruction for Transaction {
     fn has_derived_bridge_instruction(&self) -> bool {
         let message = self.message();
         message.instructions.iter().any(|ix| {
-            message.account_keys[ix.program_id_index as usize] == bridge::id()
-                && BridgeInstruction::unpack(&ix.data).map(|ix| ix.is_derived()).unwrap_or(false)
+            message.account_keys[ix.program_id_index as usize] == bridge::id() &&
+                BridgeInstruction::unpack(&ix.data).map(|ix| ix.is_derived()).unwrap_or(false)
         })
     }
 }
@@ -44,8 +43,8 @@ impl HasNativeInstruction for SanitizedTransaction {
 
     fn has_derived_bridge_instruction(&self) -> bool {
         self.message().program_instructions_iter().any(|(program, ix)| {
-            program == &bridge::id()
-                && BridgeInstruction::unpack(&ix.data).map(|ix| ix.is_derived()).unwrap_or(false)
+            program == &bridge::id() &&
+                BridgeInstruction::unpack(&ix.data).map(|ix| ix.is_derived()).unwrap_or(false)
         })
     }
 }
@@ -60,8 +59,8 @@ impl HasNativeInstruction for VersionedTransaction {
 
     fn has_derived_bridge_instruction(&self) -> bool {
         self.message.instructions().iter().any(|ix| {
-            self.message.static_account_keys()[ix.program_id_index as usize] == bridge::id()
-                && BridgeInstruction::unpack(&ix.data).map(|ix| ix.is_derived()).unwrap_or(false)
+            self.message.static_account_keys()[ix.program_id_index as usize] == bridge::id() &&
+                BridgeInstruction::unpack(&ix.data).map(|ix| ix.is_derived()).unwrap_or(false)
         })
     }
 }
@@ -83,17 +82,20 @@ pub fn get_instruction_data_array<'a, 'b>(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::error::NativeTransactionError;
-    use crate::native_tx::new_native_transaction;
+    use crate::{error::NativeTransactionError, native_tx::new_native_transaction};
     use alloy_primitives::B256;
     use anyhow::Result;
     use bridge::instruction::{deposit_erc20, deposit_eth, withdraw_spl};
     use l1_block_info::instruction::update_l1_block_info;
-    use solana_program::instruction::{AccountMeta, Instruction};
-    use solana_program::pubkey::Pubkey;
-    use solana_sdk::reserved_account_keys::ReservedAccountKeys;
-    use solana_sdk::signature::{Keypair, Signer};
-    use solana_sdk::system_transaction;
+    use solana_program::{
+        instruction::{AccountMeta, Instruction},
+        pubkey::Pubkey,
+    };
+    use solana_sdk::{
+        reserved_account_keys::ReservedAccountKeys,
+        signature::{Keypair, Signer},
+        system_transaction,
+    };
 
     fn mock_update_l1_block_info_raw() -> Result<Transaction, NativeTransactionError> {
         let instruction = update_l1_block_info(

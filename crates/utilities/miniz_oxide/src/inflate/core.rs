@@ -4,8 +4,7 @@ use super::*;
 use crate::shared::{HUFFMAN_LENGTH_ORDER, update_adler32};
 use ::core::cell::Cell;
 
-use ::core::convert::TryInto;
-use ::core::{cmp, slice};
+use ::core::{cmp, convert::TryInto, slice};
 
 use self::output_buffer::OutputBuffer;
 
@@ -165,7 +164,6 @@ type BitBuffer = u64;
 type BitBuffer = u32;
 
 /// Main decompression struct.
-///
 pub struct DecompressorOxide {
     /// Current state of the decompressor.
     state: core::State,
@@ -310,16 +308,16 @@ impl State {
     const fn is_failure(self) -> bool {
         matches!(
             self,
-            BlockTypeUnexpected
-                | BadCodeSizeSum
-                | BadDistOrLiteralTableLength
-                | BadTotalSymbols
-                | BadZlibHeader
-                | DistanceOutOfBounds
-                | BadRawLength
-                | BadCodeSizeDistPrevLookup
-                | InvalidLitlen
-                | InvalidDist
+            BlockTypeUnexpected |
+                BadCodeSizeSum |
+                BadDistOrLiteralTableLength |
+                BadTotalSymbols |
+                BadZlibHeader |
+                DistanceOutOfBounds |
+                BadRawLength |
+                BadCodeSizeDistPrevLookup |
+                InvalidLitlen |
+                InvalidDist
         )
     }
 
@@ -1090,8 +1088,8 @@ fn decompress_fast(
             }
 
             let position = out_buf.position();
-            if l.dist as usize > out_buf.position()
-                && (flags & TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF != 0)
+            if l.dist as usize > out_buf.position() &&
+                (flags & TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF != 0)
             {
                 // We encountered a distance that refers a position before
                 // the start of the decoded data, so we can't continue.
@@ -1142,7 +1140,8 @@ fn decompress_fast(
 /// header structure, however, the header data should not be relied on to be correct.
 ///
 /// `flags` indicates settings and status to the decompression function.
-/// * The [`TINFL_FLAG_HAS_MORE_INPUT`] has to be specified if more compressed data is to be provided
+/// * The [`TINFL_FLAG_HAS_MORE_INPUT`] has to be specified if more compressed data is to be
+///   provided
 /// in a subsequent call to this function.
 /// * See the the [`inflate_flags`] module for details on other flags.
 ///
@@ -1741,8 +1740,8 @@ pub fn decompress(
         };
     };
 
-    let in_undo = if status != TINFLStatus::NeedsMoreInput
-        && status != TINFLStatus::FailedCannotMakeProgress
+    let in_undo = if status != TINFLStatus::NeedsMoreInput &&
+        status != TINFLStatus::FailedCannotMakeProgress
     {
         undo_bytes(&mut l, (in_buf.len() - in_iter.len()) as u32) as usize
     } else {
@@ -1750,11 +1749,11 @@ pub fn decompress(
     };
 
     // Make sure HasMoreOutput overrides NeedsMoreInput if the output buffer is full.
-    // (Unless the missing input is the adler32 value in which case we don't need to write anything.)
-    // TODO: May want to see if we can do this in a better way.
-    if status == TINFLStatus::NeedsMoreInput
-        && out_buf.bytes_left() == 0
-        && state != State::ReadAdler32
+    // (Unless the missing input is the adler32 value in which case we don't need to write
+    // anything.) TODO: May want to see if we can do this in a better way.
+    if status == TINFLStatus::NeedsMoreInput &&
+        out_buf.bytes_left() == 0 &&
+        state != State::ReadAdler32
     {
         status = TINFLStatus::HasMoreOutput
     }
@@ -1783,10 +1782,11 @@ pub fn decompress(
         // disabled so that random input from fuzzer would not be rejected early,
         // before it has a chance to reach interesting parts of code
         if !cfg!(fuzzing) {
-            // Once we are done, check if the checksum matches with the one provided in the zlib header.
-            if status == TINFLStatus::Done
-                && flags & TINFL_FLAG_PARSE_ZLIB_HEADER != 0
-                && r.check_adler32 != r.z_adler32
+            // Once we are done, check if the checksum matches with the one provided in the zlib
+            // header.
+            if status == TINFLStatus::Done &&
+                flags & TINFL_FLAG_PARSE_ZLIB_HEADER != 0 &&
+                r.check_adler32 != r.z_adler32
             {
                 status = TINFLStatus::Adler32Mismatch;
             }
@@ -1906,9 +1906,9 @@ mod test {
     fn check_result(input: &[u8], expected_status: TINFLStatus, expected_state: State, zlib: bool) {
         let mut r = DecompressorOxide::default();
         let mut output_buf = vec![0; 1024 * 32];
-        let flags = if zlib { inflate_flags::TINFL_FLAG_PARSE_ZLIB_HEADER } else { 0 }
-            | TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF
-            | TINFL_FLAG_HAS_MORE_INPUT;
+        let flags = if zlib { inflate_flags::TINFL_FLAG_PARSE_ZLIB_HEADER } else { 0 } |
+            TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF |
+            TINFL_FLAG_HAS_MORE_INPUT;
         let (d_status, _in_bytes, _out_bytes) =
             decompress(&mut r, input, &mut output_buf, 0, flags);
         assert_eq!(expected_status, d_status);
@@ -1959,8 +1959,8 @@ mod test {
         // Invalid repeat in list of code lengths.
         // (Try to repeat a non-existent code.)
         c(&[4, 0, 0x24, 0x49, 0], F, State::BadCodeSizeDistPrevLookup);
-        // Missing end of block code (should we have a separate error for this?) - fails on further input
-        //    c(&[4, 0, 0x24, 0xe9, 0xff, 0x6d], F, State::BadTotalSymbols);
+        // Missing end of block code (should we have a separate error for this?) - fails on further
+        // input    c(&[4, 0, 0x24, 0xe9, 0xff, 0x6d], F, State::BadTotalSymbols);
         // Invalid set of literals/lengths
         c(
             &[4, 0x80, 0x49, 0x92, 0x24, 0x49, 0x92, 0x24, 0x71, 0xff, 0xff, 0x93, 0x11, 0],
@@ -1968,8 +1968,8 @@ mod test {
             State::BadTotalSymbols,
         );
         // Invalid set of distances _ needsmoreinput
-        // c(&[4, 0x80, 0x49, 0x92, 0x24, 0x49, 0x92, 0x24, 0x0f, 0xb4, 0xff, 0xff, 0xc3, 0x84], F, State::BadTotalSymbols);
-        // Invalid distance code
+        // c(&[4, 0x80, 0x49, 0x92, 0x24, 0x49, 0x92, 0x24, 0x0f, 0xb4, 0xff, 0xff, 0xc3, 0x84], F,
+        // State::BadTotalSymbols); Invalid distance code
         c(&[2, 0x7e, 0xff, 0xff], F, State::InvalidDist);
 
         // Distance refers to position before the start
@@ -1981,9 +1981,10 @@ mod test {
 
         // Trailer
         // Bad gzip trailer checksum GZip header not handled by miniz_oxide
-        //cr(&[0x1f, 0x8b, 0x08 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0x03, 0, 0, 0, 0, 0x01], F, State::BadCRC, false)
-        // Bad gzip trailer length
-        //cr(&[0x1f, 0x8b, 0x08 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0x03, 0, 0, 0, 0, 0, 0, 0, 0, 0x01], F, State::BadCRC, false)
+        //cr(&[0x1f, 0x8b, 0x08 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0x03, 0, 0, 0, 0, 0x01], F, State::BadCRC,
+        // false) Bad gzip trailer length
+        //cr(&[0x1f, 0x8b, 0x08 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0x03, 0, 0, 0, 0, 0, 0, 0, 0, 0x01], F,
+        // State::BadCRC, false)
     }
 
     #[test]
@@ -1991,9 +1992,9 @@ mod test {
         let encoded = [
             120, 156, 243, 72, 205, 201, 201, 215, 81, 168, 202, 201, 76, 82, 4, 0, 27, 101, 4, 19,
         ];
-        let flags = TINFL_FLAG_COMPUTE_ADLER32
-            | TINFL_FLAG_PARSE_ZLIB_HEADER
-            | TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF;
+        let flags = TINFL_FLAG_COMPUTE_ADLER32 |
+            TINFL_FLAG_PARSE_ZLIB_HEADER |
+            TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF;
         let mut r = DecompressorOxide::new();
         let mut output_buf: [u8; 0] = [];
         // Check that we handle an empty buffer properly and not panicking.

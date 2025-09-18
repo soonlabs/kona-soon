@@ -1,14 +1,17 @@
-use crate::deposit::AttributesDeposited;
-use crate::error::DepositError;
+use crate::{deposit::AttributesDeposited, error::DepositError};
 use alloy_primitives::U256;
-use solana_program::epoch_schedule::EpochSchedule;
-use solana_program::fee_calculator::{DEFAULT_TARGET_SIGNATURES_PER_SLOT, FeeRateGovernor};
-use solana_program::program_pack::Pack;
-use solana_program::rent::Rent;
-use solana_sdk::account::ReadableAccount;
-use solana_sdk::genesis_config::{ClusterType, GenesisConfig};
-use solana_sdk::inflation::Inflation;
-use solana_sdk::transaction::SanitizedTransaction;
+use solana_program::{
+    epoch_schedule::EpochSchedule,
+    fee_calculator::{DEFAULT_TARGET_SIGNATURES_PER_SLOT, FeeRateGovernor},
+    program_pack::Pack,
+    rent::Rent,
+};
+use solana_sdk::{
+    account::ReadableAccount,
+    genesis_config::{ClusterType, GenesisConfig},
+    inflation::Inflation,
+    transaction::SanitizedTransaction,
+};
 
 pub fn default_genesis_config() -> GenesisConfig {
     GenesisConfig {

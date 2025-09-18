@@ -1,10 +1,9 @@
-use crate::error::L2BlockError;
-use crate::native_tx::HasNativeInstruction;
-use crate::ui::UiConfirmedBlockWithEntries;
+use crate::{
+    error::L2BlockError, native_tx::HasNativeInstruction, ui::UiConfirmedBlockWithEntries,
+};
 use alloy_rlp::{BufMut, Decodable, Encodable, RlpDecodable, RlpEncodable};
 use serde::{Deserialize, Serialize};
-use solana_sdk::clock::Slot;
-use solana_sdk::transaction::VersionedTransaction;
+use solana_sdk::{clock::Slot, transaction::VersionedTransaction};
 use solana_transaction_status::{EntrySummary, VersionedConfirmedBlockWithEntries};
 
 /// `L2Transaction` is an enum wraps versioned transaction with a label info in a tx batch.

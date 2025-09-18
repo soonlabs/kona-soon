@@ -11,8 +11,10 @@ use crate::{
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use async_trait::async_trait;
 use core::fmt::Debug;
-use soon_primitives::blocks::{BlockInfo, L2BlockInfo};
-use soon_primitives::rollup_config::SoonRollupConfig;
+use soon_primitives::{
+    blocks::{BlockInfo, L2BlockInfo},
+    rollup_config::SoonRollupConfig,
+};
 use tracing::{debug, error, info, warn};
 
 /// The [BatchValidator] stage is responsible for validating the [SingleBatch]es from
@@ -330,21 +332,22 @@ where
 #[cfg(test)]
 mod test {
     use super::BatchValidator;
-    use crate::test_utils::{CollectingLayer, TraceStorage};
     use crate::{
         batch::{Batch, SingleBatch, SpanBatch},
         errors::{PipelineErrorKind, ResetError},
         prelude::PipelineError,
         stages::NextBatchProvider,
-        test_utils::TestBatchQueueProvider,
+        test_utils::{CollectingLayer, TestBatchQueueProvider, TraceStorage},
         traits::{AttributesProvider, OriginAdvancer, SignalReceiver},
         types::{PipelineResult, ResetSignal, Signal},
     };
     use alloc::sync::Arc;
     use alloy_eips::{BlockNumHash, NumHash};
     use alloy_primitives::B256;
-    use soon_primitives::blocks::{BlockInfo, L2BlockInfo};
-    use soon_primitives::rollup_config::SoonRollupConfig;
+    use soon_primitives::{
+        blocks::{BlockInfo, L2BlockInfo},
+        rollup_config::SoonRollupConfig,
+    };
     use tracing::Level;
     use tracing_subscriber::layer::SubscriberExt;
 

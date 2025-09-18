@@ -10,8 +10,10 @@ use crate::{
 use alloc::{boxed::Box, collections::VecDeque, sync::Arc};
 use async_trait::async_trait;
 use core::fmt::Debug;
-use soon_primitives::blocks::{BlockInfo, L2BlockInfo};
-use soon_primitives::rollup_config::SoonRollupConfig;
+use soon_primitives::{
+    blocks::{BlockInfo, L2BlockInfo},
+    rollup_config::SoonRollupConfig,
+};
 use tracing::{error, trace};
 
 /// Provides [Batch]es for the [BatchStream] stage.

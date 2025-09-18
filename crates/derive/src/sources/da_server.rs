@@ -1,7 +1,9 @@
-use crate::prelude::DataAvailabilityProvider;
-use crate::sources::CalldataSource;
 use crate::{
-    errors::PipelineError, traits::ChainProvider, traits::DAProvider, types::PipelineResult,
+    errors::PipelineError,
+    prelude::DataAvailabilityProvider,
+    sources::CalldataSource,
+    traits::{ChainProvider, DAProvider},
+    types::PipelineResult,
 };
 use alloc::{boxed::Box, collections::VecDeque};
 use alloy_primitives::{Address, Bytes};

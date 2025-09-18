@@ -22,9 +22,11 @@ pub struct L1BlockInfo {
     pub sequence_number: u64,
     /// A versioned hash of the current authorized batcher sender.
     pub batcher_hash: [u8; 32],
-    /// The current L1 fee overhead to apply to L2 transactions cost computation. Unused after Ecotone hard fork.
+    /// The current L1 fee overhead to apply to L2 transactions cost computation. Unused after
+    /// Ecotone hard fork.
     pub fee_overhead: u128,
-    /// The current L1 fee scalar to apply to L2 transactions cost computation. Unused after Ecotone hard fork.
+    /// The current L1 fee scalar to apply to L2 transactions cost computation. Unused after
+    /// Ecotone hard fork.
     pub fee_scalar: u128,
     /// Gas limit: 1_000_000 if post-Regolith, otherwise 150_000_000
     pub gas: u64,

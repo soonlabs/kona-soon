@@ -1,11 +1,15 @@
 #![allow(deprecated)]
 
 use serde::{Deserialize, Serialize};
-use solana_program::clock::MAX_PROCESSING_AGE;
-use solana_program::declare_id;
-use solana_program::pubkey::Pubkey;
-use solana_program::sysvar::recent_blockhashes::{Entry, IterItem};
-use solana_program::sysvar::{Sysvar, SysvarId};
+use solana_program::{
+    clock::MAX_PROCESSING_AGE,
+    declare_id,
+    pubkey::Pubkey,
+    sysvar::{
+        Sysvar, SysvarId,
+        recent_blockhashes::{Entry, IterItem},
+    },
+};
 use std::ops::Deref;
 
 declare_id!("SoonSysvarRecentB1ockHashes1111111111111111");

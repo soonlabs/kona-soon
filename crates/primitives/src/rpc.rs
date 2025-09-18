@@ -17,13 +17,12 @@ pub struct OutputAtBlockResp {
     pub query_slot: Slot,
 }
 
-/// SoonGetWithdrawalProofResp follows the format of eth_getProof response, but with specific soon info.
-/// It contains follow fields:
+/// SoonGetWithdrawalProofResp follows the format of eth_getProof response, but with specific soon
+/// info. It contains follow fields:
 ///     * the merkle root of all solana account state.
 ///     * merkle proof for withdrawal native program address (calling WNP below).
-///     * When one raise a withdrawal request, the WNP will derive a new pda account.
-///       This api also generates root and proof of this pda in storage-hash way.
-///       So api also contains:
+///     * When one raise a withdrawal request, the WNP will derive a new pda account. This api also
+///       generates root and proof of this pda in storage-hash way. So api also contains:
 ///         * merkle root of WNP storage hash
 ///         * proof for pda address in WNP's storage root
 #[derive(Serialize, Deserialize, Debug, Default)]

@@ -93,8 +93,7 @@ impl<CP: ChainProvider + Send> DataAvailabilityProvider for CalldataSource<CP> {
 mod tests {
     use super::*;
     use crate::{errors::PipelineErrorKind, test_utils::TestChainProvider};
-    use alloy_consensus::TxEnvelope;
-    use alloy_consensus::{Signed, TxEip2930, TxEip4844, TxEip4844Variant, TxLegacy};
+    use alloy_consensus::{Signed, TxEip2930, TxEip4844, TxEip4844Variant, TxEnvelope, TxLegacy};
     use alloy_primitives::{Address, Signature, TxKind};
 
     #[allow(dead_code)]

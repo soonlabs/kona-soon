@@ -112,33 +112,6 @@ impl From<soon_sysvar::recent_blockhashes::SoonRecentBlockhashes> for BlockhashQ
     }
 }
 
-#[allow(deprecated)]
-impl From<solana_sysvar::recent_blockhashes::RecentBlockhashes> for BlockhashQueue {
-    fn from(recent_blockhashes: solana_sysvar::recent_blockhashes::RecentBlockhashes) -> Self {
-        let len = recent_blockhashes.len() as u64;
-        let hashes = recent_blockhashes
-            .iter()
-            .enumerate()
-            .map(|(index, entry)| {
-                (
-                    entry.blockhash,
-                    HashInfo {
-                        fee_calculator: entry.fee_calculator,
-                        hash_index: len - index as u64, // This will be set later
-                        timestamp: 0,                   // This will be set later
-                    },
-                )
-            })
-            .collect::<HashMap<_, _>>();
-        BlockhashQueue {
-            hashes,
-            last_hash_index: len,
-            last_hash: recent_blockhashes.first().map(|entry| entry.blockhash),
-            max_age: MAX_RECENT_BLOCKHASHES,
-        }
-    }
-}
-
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub(crate) struct HashInfo {
     fee_calculator: FeeCalculator,

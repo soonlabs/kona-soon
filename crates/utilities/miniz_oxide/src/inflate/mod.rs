@@ -117,11 +117,12 @@ fn decompress_error(
 
 /// Decompress the deflate-encoded data in `input` to a vector.
 ///
-/// NOTE: This function will not bound the output, so if the output is large enough it can result in an out of memory error.
-/// It is therefore suggested to not use this for anything other than test programs, use the functions with a specified limit, or
-/// ideally streaming decompression via the [flate2](https://github.com/alexcrichton/flate2-rs) library instead.
+/// NOTE: This function will not bound the output, so if the output is large enough it can result in
+/// an out of memory error. It is therefore suggested to not use this for anything other than test
+/// programs, use the functions with a specified limit, or ideally streaming decompression via the [flate2](https://github.com/alexcrichton/flate2-rs) library instead.
 ///
-/// Returns a [`Result`] containing the [`Vec`] of decompressed data on success, and a [struct][DecompressError] containing the status and so far decompressed data if any on failure.
+/// Returns a [`Result`] containing the [`Vec`] of decompressed data on success, and a
+/// [struct][DecompressError] containing the status and so far decompressed data if any on failure.
 #[inline]
 #[cfg(feature = "with-alloc")]
 pub fn decompress_to_vec(input: &[u8]) -> Result<(Vec<u8>, usize), DecompressError> {
@@ -130,11 +131,12 @@ pub fn decompress_to_vec(input: &[u8]) -> Result<(Vec<u8>, usize), DecompressErr
 
 /// Decompress the deflate-encoded data (with a zlib wrapper) in `input` to a vector.
 ///
-/// NOTE: This function will not bound the output, so if the output is large enough it can result in an out of memory error.
-/// It is therefore suggested to not use this for anything other than test programs, use the functions with a specified limit, or
-/// ideally streaming decompression via the [flate2](https://github.com/alexcrichton/flate2-rs) library instead.
+/// NOTE: This function will not bound the output, so if the output is large enough it can result in
+/// an out of memory error. It is therefore suggested to not use this for anything other than test
+/// programs, use the functions with a specified limit, or ideally streaming decompression via the [flate2](https://github.com/alexcrichton/flate2-rs) library instead.
 ///
-/// Returns a [`Result`] containing the [`Vec`] of decompressed data on success, and a [struct][DecompressError] containing the status and so far decompressed data if any on failure.
+/// Returns a [`Result`] containing the [`Vec`] of decompressed data on success, and a
+/// [struct][DecompressError] containing the status and so far decompressed data if any on failure.
 #[inline]
 #[cfg(feature = "with-alloc")]
 pub fn decompress_to_vec_zlib(input: &[u8]) -> Result<(Vec<u8>, usize), DecompressError> {
@@ -144,12 +146,14 @@ pub fn decompress_to_vec_zlib(input: &[u8]) -> Result<(Vec<u8>, usize), Decompre
 /// Decompress the deflate-encoded data in `input` to a vector.
 ///
 /// The vector is grown to at most `max_size` bytes; if the data does not fit in that size,
-/// the error [struct][DecompressError] will contain the status [`TINFLStatus::HasMoreOutput`] and the data that was decompressed on failure.
+/// the error [struct][DecompressError] will contain the status [`TINFLStatus::HasMoreOutput`] and
+/// the data that was decompressed on failure.
 ///
-/// As this function tries to decompress everything in one go, it's not ideal for general use outside of tests or where the output size is expected to be small.
-/// It is suggested to use streaming decompression via the [flate2](https://github.com/alexcrichton/flate2-rs) library instead.
+/// As this function tries to decompress everything in one go, it's not ideal for general use
+/// outside of tests or where the output size is expected to be small. It is suggested to use streaming decompression via the [flate2](https://github.com/alexcrichton/flate2-rs) library instead.
 ///
-/// Returns a [`Result`] containing the [`Vec`] of decompressed data on success, and a [struct][DecompressError] on failure.
+/// Returns a [`Result`] containing the [`Vec`] of decompressed data on success, and a
+/// [struct][DecompressError] on failure.
 #[inline]
 #[cfg(feature = "with-alloc")]
 pub fn decompress_to_vec_with_limit(
@@ -161,12 +165,14 @@ pub fn decompress_to_vec_with_limit(
 
 /// Decompress the deflate-encoded data (with a zlib wrapper) in `input` to a vector.
 /// The vector is grown to at most `max_size` bytes; if the data does not fit in that size,
-/// the error [struct][DecompressError] will contain the status [`TINFLStatus::HasMoreOutput`] and the data that was decompressed on failure.
+/// the error [struct][DecompressError] will contain the status [`TINFLStatus::HasMoreOutput`] and
+/// the data that was decompressed on failure.
 ///
-/// As this function tries to decompress everything in one go, it's not ideal for general use outside of tests or where the output size is expected to be small.
-/// It is suggested to use streaming decompression via the [flate2](https://github.com/alexcrichton/flate2-rs) library instead.
+/// As this function tries to decompress everything in one go, it's not ideal for general use
+/// outside of tests or where the output size is expected to be small. It is suggested to use streaming decompression via the [flate2](https://github.com/alexcrichton/flate2-rs) library instead.
 ///
-/// Returns a [`Result`] containing the [`Vec`] of decompressed data on success, and a [struct][DecompressError] on failure.
+/// Returns a [`Result`] containing the [`Vec`] of decompressed data on success, and a
+/// [struct][DecompressError] on failure.
 #[inline]
 #[cfg(feature = "with-alloc")]
 pub fn decompress_to_vec_zlib_with_limit(
@@ -178,7 +184,8 @@ pub fn decompress_to_vec_zlib_with_limit(
 
 /// Backend of various to-[`Vec`] decompressions.
 ///
-/// Returns [`Vec`] of decompressed data on success and the [error struct][DecompressError] with details on failure.
+/// Returns [`Vec`] of decompressed data on success and the [error struct][DecompressError] with
+/// details on failure.
 #[cfg(feature = "with-alloc")]
 fn decompress_to_vec_inner(
     mut input: &[u8],
@@ -236,8 +243,8 @@ fn decompress_to_vec_inner(
 ///
 /// * `out` the output buffer.
 /// * `it` the iterator of input slices.
-/// * `zlib_header` if the first slice out of the iterator is expected to have a
-///   Zlib header. Otherwise the slices are assumed to be the deflate data only.
+/// * `zlib_header` if the first slice out of the iterator is expected to have a Zlib header.
+///   Otherwise the slices are assumed to be the deflate data only.
 /// * `ignore_adler32` if the adler32 checksum should be calculated or not.
 pub fn decompress_slice_iter_to_slice<'out, 'inp>(
     out: &'out mut [u8],
@@ -303,7 +310,7 @@ mod test {
     fn fail_to_decompress_with_limit() {
         let res = decompress_to_vec_zlib_with_limit(&ENCODED[..], 8);
         match res {
-            Err(DecompressError { status: TINFLStatus::HasMoreOutput, .. }) => (), // expected result
+            Err(DecompressError { status: TINFLStatus::HasMoreOutput, .. }) => (), /* expected result */
             _ => panic!("Decompression output size limit was not enforced"),
         }
     }

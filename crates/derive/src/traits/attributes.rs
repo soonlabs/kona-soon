@@ -5,8 +5,7 @@ use alloc::boxed::Box;
 use alloy_eips::BlockNumHash;
 use async_trait::async_trait;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
-use soon_primitives::blocks::L2BlockInfo;
-use soon_primitives::derive::OpAttributesWithParent;
+use soon_primitives::{blocks::L2BlockInfo, derive::OpAttributesWithParent};
 
 /// [AttributesProvider] is a trait abstraction that generalizes the [BatchQueue] stage.
 ///

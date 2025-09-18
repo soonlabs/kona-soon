@@ -10,9 +10,7 @@ use alloc::{boxed::Box, collections::VecDeque, sync::Arc};
 use alloy_primitives::Bytes;
 use async_trait::async_trait;
 use core::fmt::Debug;
-use soon_primitives::blocks::BlockInfo;
-use soon_primitives::da::frame::Frame;
-use soon_primitives::rollup_config::SoonRollupConfig;
+use soon_primitives::{blocks::BlockInfo, da::frame::Frame, rollup_config::SoonRollupConfig};
 use tracing::{debug, error, trace};
 
 /// Provides data frames for the [FrameQueue] stage.

@@ -1,5 +1,6 @@
 use solana_program::clock::Slot;
-use {solana_sdk::transaction::SanitizedTransaction, std::fmt::Display};
+use solana_sdk::transaction::SanitizedTransaction;
+use std::fmt::Display;
 
 /// A unique identifier for a transaction batch.
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Default)]
@@ -86,8 +87,8 @@ pub struct SchedulingBatch {
 
 impl SchedulingBatch {
     pub fn valid(&self) -> bool {
-        self.derived_batch
-            || (self.transactions.len() == self.ids.len() && self.ids.len() == self.max_ages.len())
+        self.derived_batch ||
+            (self.transactions.len() == self.ids.len() && self.ids.len() == self.max_ages.len())
     }
 
     /// if it's a derived SchedulingBatch, only transaction field works.

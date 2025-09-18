@@ -10,9 +10,7 @@ use alloc::{boxed::Box, string::ToString, sync::Arc};
 use alloy_eips::BlockNumberOrTag;
 use alloy_primitives::Address;
 use async_trait::async_trait;
-use soon_primitives::blocks::BlockInfo;
-use soon_primitives::rollup_config::SoonRollupConfig;
-use soon_primitives::system::SystemConfig;
+use soon_primitives::{blocks::BlockInfo, rollup_config::SoonRollupConfig, system::SystemConfig};
 use tracing::{info, warn};
 
 /// The [L1Traversal] stage of the derivation pipeline.
@@ -127,8 +125,8 @@ impl<F: ChainProvider> OriginProvider for L1Traversal<F> {
 impl<F: ChainProvider + Send> SignalReceiver for L1Traversal<F> {
     async fn signal(&mut self, signal: Signal) -> PipelineResult<()> {
         match signal {
-            Signal::Reset(ResetSignal { l1_origin, system_config, .. })
-            | Signal::Activation(ActivationSignal { l1_origin, system_config, .. }) => {
+            Signal::Reset(ResetSignal { l1_origin, system_config, .. }) |
+            Signal::Activation(ActivationSignal { l1_origin, system_config, .. }) => {
                 info!("l1 traversal reset to: {}", l1_origin);
                 self.block = Some(l1_origin);
                 self.done = false;

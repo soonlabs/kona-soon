@@ -8,9 +8,11 @@ use crate::{
 };
 use alloc::{sync::Arc, vec, vec::Vec};
 use alloy_primitives::Bytes;
-use soon_primitives::blocks::BlockInfo;
-use soon_primitives::da::frame::{DERIVATION_VERSION_0, Frame};
-use soon_primitives::rollup_config::SoonRollupConfig;
+use soon_primitives::{
+    blocks::BlockInfo,
+    da::frame::{DERIVATION_VERSION_0, Frame},
+    rollup_config::SoonRollupConfig,
+};
 
 /// A [FrameQueue] builder.
 #[derive(Debug, Default)]

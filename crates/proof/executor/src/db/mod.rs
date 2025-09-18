@@ -159,8 +159,8 @@ where
             // Compute the path to the account in the trie.
             info!("update accounts: {:?} <-> {}", pubkey, hashed_address);
             let account_path = Nibbles::unpack(hashed_address.as_slice());
-            let is_withdrawal = bundle_account.owner().to_bytes()
-                == soon_primitives::mpt::WITHDRAWAL_PROGRAM_PUBKEY.to_bytes();
+            let is_withdrawal = bundle_account.owner().to_bytes() ==
+                soon_primitives::mpt::WITHDRAWAL_PROGRAM_PUBKEY.to_bytes();
 
             // If the account was destroyed, delete it from the trie.
             if bundle_account.lamports() == 0 {

@@ -106,6 +106,7 @@ where
 
         // Step 2. Create the executor, using the trie database.
         let mut svm = LiteSVM::new_soon()
+            .with_genesis_hash(self.config.genesis_hash.unwrap())
             .with_parent_slot(self.parent_slot)
             .with_parent_bank_hash((*parent_bank_hash).into())
             .with_clock_timestamp(clock_timestamp)

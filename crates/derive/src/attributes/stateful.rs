@@ -1,8 +1,7 @@
 //! The [`AttributesBuilder`] and it's default implementation.
 
-use crate::errors::PipelineEncodingError;
 use crate::{
-    errors::{BuilderError, PipelineError, PipelineErrorKind},
+    errors::{BuilderError, PipelineEncodingError, PipelineError, PipelineErrorKind},
     traits::{AttributesBuilder, ChainProvider, L2ChainProvider},
     types::PipelineResult,
 };
@@ -14,12 +13,14 @@ use alloy_rpc_types_engine::PayloadAttributes;
 use async_trait::async_trait;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use solana_sdk::transaction::SanitizedTransaction;
-use soon_primitives::blocks::L2BlockInfo;
-use soon_primitives::deposit::{AttributesDeposited, derive_deposits};
-use soon_primitives::derive::address_to_hash;
-use soon_primitives::l2blocks::L2Transaction;
-use soon_primitives::rollup_config::SoonRollupConfig;
-use soon_primitives::system::SystemConfig;
+use soon_primitives::{
+    blocks::L2BlockInfo,
+    deposit::{AttributesDeposited, derive_deposits},
+    derive::address_to_hash,
+    l2blocks::L2Transaction,
+    rollup_config::SoonRollupConfig,
+    system::SystemConfig,
+};
 
 /// The sequencer fee vault address.
 pub const SEQUENCER_FEE_VAULT_ADDRESS: Address =
@@ -279,9 +280,11 @@ mod tests {
     use alloc::vec;
     use alloy_consensus::{Eip658Value, Receipt};
     use alloy_primitives::{B256, Log, LogData, U64, U256, keccak256};
-    use soon_primitives::blocks::{BlockInfo, L2BlockInfo};
-    use soon_primitives::deposit::SOON_DEPOSIT_EVENT_ABI;
-    use soon_primitives::system::SystemConfig;
+    use soon_primitives::{
+        blocks::{BlockInfo, L2BlockInfo},
+        deposit::SOON_DEPOSIT_EVENT_ABI,
+        system::SystemConfig,
+    };
 
     #[allow(dead_code)]
     fn generate_valid_log() -> Log {

@@ -2,8 +2,7 @@
 
 use alloc::boxed::Box;
 use async_trait::async_trait;
-use soon_primitives::blocks::BlockInfo;
-use soon_primitives::system::SystemConfig;
+use soon_primitives::{blocks::BlockInfo, system::SystemConfig};
 
 /// Provides the [BlockInfo] and [SystemConfig] for the stack to reset the stages.
 #[async_trait]

@@ -1,17 +1,15 @@
 //! Contains the [EthereumDataSource], which is a concrete implementation of the
 //! [DataAvailabilityProvider] trait for the Ethereum protocol.
 
-use crate::traits::DAProvider;
 use crate::{
     sources::da_server::DAServerSource,
-    traits::{ChainProvider, DataAvailabilityProvider},
+    traits::{ChainProvider, DAProvider, DataAvailabilityProvider},
     types::PipelineResult,
 };
 use alloc::{boxed::Box, fmt::Debug};
 use alloy_primitives::{Address, Bytes};
 use async_trait::async_trait;
-use soon_primitives::blocks::BlockInfo;
-use soon_primitives::rollup_config::SoonRollupConfig;
+use soon_primitives::{blocks::BlockInfo, rollup_config::SoonRollupConfig};
 
 /// A factory for creating an Ethereum data source provider.
 #[derive(Debug, Clone)]

@@ -5,8 +5,10 @@ use alloc::vec::Vec;
 use alloy_eips::BlockNumHash;
 use alloy_primitives::{BlockHash, Bytes};
 use alloy_rlp::{RlpDecodable, RlpEncodable};
-use soon_primitives::blocks::{BlockInfo, L2BlockInfo};
-use soon_primitives::rollup_config::SoonRollupConfig;
+use soon_primitives::{
+    blocks::{BlockInfo, L2BlockInfo},
+    rollup_config::SoonRollupConfig,
+};
 use tracing::{info, warn};
 
 /// Represents a single batch: a single encoded L2 block
@@ -106,8 +108,9 @@ impl SingleBatch {
         }
 
         // if self.timestamp < batch_origin.timestamp {
-        //     warn!("dropped batch, batch timestamp is less than L1 origin timestamp, l2_timestamp: {}, l1_timestamp: {}, origin: {:?}", self.timestamp, batch_origin.timestamp, batch_origin.id());
-        //     return BatchValidity::Drop;
+        //     warn!("dropped batch, batch timestamp is less than L1 origin timestamp, l2_timestamp:
+        // {}, l1_timestamp: {}, origin: {:?}", self.timestamp, batch_origin.timestamp,
+        // batch_origin.id());     return BatchValidity::Drop;
         // }
 
         // Check if we ran out of sequencer time drift

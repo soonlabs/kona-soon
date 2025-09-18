@@ -9,10 +9,12 @@ use crate::{
 use alloc::{boxed::Box, collections::VecDeque, string::ToString, sync::Arc};
 use async_trait::async_trait;
 use core::fmt::Debug;
-use soon_primitives::blocks::{BlockInfo, L2BlockInfo};
-use soon_primitives::derive::OpAttributesWithParent;
-use soon_primitives::rollup_config::SoonRollupConfig;
-use soon_primitives::system::SystemConfig;
+use soon_primitives::{
+    blocks::{BlockInfo, L2BlockInfo},
+    derive::OpAttributesWithParent,
+    rollup_config::SoonRollupConfig,
+    system::SystemConfig,
+};
 use tracing::{error, trace, warn};
 
 /// The derivation pipeline is responsible for deriving L2 inputs from L1 data.
@@ -92,8 +94,8 @@ where
     /// The `signal` is contains the signal variant with any necessary parameters.
     async fn signal(&mut self, signal: Signal) -> PipelineResult<()> {
         match signal {
-            mut s @ Signal::Reset(ResetSignal { l2_safe_head, .. })
-            | mut s @ Signal::Activation(ActivationSignal { l2_safe_head, .. }) => {
+            mut s @ Signal::Reset(ResetSignal { l2_safe_head, .. }) |
+            mut s @ Signal::Activation(ActivationSignal { l2_safe_head, .. }) => {
                 let system_config = self
                     .l2_chain_provider
                     .system_config_by_number(l2_safe_head.block_info.number)
@@ -196,10 +198,10 @@ mod tests {
     use alloc::sync::Arc;
     use alloy_rpc_types_engine::PayloadAttributes;
     use op_alloy_rpc_types_engine::OpPayloadAttributes;
-    use soon_primitives::blocks::L2BlockInfo;
-    use soon_primitives::derive::OpAttributesWithParent;
-    use soon_primitives::rollup_config::SoonRollupConfig;
-    use soon_primitives::system::SystemConfig;
+    use soon_primitives::{
+        blocks::L2BlockInfo, derive::OpAttributesWithParent, rollup_config::SoonRollupConfig,
+        system::SystemConfig,
+    };
 
     fn default_test_payload_attributes() -> OpAttributesWithParent {
         OpAttributesWithParent {

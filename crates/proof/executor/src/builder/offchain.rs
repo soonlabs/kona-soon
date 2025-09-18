@@ -77,6 +77,7 @@ where
             .map_err(|e| ExecutorError::FraudInitError(e.to_string()))?;
 
         let mut svm: LiteSVM<A> = LiteSVM::new_soon()
+            .with_genesis_hash(self.config.genesis_hash.unwrap())
             .with_parent_slot(self.parent_slot())
             .with_parent_bank_hash(parent_bank_hash)
             .with_leader_schedule(self.config.sequencer_schedules.clone().into_iter().collect())

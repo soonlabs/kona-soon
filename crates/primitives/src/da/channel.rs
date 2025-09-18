@@ -1,7 +1,6 @@
 //! Channel Types
 
-use crate::blocks::BlockInfo;
-use crate::da::frame::Frame;
+use crate::{blocks::BlockInfo, da::frame::Frame};
 use alloc::vec::Vec;
 use alloy_primitives::{Bytes, map::HashMap};
 
@@ -220,8 +219,8 @@ mod test {
         let block = BlockInfo::default();
         let mut channel = Channel::new(id, block);
 
-        if test_case.frames.len() != test_case.should_error.len()
-            || test_case.frames.len() != test_case.sizes.len()
+        if test_case.frames.len() != test_case.should_error.len() ||
+            test_case.frames.len() != test_case.sizes.len()
         {
             panic!("Test case length mismatch");
         }

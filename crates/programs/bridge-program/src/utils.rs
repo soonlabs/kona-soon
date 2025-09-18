@@ -1,11 +1,13 @@
-use solana_program::account_info::AccountInfo;
-use solana_program::entrypoint::ProgramResult;
-use solana_program::instruction::Instruction;
-use solana_program::program::{invoke, invoke_signed};
-use solana_program::program_pack::Pack;
-use solana_program::pubkey::Pubkey;
-use solana_program::rent::Rent;
-use solana_program::system_instruction;
+use solana_program::{
+    account_info::AccountInfo,
+    entrypoint::ProgramResult,
+    instruction::Instruction,
+    program::{invoke, invoke_signed},
+    program_pack::Pack,
+    pubkey::Pubkey,
+    rent::Rent,
+    system_instruction,
+};
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn create_account<'a, P: Pack>(

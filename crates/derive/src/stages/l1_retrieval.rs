@@ -126,8 +126,8 @@ where
     async fn signal(&mut self, signal: Signal) -> PipelineResult<()> {
         self.prev.signal(signal).await?;
         match signal {
-            Signal::Reset(ResetSignal { l1_origin, .. })
-            | Signal::Activation(ActivationSignal { l1_origin, .. }) => {
+            Signal::Reset(ResetSignal { l1_origin, .. }) |
+            Signal::Activation(ActivationSignal { l1_origin, .. }) => {
                 self.next = Some(l1_origin);
             }
             _ => {}

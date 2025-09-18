@@ -1,31 +1,37 @@
-use crate::error::BridgeError;
-use crate::instruction::{
-    change_bridge_admin, create_spl, create_user_withdrawal_counter_account, deposit_erc20,
-    deposit_eth, withdraw_eth, withdraw_spl,
+use crate::{
+    error::BridgeError,
+    instruction::{
+        change_bridge_admin, create_spl, create_user_withdrawal_counter_account, deposit_erc20,
+        deposit_eth, withdraw_eth, withdraw_spl,
+    },
+    pda::{spl_token_mint_pubkey, spl_token_owner_pubkey},
+    processor::{Processor, MINIMAL_GAS_LIMIT, SPL_SHARE_DECIMAL},
+    state::{BridgeConfig, BridgeOwner, WithdrawalCounter},
 };
-use crate::pda::{spl_token_mint_pubkey, spl_token_owner_pubkey};
-use crate::processor::{Processor, MINIMAL_GAS_LIMIT, SPL_SHARE_DECIMAL};
-use crate::state::{BridgeConfig, BridgeOwner, WithdrawalCounter};
 use ethabi::Address;
 use serial_test::serial;
-use solana_program::account_info::AccountInfo;
-use solana_program::entrypoint::ProgramResult;
-use solana_program::instruction::{AccountMeta, Instruction};
-use solana_program::program_error::ProgramError;
-use solana_program::program_memory::sol_memset;
-use solana_program::program_option::COption;
-use solana_program::program_pack::Pack;
-use solana_program::pubkey::Pubkey;
-use solana_program::system_instruction::{SystemInstruction, MAX_PERMITTED_DATA_LENGTH};
-use solana_program::{msg, system_program};
-use solana_sdk::account::{create_account_for_test, ReadableAccount};
-use solana_sdk::account::{Account as SolanaAccount, WritableAccount};
-use solana_sdk::native_loader::create_loadable_account_for_test;
-use solana_sdk::rent::Rent;
-use spl_token::state::Account as SplTokenAccount;
-use spl_token::state::Mint;
-use std::slice::from_raw_parts_mut;
-use std::sync::RwLock;
+use solana_program::{
+    account_info::AccountInfo,
+    entrypoint::ProgramResult,
+    instruction::{AccountMeta, Instruction},
+    msg,
+    program_error::ProgramError,
+    program_memory::sol_memset,
+    program_option::COption,
+    program_pack::Pack,
+    pubkey::Pubkey,
+    system_instruction::{SystemInstruction, MAX_PERMITTED_DATA_LENGTH},
+    system_program,
+};
+use solana_sdk::{
+    account::{
+        create_account_for_test, Account as SolanaAccount, ReadableAccount, WritableAccount,
+    },
+    native_loader::create_loadable_account_for_test,
+    rent::Rent,
+};
+use spl_token::state::{Account as SplTokenAccount, Mint};
+use std::{slice::from_raw_parts_mut, sync::RwLock};
 
 const VAULT_INIT_LAMPORTS: u64 = 1_000_000_000_000_000;
 const PAYER_INIT_LAMPORTS: u64 = 1_000_000_000_000;
@@ -79,8 +85,8 @@ fn program_process(
                 if !account_info.is_signer {
                     return Err(ProgramError::MissingRequiredSignature);
                 }
-                if account_info.data_len() != MAX_PERMITTED_DATA_LENGTH as usize
-                    || account_info.owner != program_id
+                if account_info.data_len() != MAX_PERMITTED_DATA_LENGTH as usize ||
+                    account_info.owner != program_id
                 {
                     return Err(ProgramError::AccountAlreadyInitialized);
                 }
@@ -107,8 +113,8 @@ fn program_process(
                     return Err(ProgramError::MissingRequiredSignature);
                 }
                 let new_info = &account_infos[1];
-                if new_info.data_len() != MAX_PERMITTED_DATA_LENGTH as usize
-                    || new_info.owner != program_id
+                if new_info.data_len() != MAX_PERMITTED_DATA_LENGTH as usize ||
+                    new_info.owner != program_id
                 {
                     return Err(ProgramError::AccountAlreadyInitialized);
                 }
@@ -164,10 +170,10 @@ impl solana_sdk::program_stubs::SyscallStubs for TestSyscallStubs {
 
         // mimic check for token related program in accounts
         if !account_infos.iter().any(|x| {
-            *x.key == system_program::id()
-                || *x.key == spl_token::id()
-                || *x.key == spl_associated_token_account::id()
-                || *x.key == mpl_token_metadata::ID
+            *x.key == system_program::id() ||
+                *x.key == spl_token::id() ||
+                *x.key == spl_associated_token_account::id() ||
+                *x.key == mpl_token_metadata::ID
         }) {
             return Err(ProgramError::InvalidAccountData);
         }

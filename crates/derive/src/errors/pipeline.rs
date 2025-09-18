@@ -1,6 +1,5 @@
 //! This module contains derivation errors thrown within the pipeline.
-use crate::stages::MultiplexerError;
-use crate::{batch::SpanBatchError, errors::BuilderError};
+use crate::{batch::SpanBatchError, errors::BuilderError, stages::MultiplexerError};
 use alloc::string::String;
 use alloy_primitives::B256;
 use soon_primitives::{error::DepositError, system::SystemConfigUpdateError};

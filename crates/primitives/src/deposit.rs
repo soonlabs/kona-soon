@@ -1,20 +1,18 @@
-use crate::blocks::BlockInfo;
-use crate::error::DepositError;
-use crate::native_tx::new_native_transaction;
+use crate::{blocks::BlockInfo, error::DepositError, native_tx::new_native_transaction};
 use alloy_consensus::{Eip658Value, Receipt};
-use alloy_primitives::Log;
-use alloy_primitives::private::alloy_rlp::Encodable;
-use alloy_primitives::{Address, BlockHash, U256, hex as HEX};
-use alloy_primitives::{B256, keccak256};
+use alloy_primitives::{
+    Address, B256, BlockHash, Log, U256, hex as HEX, keccak256, private::alloy_rlp::Encodable,
+};
 use bridge::instruction::{deposit_erc20, deposit_eth};
 use hex_literal::hex;
 use l1_block_info::instruction::update_l1_block_info;
 use num_bigint::BigUint;
-use solana_sdk::pubkey::Pubkey;
-use solana_sdk::transaction::SanitizedTransaction;
-use std::array::TryFromSliceError;
-use std::collections::HashSet;
-use std::ops::{Add, Sub};
+use solana_sdk::{pubkey::Pubkey, transaction::SanitizedTransaction};
+use std::{
+    array::TryFromSliceError,
+    collections::HashSet,
+    ops::{Add, Sub},
+};
 
 /// Deposit log event abi signature.
 pub const SOON_DEPOSIT_EVENT_ABI: &str = "TransactionDeposited(address,bytes32,uint256,bytes)";
@@ -121,7 +119,8 @@ impl UserDeposited {
         Ok(SanitizedTransaction::try_from_legacy_transaction(tx, reserved_account_keys)?)
     }
 
-    // User-deposited: keccak256(bytes32(uint256(0)), keccak256(l1BlockHash, bytes32(uint256(l1LogIndex))))
+    // User-deposited: keccak256(bytes32(uint256(0)), keccak256(l1BlockHash,
+    // bytes32(uint256(l1LogIndex))))
     pub fn source_hash(&self) -> B256 {
         let mut input = [0u8; 64];
         input[0..32].copy_from_slice(self.l1_block_hash.as_slice());
@@ -310,9 +309,11 @@ pub struct AttributesDeposited {
     pub sequence_number: u64,
     /// A versioned hash of the current authorized batcher sender.
     pub batcher_hash: U256,
-    /// The current L1 fee overhead to apply to L2 transactions cost computation. Unused after Ecotone hard fork.
+    /// The current L1 fee overhead to apply to L2 transactions cost computation. Unused after
+    /// Ecotone hard fork.
     pub fee_overhead: U256,
-    /// The current L1 fee scalar to apply to L2 transactions cost computation. Unused after Ecotone hard fork.
+    /// The current L1 fee scalar to apply to L2 transactions cost computation. Unused after
+    /// Ecotone hard fork.
     pub fee_scalar: U256,
     /// Gas limit: 1_000_000 if post-Regolith, otherwise 150_000_000
     pub gas: u64,
@@ -376,7 +377,8 @@ impl AttributesDeposited {
     }
 
     // Deposit source hash computation follows Op Spec: https://specs.optimism.io/protocol/deposits.html#source-hash-computation
-    // L1 attributes deposited: keccak256(bytes32(uint256(1)), keccak256(l1BlockHash, bytes32(uint256(seqNumber))))
+    // L1 attributes deposited: keccak256(bytes32(uint256(1)), keccak256(l1BlockHash,
+    // bytes32(uint256(seqNumber))))
     pub fn source_hash(&self) -> B256 {
         let mut input = [0u8; 64];
         input[0..32].copy_from_slice(self.l1_block_hash.as_slice());
@@ -679,7 +681,10 @@ mod tests {
         Ok(())
     }
 
-    // cast keccak $(cast concat-hex 0x0000000000000000000000000000000000000000000000000000000000000001 $(cast keccak $(cast concat-hex 0xc00e5d67c2755389aded7d8b151cbd5bcdf7ed275ad5e028b664880fc7581c77 0x0000000000000000000000000000000000000000000000000000000000000004)))
+    // cast keccak $(cast concat-hex
+    // 0x0000000000000000000000000000000000000000000000000000000000000001 $(cast keccak $(cast
+    // concat-hex 0xc00e5d67c2755389aded7d8b151cbd5bcdf7ed275ad5e028b664880fc7581c77
+    // 0x0000000000000000000000000000000000000000000000000000000000000004)))
     // # 0x0586c503340591999b8b38bc9834bb16aec7d5bc00eb5587ab139c9ddab81977
     #[test]
     fn l1_attribute_deposited_source_hash_works() -> anyhow::Result<()> {
@@ -705,7 +710,10 @@ mod tests {
         Ok(())
     }
 
-    // cast keccak $(cast concat-hex 0x0000000000000000000000000000000000000000000000000000000000000000 $(cast keccak $(cast concat-hex 0xc00e5d67c2755389aded7d8b151cbd5bcdf7ed275ad5e028b664880fc7581c77 0x0000000000000000000000000000000000000000000000000000000000000005)))
+    // cast keccak $(cast concat-hex
+    // 0x0000000000000000000000000000000000000000000000000000000000000000 $(cast keccak $(cast
+    // concat-hex 0xc00e5d67c2755389aded7d8b151cbd5bcdf7ed275ad5e028b664880fc7581c77
+    // 0x0000000000000000000000000000000000000000000000000000000000000005)))
     // # 0x4c75c1d40d73ad30002aa6a91e24bb68c7bac1e723c2e1b073f889e227df4071
     #[test]
     fn user_deposited_source_hash_works() -> anyhow::Result<()> {

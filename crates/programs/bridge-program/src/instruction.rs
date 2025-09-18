@@ -3,17 +3,15 @@
 use mpl_token_metadata::programs::MPL_TOKEN_METADATA_ID;
 use num_traits::ToBytes;
 
-use {
-    crate::error::BridgeError,
-    ethabi::Address,
-    solana_program::{
-        instruction::{AccountMeta, Instruction},
-        program_error::ProgramError,
-        pubkey::Pubkey,
-    },
-    spl_associated_token_account::get_associated_token_address,
-    std::convert::TryInto,
+use crate::error::BridgeError;
+use ethabi::Address;
+use solana_program::{
+    instruction::{AccountMeta, Instruction},
+    program_error::ProgramError,
+    pubkey::Pubkey,
 };
+use spl_associated_token_account::get_associated_token_address;
+use std::convert::TryInto;
 
 use crate::pda::{
     bridge_owner_pubkey, config_pubkey, spl_token_metadata_pubkey, spl_token_mint_pubkey,
@@ -92,7 +90,8 @@ pub enum BridgeInstruction<'a> {
     #[deprecated(note = "This instruction is no longer used")]
     CreateWithdrawalCounterAccount,
 
-    /// Withdraw ETH & create a withdrawal transaction account to store the withdrawal transaction info.
+    /// Withdraw ETH & create a withdrawal transaction account to store the withdrawal transaction
+    /// info.
     ///
     /// Accounts expected by this instruction:
     ///

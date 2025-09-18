@@ -4,8 +4,10 @@
 //!
 //! There is no DeflateState as the needed state is contained in the compressor struct itself.
 
-use crate::deflate::core::{CompressorOxide, TDEFLFlush, TDEFLStatus, compress};
-use crate::{MZError, MZFlush, MZStatus, StreamResult};
+use crate::{
+    MZError, MZFlush, MZStatus, StreamResult,
+    deflate::core::{CompressorOxide, TDEFLFlush, TDEFLStatus, compress},
+};
 
 /// Try to compress from input to output with the given [`CompressorOxide`].
 ///
@@ -91,11 +93,8 @@ pub fn deflate(
 #[cfg(test)]
 mod test {
     use super::deflate;
-    use crate::deflate::CompressorOxide;
-    use crate::inflate::decompress_to_vec_zlib;
-    use crate::{MZFlush, MZStatus};
-    use alloc::boxed::Box;
-    use alloc::vec;
+    use crate::{MZFlush, MZStatus, deflate::CompressorOxide, inflate::decompress_to_vec_zlib};
+    use alloc::{boxed::Box, vec};
 
     #[test]
     fn test_state() {

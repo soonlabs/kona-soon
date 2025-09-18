@@ -108,6 +108,7 @@ pub struct LiteSVM<CB: AccountsCallback> {
     slots_per_year: f64,
     ticks_per_slot: u64,
     hashes_per_tick: u64,
+    genesis_hash: Hash,
     fee_structure: FeeStructure,
     epoch_schedule: EpochSchedule,
     leader_schedule: LeaderSchedule,
@@ -141,6 +142,7 @@ impl<CB: AccountsCallback> Default for LiteSVM<CB> {
             slots_per_year: soon_slots_per_year(),
             ticks_per_slot: 64,
             hashes_per_tick: 0,
+            genesis_hash: Default::default(),
             epoch_schedule: Default::default(),
             leader_schedule: Default::default(),
             rent: Default::default(),
@@ -212,17 +214,17 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         self.update_slot_history()?;
 
         // update blockhash queue
-        if self.parent_slot == 0 {
-            // when parent slot is genesis, the soon recent blockhashes has not been initialized
+        let mut recent_blockhashes =
+            self.get_sysvar::<sysvar::recent_blockhashes::SoonRecentBlockhashes>()?;
+        if recent_blockhashes.is_empty() && self.parent_slot == 0 {
+            // genesis case, fill with genesis hash
             #[allow(deprecated)]
-            let blockhash_queue =
-                self.get_sysvar::<solana_sysvar::recent_blockhashes::RecentBlockhashes>()?;
-            self.blockhash_queue = blockhash_queue.into();
-        } else {
-            let blockhash_queue =
-                self.get_sysvar::<sysvar::recent_blockhashes::SoonRecentBlockhashes>()?;
-            self.blockhash_queue = blockhash_queue.into();
+            recent_blockhashes.push(solana_sysvar::recent_blockhashes::Entry {
+                blockhash: self.genesis_hash,
+                fee_calculator: Default::default(),
+            })
         }
+        self.blockhash_queue = recent_blockhashes.into();
         self.parent_blockhash = Some(self.blockhash_queue.last_hash());
 
         // fill sysvars cache
@@ -273,6 +275,11 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
 
     pub const fn with_blockhash_verify(mut self, blockhash_verify: bool) -> Self {
         self.blockhash_verify = blockhash_verify;
+        self
+    }
+
+    pub const fn with_genesis_hash(mut self, genesis_hash: Hash) -> Self {
+        self.genesis_hash = genesis_hash;
         self
     }
 
@@ -511,8 +518,8 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
                         .load_account(key)
                         .map_err(|_| TransactionError::AccountNotFound)?
                         .unwrap_or_default();
-                    if !validated_fee_payer
-                        && (!message.is_invoked(i) || message.is_instruction_account(i))
+                    if !validated_fee_payer &&
+                        (!message.is_invoked(i) || message.is_instruction_account(i))
                     {
                         fee_payer_rent_debit = collect_rent_from_account(
                             &self.feature_set,
@@ -1339,8 +1346,8 @@ fn check_rent_state_with_account(
     address: &Pubkey,
     account_index: IndexOfAccount,
 ) -> solana_sdk::transaction::Result<()> {
-    if !solana_sdk::incinerator::check_id(address)
-        && !post_rent_state.transition_allowed_from(pre_rent_state)
+    if !solana_sdk::incinerator::check_id(address) &&
+        !post_rent_state.transition_allowed_from(pre_rent_state)
     {
         let account_index = account_index as u8;
         error!("Transaction would leave account {address} with insufficient funds for rent");

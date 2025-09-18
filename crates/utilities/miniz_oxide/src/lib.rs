@@ -2,7 +2,6 @@
 //! DEFLATE/zlib encoder/decoder.
 //! Used a rust back-end for the
 //! [flate2](https://github.com/alexcrichton/flate2-rs) crate.
-//!
 #![cfg_attr(
     feature = "with-alloc",
     doc = r##"
@@ -33,8 +32,9 @@ pub mod deflate;
 pub mod inflate;
 mod shared;
 
-pub use crate::shared::update_adler32 as mz_adler32_oxide;
-pub use crate::shared::{MZ_ADLER32_INIT, MZ_DEFAULT_WINDOW_BITS};
+pub use crate::shared::{
+    MZ_ADLER32_INIT, MZ_DEFAULT_WINDOW_BITS, update_adler32 as mz_adler32_oxide,
+};
 
 /// A list of flush types.
 ///

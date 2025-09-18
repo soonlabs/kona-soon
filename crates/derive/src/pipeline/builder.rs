@@ -10,9 +10,7 @@ use crate::{
 };
 use alloc::sync::Arc;
 use core::fmt::Debug;
-use soon_primitives::blocks::BlockInfo;
-use soon_primitives::rollup_config::SoonRollupConfig;
-use soon_primitives::system::SystemConfig;
+use soon_primitives::{blocks::BlockInfo, rollup_config::SoonRollupConfig, system::SystemConfig};
 
 pub type L1TraversalStage<P> = L1Traversal<P>;
 pub type L1RetrievalStage<DAP, P> = L1Retrieval<DAP, L1TraversalStage<P>>;

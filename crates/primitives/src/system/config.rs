@@ -47,9 +47,9 @@ impl SystemConfig {
 
             receipt.logs.iter().try_for_each(|log| {
                 let topics = log.topics();
-                if log.address == l1_system_config_address
-                    && !topics.is_empty()
-                    && topics[0] == CONFIG_UPDATE_TOPIC
+                if log.address == l1_system_config_address &&
+                    !topics.is_empty() &&
+                    topics[0] == CONFIG_UPDATE_TOPIC
                 {
                     // Safety: Error is bubbled up by the trailing `?`
                     self.process_config_update_log(log)?;

@@ -4,7 +4,8 @@ use derive_more::Deref;
 use serde::{Deserialize, Serialize};
 use solana_program::pubkey::Pubkey;
 
-/// Use to fight with compiler to transfer `Pubkey([u8;32])` to `B256`(which is also a [u8;32] inner)
+/// Use to fight with compiler to transfer `Pubkey([u8;32])` to `B256`(which is also a [u8;32]
+/// inner)
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq, Eq, Clone, Deref)]
 pub struct TrieSolanaPubkey(pub Pubkey);
 

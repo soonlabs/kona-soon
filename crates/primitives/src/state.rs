@@ -31,8 +31,9 @@ pub struct L2State {
 pub struct L1State {
     // CurrentL1 is the L1 block that the derivation process is last idled at.
     // This may not be fully derived into L2 data yet.
-    // The safe L2 blocks were produced/included fully from the L1 chain up to and including this L1 block.
-    // If the node is synced, this matches the HeadL1, minus the verifier confirmation distance.
+    // The safe L2 blocks were produced/included fully from the L1 chain up to and including this
+    // L1 block. If the node is synced, this matches the HeadL1, minus the verifier
+    // confirmation distance.
     pub current_l1: BlockInfo,
     // HeadL1 is the perceived head of the L1 chain, no confirmation distance.
     // The head is not guaranteed to build on the other L1 sync status fields,

@@ -13,9 +13,11 @@ use alloc::{boxed::Box, sync::Arc};
 use async_trait::async_trait;
 use core::fmt::Debug;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
-use soon_primitives::blocks::{BlockInfo, L2BlockInfo};
-use soon_primitives::derive::OpAttributesWithParent;
-use soon_primitives::rollup_config::SoonRollupConfig;
+use soon_primitives::{
+    blocks::{BlockInfo, L2BlockInfo},
+    derive::OpAttributesWithParent,
+    rollup_config::SoonRollupConfig,
+};
 use tracing::info;
 
 /// [AttributesQueue] accepts batches from the [BatchQueue] stage

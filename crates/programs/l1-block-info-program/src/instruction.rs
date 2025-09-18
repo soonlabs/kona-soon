@@ -1,15 +1,12 @@
 //! Instruction types
 
-use crate::pda::l1_block_info_pubkey;
-use {
-    crate::error::L1BlockInfoError,
-    solana_program::{
-        instruction::{AccountMeta, Instruction},
-        program_error::ProgramError,
-        pubkey::Pubkey,
-    },
-    std::convert::TryInto,
+use crate::{error::L1BlockInfoError, pda::l1_block_info_pubkey};
+use solana_program::{
+    instruction::{AccountMeta, Instruction},
+    program_error::ProgramError,
+    pubkey::Pubkey,
 };
+use std::convert::TryInto;
 
 const U64_BYTES: usize = 8;
 const U128_BYTES: usize = 16;
@@ -47,9 +44,11 @@ pub enum L1BlockInfoInstruction {
         sequence_number: u64,
         /// A versioned hash of the current authorized batcher sender.
         batcher_hash: [u8; 32],
-        /// The current L1 fee overhead to apply to L2 transactions cost computation. Unused after Ecotone hard fork.
+        /// The current L1 fee overhead to apply to L2 transactions cost computation. Unused after
+        /// Ecotone hard fork.
         fee_overhead: u128,
-        /// The current L1 fee scalar to apply to L2 transactions cost computation. Unused after Ecotone hard fork.
+        /// The current L1 fee scalar to apply to L2 transactions cost computation. Unused after
+        /// Ecotone hard fork.
         fee_scalar: u128,
         /// Gas limit: 1_000_000 if post-Regolith, otherwise 150_000_000
         gas: u64,

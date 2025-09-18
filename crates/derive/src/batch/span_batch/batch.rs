@@ -1,13 +1,17 @@
 //! The Span Batch Type
 
 use super::{SpanBatchBits, SpanBatchElement, SpanBatchError, SpanBatchTransactions};
-use crate::batch::{BatchValidity, SingleBatch};
-use crate::traits::L2ChainProvider;
+use crate::{
+    batch::{BatchValidity, SingleBatch},
+    traits::L2ChainProvider,
+};
 use alloc::vec::Vec;
 use alloy_primitives::FixedBytes;
 use op_alloy_consensus::OpTxType;
-use soon_primitives::blocks::{BlockInfo, L2BlockInfo};
-use soon_primitives::rollup_config::SoonRollupConfig;
+use soon_primitives::{
+    blocks::{BlockInfo, L2BlockInfo},
+    rollup_config::SoonRollupConfig,
+};
 use tracing::{info, warn};
 
 /// The span batch contains the input to build a span of L2 blocks in derived form.
@@ -219,8 +223,8 @@ impl SpanBatch {
         // ) {
         //     Ok(r) => r,
         //     Err(e) => {
-        //         warn!("failed to extract L2BlockInfo from execution payload, hash: {}, err: {e}", safe_block_payload.blockhash);
-        //         return BatchValidity::Drop;
+        //         warn!("failed to extract L2BlockInfo from execution payload, hash: {}, err: {e}",
+        // safe_block_payload.blockhash);         return BatchValidity::Drop;
         //     }
         // };
         // if safe_block_ref.l1_origin.number != self.batches[i as usize].epoch_num {
@@ -302,9 +306,9 @@ impl SpanBatch {
                 warn!("batch has misaligned timestamp, not overlapped exactly");
                 return (BatchValidity::Drop, None);
             }
-            parent_num = l2_safe_head.block_info.number
-                - (l2_safe_head.block_info.timestamp - self.starting_timestamp()) / cfg.block_time
-                - 1;
+            parent_num = l2_safe_head.block_info.number -
+                (l2_safe_head.block_info.timestamp - self.starting_timestamp()) / cfg.block_time -
+                1;
             parent_block = match fetcher.l2_block_info_by_number(parent_num).await {
                 Ok(block) => block,
                 Err(e) => {

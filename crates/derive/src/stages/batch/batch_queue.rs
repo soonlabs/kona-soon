@@ -10,8 +10,10 @@ use crate::{
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use async_trait::async_trait;
 use core::fmt::Debug;
-use soon_primitives::blocks::{BlockInfo, L2BlockInfo};
-use soon_primitives::rollup_config::SoonRollupConfig;
+use soon_primitives::{
+    blocks::{BlockInfo, L2BlockInfo},
+    rollup_config::SoonRollupConfig,
+};
 use tracing::{error, info, warn};
 
 /// [BatchQueue] is responsible for o rdering unordered batches
@@ -108,9 +110,9 @@ where
         // Note: epoch origin can now be one block ahead of the L2 Safe Head
         // This is in the case where we auto generate all batches in an epoch & advance the epoch
         // but don't advance the L2 Safe Head's epoch
-        if parent.block_info.number != 0
-            && parent.l1_origin != epoch.id()
-            && parent.l1_origin.number != epoch.number - 1
+        if parent.block_info.number != 0 &&
+            parent.l1_origin != epoch.id() &&
+            parent.l1_origin.number != epoch.number - 1
         {
             return Err(PipelineErrorKind::Reset(ResetError::L1OriginMismatch(
                 parent.l1_origin.number,
@@ -462,10 +464,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::{CollectingLayer, TraceStorage};
     use crate::{
         stages::channel::channel_reader::BatchReader,
-        test_utils::{TestBatchQueueProvider, TestL2ChainProvider},
+        test_utils::{CollectingLayer, TestBatchQueueProvider, TestL2ChainProvider, TraceStorage},
     };
     use alloc::vec;
     use alloy_eips::BlockNumHash;

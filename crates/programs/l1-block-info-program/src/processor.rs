@@ -1,17 +1,17 @@
 //! Program state processor
 
-use crate::pda::l1_block_info_pubkey_and_bump;
-use {
-    crate::{error::L1BlockInfoError, instruction::L1BlockInfoInstruction, state::L1BlockInfo},
-    arrayref::array_ref,
-    solana_program::{
-        account_info::AccountInfo,
-        entrypoint::ProgramResult,
-        msg,
-        program_memory::sol_memcmp,
-        program_pack::Pack,
-        pubkey::{Pubkey, PUBKEY_BYTES},
-    },
+use crate::{
+    error::L1BlockInfoError, instruction::L1BlockInfoInstruction,
+    pda::l1_block_info_pubkey_and_bump, state::L1BlockInfo,
+};
+use arrayref::array_ref;
+use solana_program::{
+    account_info::AccountInfo,
+    entrypoint::ProgramResult,
+    msg,
+    program_memory::sol_memcmp,
+    program_pack::Pack,
+    pubkey::{Pubkey, PUBKEY_BYTES},
 };
 
 /// Program state handler.
@@ -47,8 +47,8 @@ impl Processor {
             no_sig_tx_payer_account,    // read,signer
         ] = accounts;
 
-        if !Self::cmp_pubkeys(no_sig_tx_payer_account.key, &crate::NO_SIG_TX_PAYER)
-            || !no_sig_tx_payer_account.is_signer
+        if !Self::cmp_pubkeys(no_sig_tx_payer_account.key, &crate::NO_SIG_TX_PAYER) ||
+            !no_sig_tx_payer_account.is_signer
         {
             return Err(L1BlockInfoError::InvalidNoSigTxPayer.into());
         }

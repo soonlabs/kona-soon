@@ -1,8 +1,7 @@
 //! This module contains the batch types for the OP Stack derivation pipeline: [SpanBatch] &
 //! [SingleBatch].
 
-use crate::errors::PipelineEncodingError;
-use crate::traits::L2ChainProvider;
+use crate::{errors::PipelineEncodingError, traits::L2ChainProvider};
 use alloy_rlp::{Buf, Decodable};
 
 mod batch_type;
@@ -21,8 +20,10 @@ pub use span_batch::{
 
 mod single_batch;
 pub use single_batch::SingleBatch;
-use soon_primitives::blocks::{BlockInfo, L2BlockInfo};
-use soon_primitives::rollup_config::SoonRollupConfig;
+use soon_primitives::{
+    blocks::{BlockInfo, L2BlockInfo},
+    rollup_config::SoonRollupConfig,
+};
 
 /// A batch with its inclusion block.
 #[derive(Debug, Clone, PartialEq, Eq)]

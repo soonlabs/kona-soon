@@ -10,9 +10,7 @@ use alloc::{boxed::Box, sync::Arc};
 use alloy_primitives::{Bytes, hex};
 use async_trait::async_trait;
 use core::fmt::Debug;
-use soon_primitives::blocks::BlockInfo;
-use soon_primitives::da::channel::Channel;
-use soon_primitives::rollup_config::SoonRollupConfig;
+use soon_primitives::{blocks::BlockInfo, da::channel::Channel, rollup_config::SoonRollupConfig};
 use tracing::{debug, error, info, warn};
 
 /// The [ChannelAssembler] stage is responsible for assembling the [Frame]s from the [FrameQueue]
@@ -184,13 +182,13 @@ where
 #[cfg(test)]
 mod test {
     use super::ChannelAssembler;
-    use crate::test_utils::{CollectingLayer, TraceStorage};
     use crate::{
-        prelude::PipelineError, stages::ChannelReaderProvider, test_utils::TestNextFrameProvider,
+        prelude::PipelineError,
+        stages::ChannelReaderProvider,
+        test_utils::{CollectingLayer, TestNextFrameProvider, TraceStorage},
     };
     use alloc::sync::Arc;
-    use soon_primitives::blocks::BlockInfo;
-    use soon_primitives::rollup_config::SoonRollupConfig;
+    use soon_primitives::{blocks::BlockInfo, rollup_config::SoonRollupConfig};
     use tracing::Level;
     use tracing_subscriber::layer::SubscriberExt;
 

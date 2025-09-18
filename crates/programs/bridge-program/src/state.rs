@@ -1,15 +1,13 @@
 //! State transition types
 
-use {
-    arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs},
-    ethabi::Address,
-    ethnum::U256,
-    serde::{Serialize, Serializer},
-    solana_program::{
-        program_error::ProgramError,
-        program_pack::{IsInitialized, Pack, Sealed},
-        pubkey::Pubkey,
-    },
+use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
+use ethabi::Address;
+use ethnum::U256;
+use serde::{Serialize, Serializer};
+use solana_program::{
+    program_error::ProgramError,
+    program_pack::{IsInitialized, Pack, Sealed},
+    pubkey::Pubkey,
 };
 
 /// WithdrawalCounter data.

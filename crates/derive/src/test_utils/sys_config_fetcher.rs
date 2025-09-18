@@ -1,14 +1,14 @@
 //! Implements a mock [L2SystemConfigFetcher] for testing.
 
-use crate::errors::{PipelineError, PipelineErrorKind};
-use crate::traits::L2ChainProvider;
+use crate::{
+    errors::{PipelineError, PipelineErrorKind},
+    traits::L2ChainProvider,
+};
 use alloc::boxed::Box;
 use alloy_primitives::map::HashMap;
 use anyhow::Result;
 use async_trait::async_trait;
-use soon_primitives::blocks::L2BlockInfo;
-use soon_primitives::l2blocks::L2Block;
-use soon_primitives::system::SystemConfig;
+use soon_primitives::{blocks::L2BlockInfo, l2blocks::L2Block, system::SystemConfig};
 use thiserror::Error;
 
 /// A mock implementation of the `SystemConfigL2Fetcher` for testing.

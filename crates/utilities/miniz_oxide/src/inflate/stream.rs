@@ -5,9 +5,13 @@
 use crate::alloc::boxed::Box;
 use core::{cmp, mem};
 
-use crate::inflate::TINFLStatus;
-use crate::inflate::core::{DecompressorOxide, TINFL_LZ_DICT_SIZE, decompress, inflate_flags};
-use crate::{DataFormat, MZError, MZFlush, MZResult, MZStatus, StreamResult};
+use crate::{
+    DataFormat, MZError, MZFlush, MZResult, MZStatus, StreamResult,
+    inflate::{
+        TINFLStatus,
+        core::{DecompressorOxide, TINFL_LZ_DICT_SIZE, decompress, inflate_flags},
+    },
+};
 
 /// Tag that determines reset policy of [InflateState](struct.InflateState.html)
 pub trait ResetPolicy {
@@ -56,7 +60,6 @@ impl ResetPolicy for FullReset {
 }
 
 /// A struct that compbines a decompressor with extra data for streaming decompression.
-///
 pub struct InflateState {
     /// Inner decompressor struct
     decomp: DecompressorOxide,
@@ -200,8 +203,8 @@ pub fn inflate(
         inflate_flags::TINFL_FLAG_IGNORE_ADLER32
     };
 
-    if (state.data_format == DataFormat::Zlib)
-        | (state.data_format == DataFormat::ZLibIgnoreChecksum)
+    if (state.data_format == DataFormat::Zlib) |
+        (state.data_format == DataFormat::ZLibIgnoreChecksum)
     {
         decomp_flags |= inflate_flags::TINFL_FLAG_PARSE_ZLIB_HEADER;
     }

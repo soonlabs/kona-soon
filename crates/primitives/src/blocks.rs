@@ -1,7 +1,9 @@
-use crate::deposit::{AttributesDeposited, UserDeposited};
-use crate::derive::OpAttributesWithParent;
-use crate::error::BlockError;
-use crate::payload::BlockPayload;
+use crate::{
+    deposit::{AttributesDeposited, UserDeposited},
+    derive::OpAttributesWithParent,
+    error::BlockError,
+    payload::BlockPayload,
+};
 use alloy_primitives::{B256, BlockHash};
 // use alloy::rpc::types::Block;
 use alloy_consensus::Header;
@@ -9,8 +11,7 @@ use alloy_eips::BlockNumHash;
 use alloy_primitives::{Address, BlockNumber, Sealed};
 use alloy_rlp::{RlpDecodable, RlpEncodable};
 use solana_program::pubkey::Pubkey;
-use solana_sdk::bs58;
-use solana_sdk::transaction::SanitizedTransaction;
+use solana_sdk::{bs58, transaction::SanitizedTransaction};
 use solana_transaction_status::VersionedConfirmedBlock;
 use std::collections::HashSet;
 

@@ -161,9 +161,7 @@ impl SpanBatchTransactionData {
             }
             Self::Eip7702(data) => {
                 let Some(addr) = to else {
-                    return Err(SpanBatchError::Decoding(
-                        SpanDecodingError::InvalidTransactionData,
-                    ));
+                    return Err(SpanBatchError::Decoding(SpanDecodingError::InvalidTransactionData));
                 };
                 TxEnvelope::Eip7702(data.to_signed_tx(nonce, gas, addr, chain_id, signature)?)
             }

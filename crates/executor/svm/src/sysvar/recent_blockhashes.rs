@@ -10,7 +10,7 @@ use solana_program::{
         recent_blockhashes::{Entry, IterItem},
     },
 };
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 
 declare_id!("SoonSysvarRecentB1ockHashes1111111111111111");
 
@@ -60,5 +60,11 @@ impl Deref for SoonRecentBlockhashes {
     type Target = Vec<Entry>;
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl DerefMut for SoonRecentBlockhashes {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }

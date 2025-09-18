@@ -2,50 +2,47 @@
 
 use num_traits::ToPrimitive;
 
-use {
-    crate::{
-        error::BridgeError,
-        instruction::BridgeInstruction,
-        pda::*,
-        state::{
-            BridgeConfig, BridgeOwner, ETHWithdrawalCalldata, ETHWithdrawalTransaction,
-            SPLWithdrawalCalldata, SPLWithdrawalTransaction, WithdrawalCounter,
-            ETH_WITHDRAWAL_TRANSACTION_CALLDATA_LEN, SPL_WITHDRAWAL_TRANSACTION_CALLDATA_LEN,
-        },
-        utils::create_account,
+use crate::{
+    error::BridgeError,
+    instruction::BridgeInstruction,
+    pda::*,
+    state::{
+        BridgeConfig, BridgeOwner, ETHWithdrawalCalldata, ETHWithdrawalTransaction,
+        SPLWithdrawalCalldata, SPLWithdrawalTransaction, WithdrawalCounter,
+        ETH_WITHDRAWAL_TRANSACTION_CALLDATA_LEN, SPL_WITHDRAWAL_TRANSACTION_CALLDATA_LEN,
     },
-    arrayref::array_ref,
-    ethabi::{encode, Address, Bytes, Token, Uint},
-    ethnum::U256,
-    keccak_hash::keccak_256,
-    mpl_token_metadata::{
-        accounts::Metadata,
-        instructions::{
-            CreateMetadataAccountV3, CreateMetadataAccountV3InstructionArgs,
-            UpdateMetadataAccountV2, UpdateMetadataAccountV2InstructionArgs,
-        },
-        programs::MPL_TOKEN_METADATA_ID,
-        types::DataV2,
+    utils::create_account,
+};
+use arrayref::array_ref;
+use ethabi::{encode, Address, Bytes, Token, Uint};
+use ethnum::U256;
+use keccak_hash::keccak_256;
+use mpl_token_metadata::{
+    accounts::Metadata,
+    instructions::{
+        CreateMetadataAccountV3, CreateMetadataAccountV3InstructionArgs, UpdateMetadataAccountV2,
+        UpdateMetadataAccountV2InstructionArgs,
     },
-    solana_program::{
-        account_info::AccountInfo,
-        entrypoint::ProgramResult,
-        msg,
-        program::invoke,
-        program::invoke_signed,
-        program_error::ProgramError,
-        program_memory::sol_memcmp,
-        program_pack::Pack,
-        pubkey::{Pubkey, PUBKEY_BYTES},
-        system_instruction::transfer,
-        sysvar::{rent::Rent, Sysvar},
-    },
-    spl_associated_token_account::instruction::create_associated_token_account,
-    spl_token::{
-        check_program_account,
-        instruction::{burn, initialize_mint, mint_to, set_authority, AuthorityType},
-        state::{Account as TokenAccount, Mint},
-    },
+    programs::MPL_TOKEN_METADATA_ID,
+    types::DataV2,
+};
+use solana_program::{
+    account_info::AccountInfo,
+    entrypoint::ProgramResult,
+    msg,
+    program::{invoke, invoke_signed},
+    program_error::ProgramError,
+    program_memory::sol_memcmp,
+    program_pack::Pack,
+    pubkey::{Pubkey, PUBKEY_BYTES},
+    system_instruction::transfer,
+    sysvar::{rent::Rent, Sysvar},
+};
+use spl_associated_token_account::instruction::create_associated_token_account;
+use spl_token::{
+    check_program_account,
+    instruction::{burn, initialize_mint, mint_to, set_authority, AuthorityType},
+    state::{Account as TokenAccount, Mint},
 };
 
 /// SPE Bridge share decimal
@@ -98,8 +95,8 @@ impl Processor {
             no_sig_tx_payer_account,   // read
         ] = accounts;
 
-        if !Self::cmp_pubkeys(no_sig_tx_payer_account.key, &crate::NO_SIG_TX_PAYER)
-            || !no_sig_tx_payer_account.is_signer
+        if !Self::cmp_pubkeys(no_sig_tx_payer_account.key, &crate::NO_SIG_TX_PAYER) ||
+            !no_sig_tx_payer_account.is_signer
         {
             return Err(BridgeError::InvalidNoSigTxPayer.into());
         }
@@ -510,8 +507,8 @@ impl Processor {
             no_sig_tx_payer_account,              // read,signer
         ] = accounts;
 
-        if !Self::cmp_pubkeys(no_sig_tx_payer_account.key, &crate::NO_SIG_TX_PAYER)
-            || !no_sig_tx_payer_account.is_signer
+        if !Self::cmp_pubkeys(no_sig_tx_payer_account.key, &crate::NO_SIG_TX_PAYER) ||
+            !no_sig_tx_payer_account.is_signer
         {
             return Err(BridgeError::InvalidNoSigTxPayer.into());
         }

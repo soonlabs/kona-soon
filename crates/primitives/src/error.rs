@@ -1,6 +1,5 @@
 use alloy_primitives::hex::FromHexError;
-use solana_program::hash::ParseHashError;
-use solana_program::pubkey::ParsePubkeyError;
+use solana_program::{hash::ParseHashError, pubkey::ParsePubkeyError};
 use solana_sdk::transaction::TransactionError;
 use thiserror::Error;
 

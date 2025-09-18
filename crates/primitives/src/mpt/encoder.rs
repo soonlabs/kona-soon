@@ -69,7 +69,8 @@ pub fn sol_account_encoder() -> TrieNodeValueEncoder {
 /// Same format with sol_account_encoder, but only encode data field.
 /// It's only used for withdrawal merkle root calculation.
 /// Reason of this function is that we only involve those field with determinacy.
-/// Some field like lamports, rent_epoch, can be maliciously modified by anyone to attack user withdraw.
+/// Some field like lamports, rent_epoch, can be maliciously modified by anyone to attack user
+/// withdraw.
 pub fn withdrawal_account_encoder() -> TrieNodeValueEncoder {
     Box::new(|account: &Account| account.data.as_slice().to_owned())
 }

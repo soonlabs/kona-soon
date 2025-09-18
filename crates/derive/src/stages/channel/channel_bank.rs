@@ -11,10 +11,14 @@ use alloc::{boxed::Box, collections::VecDeque, sync::Arc};
 use alloy_primitives::{Bytes, hex, map::HashMap};
 use async_trait::async_trait;
 use core::fmt::Debug;
-use soon_primitives::blocks::BlockInfo;
-use soon_primitives::da::channel::{Channel, ChannelId};
-use soon_primitives::da::frame::Frame;
-use soon_primitives::rollup_config::SoonRollupConfig;
+use soon_primitives::{
+    blocks::BlockInfo,
+    da::{
+        channel::{Channel, ChannelId},
+        frame::Frame,
+    },
+    rollup_config::SoonRollupConfig,
+};
 use tracing::{trace, warn};
 
 /// The maximum size of a channel bank.
@@ -244,8 +248,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::{CollectingLayer, TraceStorage};
-    use crate::{test_utils::TestNextFrameProvider, types::ResetSignal};
+    use crate::{
+        test_utils::{CollectingLayer, TestNextFrameProvider, TraceStorage},
+        types::ResetSignal,
+    };
     use alloc::vec;
     use soon_primitives::da::frame::FRAME_OVERHEAD;
     use tracing::Level;

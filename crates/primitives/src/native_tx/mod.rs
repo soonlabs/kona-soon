@@ -1,17 +1,15 @@
 mod instruction;
 
 use alloy_primitives::B256;
-use solana_program::hash::Hash;
-use solana_program::instruction::Instruction;
-use solana_program::message::Message;
-use solana_program::pubkey::Pubkey;
-use solana_sdk::pubkey;
-use solana_sdk::signature::{SIGNATURE_BYTES, Signature};
-use solana_sdk::transaction::Transaction;
+use solana_program::{hash::Hash, instruction::Instruction, message::Message, pubkey::Pubkey};
+use solana_sdk::{
+    pubkey,
+    signature::{SIGNATURE_BYTES, Signature},
+    transaction::Transaction,
+};
 
 use crate::error::NativeTransactionError;
-pub use instruction::HasNativeInstruction;
-pub use instruction::get_instruction_data_array;
+pub use instruction::{HasNativeInstruction, get_instruction_data_array};
 
 pub const NO_SIG_TX_PAYER: Pubkey = pubkey!("NoSigTxPayer1111111111111111111111111111111");
 
