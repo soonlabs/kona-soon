@@ -85,9 +85,10 @@ impl L2BlockFetcher {
                 ))
             })?;
         if res.query_slot != num {
-            return Err(L2ChainProviderError::FetchOutputAtBlockFailed(
-                "query slot updated".to_string(),
-            ));
+            return Err(L2ChainProviderError::FetchOutputAtBlockFailed(format!(
+                "query slot outdated, query slot:{}, res slot: {}",
+                num, res.query_slot
+            )));
         }
 
         Ok(OutputRoot {
