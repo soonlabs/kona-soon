@@ -201,8 +201,8 @@ impl BatchReader {
                 }
 
                 let compression_type = compressed_data[0];
-                if (compression_type & 0x0F) == ZLIB_DEFLATE_COMPRESSION_METHOD ||
-                    (compression_type & 0x0F) == ZLIB_RESERVED_COMPRESSION_METHOD
+                if (compression_type & 0x0F) == ZLIB_DEFLATE_COMPRESSION_METHOD
+                    || (compression_type & 0x0F) == ZLIB_RESERVED_COMPRESSION_METHOD
                 {
                     let (decompressed, consumed) = decompress_to_vec_zlib(&compressed_data).ok()?;
 

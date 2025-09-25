@@ -85,8 +85,8 @@ fn program_process(
                 if !account_info.is_signer {
                     return Err(ProgramError::MissingRequiredSignature);
                 }
-                if account_info.data_len() != MAX_PERMITTED_DATA_LENGTH as usize ||
-                    account_info.owner != program_id
+                if account_info.data_len() != MAX_PERMITTED_DATA_LENGTH as usize
+                    || account_info.owner != program_id
                 {
                     return Err(ProgramError::AccountAlreadyInitialized);
                 }
@@ -113,8 +113,8 @@ fn program_process(
                     return Err(ProgramError::MissingRequiredSignature);
                 }
                 let new_info = &account_infos[1];
-                if new_info.data_len() != MAX_PERMITTED_DATA_LENGTH as usize ||
-                    new_info.owner != program_id
+                if new_info.data_len() != MAX_PERMITTED_DATA_LENGTH as usize
+                    || new_info.owner != program_id
                 {
                     return Err(ProgramError::AccountAlreadyInitialized);
                 }
@@ -170,10 +170,10 @@ impl solana_sdk::program_stubs::SyscallStubs for TestSyscallStubs {
 
         // mimic check for token related program in accounts
         if !account_infos.iter().any(|x| {
-            *x.key == system_program::id() ||
-                *x.key == spl_token::id() ||
-                *x.key == spl_associated_token_account::id() ||
-                *x.key == mpl_token_metadata::ID
+            *x.key == system_program::id()
+                || *x.key == spl_token::id()
+                || *x.key == spl_associated_token_account::id()
+                || *x.key == mpl_token_metadata::ID
         }) {
             return Err(ProgramError::InvalidAccountData);
         }

@@ -203,8 +203,8 @@ pub fn inflate(
         inflate_flags::TINFL_FLAG_IGNORE_ADLER32
     };
 
-    if (state.data_format == DataFormat::Zlib) |
-        (state.data_format == DataFormat::ZLibIgnoreChecksum)
+    if (state.data_format == DataFormat::Zlib)
+        | (state.data_format == DataFormat::ZLibIgnoreChecksum)
     {
         decomp_flags |= inflate_flags::TINFL_FLAG_PARSE_ZLIB_HEADER;
     }

@@ -214,8 +214,9 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
         self.update_slot_history()?;
 
         // update blockhash queue
-        let mut recent_blockhashes =
-            self.get_sysvar::<sysvar::recent_blockhashes::SoonRecentBlockhashes>()?;
+        let mut recent_blockhashes = self
+            .get_sysvar::<sysvar::recent_blockhashes::SoonRecentBlockhashes>()
+            .unwrap_or_default();
         if recent_blockhashes.is_empty() && self.parent_slot == 0 {
             // genesis case, fill with genesis hash
             #[allow(deprecated)]
@@ -518,8 +519,8 @@ impl<CB: AccountsCallback> LiteSVM<CB> {
                         .load_account(key)
                         .map_err(|_| TransactionError::AccountNotFound)?
                         .unwrap_or_default();
-                    if !validated_fee_payer &&
-                        (!message.is_invoked(i) || message.is_instruction_account(i))
+                    if !validated_fee_payer
+                        && (!message.is_invoked(i) || message.is_instruction_account(i))
                     {
                         fee_payer_rent_debit = collect_rent_from_account(
                             &self.feature_set,
@@ -1346,8 +1347,8 @@ fn check_rent_state_with_account(
     address: &Pubkey,
     account_index: IndexOfAccount,
 ) -> solana_sdk::transaction::Result<()> {
-    if !solana_sdk::incinerator::check_id(address) &&
-        !post_rent_state.transition_allowed_from(pre_rent_state)
+    if !solana_sdk::incinerator::check_id(address)
+        && !post_rent_state.transition_allowed_from(pre_rent_state)
     {
         let account_index = account_index as u8;
         error!("Transaction would leave account {address} with insufficient funds for rent");

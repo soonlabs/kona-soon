@@ -139,16 +139,16 @@ pub fn classify_account(pubkey: &Pubkey, account: &AccountSharedData) -> String 
     let pubkey_str = pubkey.to_string();
 
     // first check if it's a known sysvar account
-    if pubkey_str.starts_with("SysVar") ||
-        is_known_sysvar(&pubkey_str) ||
-        *account.owner() == solana_sdk::sysvar::id()
+    if pubkey_str.starts_with("SysVar")
+        || is_known_sysvar(&pubkey_str)
+        || *account.owner() == solana_sdk::sysvar::id()
     {
         return format!("Sysvar ({})", pubkey_str);
     }
 
     // check special config accounts (also a sysvar)
-    if pubkey_str == "StakeConfig11111111111111111111111111111111" ||
-        *account.owner() == solana_sdk::config::program::id()
+    if pubkey_str == "StakeConfig11111111111111111111111111111111"
+        || *account.owner() == solana_sdk::config::program::id()
     {
         return format!("Sysvar ({})", pubkey_str);
     }
@@ -419,11 +419,11 @@ pub fn analyze_account_sets(
     for pubkey in &common_accounts {
         let soon_account = soon_map[pubkey];
         let litesvm_account = litesvm_map[pubkey];
-        if soon_account.lamports() != litesvm_account.lamports() ||
-            soon_account.data() != litesvm_account.data() ||
-            soon_account.owner() != litesvm_account.owner() ||
-            soon_account.executable() != litesvm_account.executable() ||
-            soon_account.rent_epoch() != litesvm_account.rent_epoch()
+        if soon_account.lamports() != litesvm_account.lamports()
+            || soon_account.data() != litesvm_account.data()
+            || soon_account.owner() != litesvm_account.owner()
+            || soon_account.executable() != litesvm_account.executable()
+            || soon_account.rent_epoch() != litesvm_account.rent_epoch()
         {
             mismatched += 1;
             mismatched_accounts.push((pubkey, soon_account, litesvm_account));

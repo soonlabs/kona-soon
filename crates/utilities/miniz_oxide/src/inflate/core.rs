@@ -308,16 +308,16 @@ impl State {
     const fn is_failure(self) -> bool {
         matches!(
             self,
-            BlockTypeUnexpected |
-                BadCodeSizeSum |
-                BadDistOrLiteralTableLength |
-                BadTotalSymbols |
-                BadZlibHeader |
-                DistanceOutOfBounds |
-                BadRawLength |
-                BadCodeSizeDistPrevLookup |
-                InvalidLitlen |
-                InvalidDist
+            BlockTypeUnexpected
+                | BadCodeSizeSum
+                | BadDistOrLiteralTableLength
+                | BadTotalSymbols
+                | BadZlibHeader
+                | DistanceOutOfBounds
+                | BadRawLength
+                | BadCodeSizeDistPrevLookup
+                | InvalidLitlen
+                | InvalidDist
         )
     }
 
@@ -1088,8 +1088,8 @@ fn decompress_fast(
             }
 
             let position = out_buf.position();
-            if l.dist as usize > out_buf.position() &&
-                (flags & TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF != 0)
+            if l.dist as usize > out_buf.position()
+                && (flags & TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF != 0)
             {
                 // We encountered a distance that refers a position before
                 // the start of the decoded data, so we can't continue.
@@ -1740,8 +1740,8 @@ pub fn decompress(
         };
     };
 
-    let in_undo = if status != TINFLStatus::NeedsMoreInput &&
-        status != TINFLStatus::FailedCannotMakeProgress
+    let in_undo = if status != TINFLStatus::NeedsMoreInput
+        && status != TINFLStatus::FailedCannotMakeProgress
     {
         undo_bytes(&mut l, (in_buf.len() - in_iter.len()) as u32) as usize
     } else {
@@ -1751,9 +1751,9 @@ pub fn decompress(
     // Make sure HasMoreOutput overrides NeedsMoreInput if the output buffer is full.
     // (Unless the missing input is the adler32 value in which case we don't need to write
     // anything.) TODO: May want to see if we can do this in a better way.
-    if status == TINFLStatus::NeedsMoreInput &&
-        out_buf.bytes_left() == 0 &&
-        state != State::ReadAdler32
+    if status == TINFLStatus::NeedsMoreInput
+        && out_buf.bytes_left() == 0
+        && state != State::ReadAdler32
     {
         status = TINFLStatus::HasMoreOutput
     }
@@ -1784,9 +1784,9 @@ pub fn decompress(
         if !cfg!(fuzzing) {
             // Once we are done, check if the checksum matches with the one provided in the zlib
             // header.
-            if status == TINFLStatus::Done &&
-                flags & TINFL_FLAG_PARSE_ZLIB_HEADER != 0 &&
-                r.check_adler32 != r.z_adler32
+            if status == TINFLStatus::Done
+                && flags & TINFL_FLAG_PARSE_ZLIB_HEADER != 0
+                && r.check_adler32 != r.z_adler32
             {
                 status = TINFLStatus::Adler32Mismatch;
             }
@@ -1906,9 +1906,9 @@ mod test {
     fn check_result(input: &[u8], expected_status: TINFLStatus, expected_state: State, zlib: bool) {
         let mut r = DecompressorOxide::default();
         let mut output_buf = vec![0; 1024 * 32];
-        let flags = if zlib { inflate_flags::TINFL_FLAG_PARSE_ZLIB_HEADER } else { 0 } |
-            TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF |
-            TINFL_FLAG_HAS_MORE_INPUT;
+        let flags = if zlib { inflate_flags::TINFL_FLAG_PARSE_ZLIB_HEADER } else { 0 }
+            | TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF
+            | TINFL_FLAG_HAS_MORE_INPUT;
         let (d_status, _in_bytes, _out_bytes) =
             decompress(&mut r, input, &mut output_buf, 0, flags);
         assert_eq!(expected_status, d_status);
@@ -1992,9 +1992,9 @@ mod test {
         let encoded = [
             120, 156, 243, 72, 205, 201, 201, 215, 81, 168, 202, 201, 76, 82, 4, 0, 27, 101, 4, 19,
         ];
-        let flags = TINFL_FLAG_COMPUTE_ADLER32 |
-            TINFL_FLAG_PARSE_ZLIB_HEADER |
-            TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF;
+        let flags = TINFL_FLAG_COMPUTE_ADLER32
+            | TINFL_FLAG_PARSE_ZLIB_HEADER
+            | TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF;
         let mut r = DecompressorOxide::new();
         let mut output_buf: [u8; 0] = [];
         // Check that we handle an empty buffer properly and not panicking.

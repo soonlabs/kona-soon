@@ -27,8 +27,8 @@ impl HasNativeInstruction for Transaction {
     fn has_derived_bridge_instruction(&self) -> bool {
         let message = self.message();
         message.instructions.iter().any(|ix| {
-            message.account_keys[ix.program_id_index as usize] == bridge::id() &&
-                BridgeInstruction::unpack(&ix.data).map(|ix| ix.is_derived()).unwrap_or(false)
+            message.account_keys[ix.program_id_index as usize] == bridge::id()
+                && BridgeInstruction::unpack(&ix.data).map(|ix| ix.is_derived()).unwrap_or(false)
         })
     }
 }
@@ -43,8 +43,8 @@ impl HasNativeInstruction for SanitizedTransaction {
 
     fn has_derived_bridge_instruction(&self) -> bool {
         self.message().program_instructions_iter().any(|(program, ix)| {
-            program == &bridge::id() &&
-                BridgeInstruction::unpack(&ix.data).map(|ix| ix.is_derived()).unwrap_or(false)
+            program == &bridge::id()
+                && BridgeInstruction::unpack(&ix.data).map(|ix| ix.is_derived()).unwrap_or(false)
         })
     }
 }
@@ -59,8 +59,8 @@ impl HasNativeInstruction for VersionedTransaction {
 
     fn has_derived_bridge_instruction(&self) -> bool {
         self.message.instructions().iter().any(|ix| {
-            self.message.static_account_keys()[ix.program_id_index as usize] == bridge::id() &&
-                BridgeInstruction::unpack(&ix.data).map(|ix| ix.is_derived()).unwrap_or(false)
+            self.message.static_account_keys()[ix.program_id_index as usize] == bridge::id()
+                && BridgeInstruction::unpack(&ix.data).map(|ix| ix.is_derived()).unwrap_or(false)
         })
     }
 }

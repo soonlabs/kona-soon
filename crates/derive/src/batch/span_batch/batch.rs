@@ -306,9 +306,9 @@ impl SpanBatch {
                 warn!("batch has misaligned timestamp, not overlapped exactly");
                 return (BatchValidity::Drop, None);
             }
-            parent_num = l2_safe_head.block_info.number -
-                (l2_safe_head.block_info.timestamp - self.starting_timestamp()) / cfg.block_time -
-                1;
+            parent_num = l2_safe_head.block_info.number
+                - (l2_safe_head.block_info.timestamp - self.starting_timestamp()) / cfg.block_time
+                - 1;
             parent_block = match fetcher.l2_block_info_by_number(parent_num).await {
                 Ok(block) => block,
                 Err(e) => {

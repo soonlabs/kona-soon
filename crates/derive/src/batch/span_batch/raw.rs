@@ -83,9 +83,9 @@ impl RawSpanBatch {
                 .payload
                 .origin_bits
                 .get_bit(i as usize)
-                .ok_or(SpanBatchError::Decoding(SpanDecodingError::L1OriginCheck))? ==
-                1 &&
-                i > 0
+                .ok_or(SpanBatchError::Decoding(SpanDecodingError::L1OriginCheck))?
+                == 1
+                && i > 0
             {
                 l1_origin_number -= 1;
             }

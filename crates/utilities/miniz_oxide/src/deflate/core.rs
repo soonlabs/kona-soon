@@ -1120,8 +1120,8 @@ impl HuffmanOxide {
         output.put_bits((num_lit_codes - 257) as u32, 5);
         output.put_bits((num_dist_codes - 1) as u32, 5);
 
-        let mut num_bit_lengths = 18 -
-            HUFFMAN_LENGTH_ORDER
+        let mut num_bit_lengths = 18
+            - HUFFMAN_LENGTH_ORDER
                 .iter()
                 .rev()
                 .take_while(|&swizzle| self.code_sizes[HUFF_CODES_TABLE][*swizzle as usize] == 0)
@@ -1594,8 +1594,8 @@ fn flush_block(
         output.bit_buffer = d.params.saved_bit_buffer;
         output.bits_in = d.params.saved_bits_in;
 
-        let use_raw_block = (d.params.flags & TDEFL_FORCE_ALL_RAW_BLOCKS != 0) &&
-            (d.dict.lookahead_pos - d.dict.code_buf_dict_pos) <= d.dict.size;
+        let use_raw_block = (d.params.flags & TDEFL_FORCE_ALL_RAW_BLOCKS != 0)
+            && (d.dict.lookahead_pos - d.dict.code_buf_dict_pos) <= d.dict.size;
 
         assert!(d.params.flush_remaining == 0);
         d.params.flush_ofs = 0;
@@ -1632,9 +1632,9 @@ fn flush_block(
         // As a static block will have an overhead of at most 1 bit per byte
         // (as literals are either 8 or 9 bytes), a raw block will
         // never take up less space if the number of input bytes are less than 32.
-        let expanded = (d.lz.total_bytes > 32) &&
-            (output.inner_pos - saved_buffer.pos + 1 >= (d.lz.total_bytes as usize)) &&
-            (d.dict.lookahead_pos - d.dict.code_buf_dict_pos <= d.dict.size);
+        let expanded = (d.lz.total_bytes > 32)
+            && (output.inner_pos - saved_buffer.pos + 1 >= (d.lz.total_bytes as usize))
+            && (d.dict.lookahead_pos - d.dict.code_buf_dict_pos <= d.dict.size);
 
         if use_raw_block || expanded {
             output.load(saved_buffer);
@@ -1751,8 +1751,8 @@ fn compress_normal(d: &mut CompressorOxide, callback: &mut CallbackOxide) -> boo
         let src_buf_left = in_buf.len() - src_pos;
         let num_bytes_to_process = cmp::min(src_buf_left, MAX_MATCH_LEN - lookahead_size);
 
-        if lookahead_size + d.dict.size >= usize::from(MIN_MATCH_LEN) - 1 &&
-            num_bytes_to_process > 0
+        if lookahead_size + d.dict.size >= usize::from(MIN_MATCH_LEN) - 1
+            && num_bytes_to_process > 0
         {
             let dictb = &mut d.dict.b;
 
@@ -1794,12 +1794,12 @@ fn compress_normal(d: &mut CompressorOxide, callback: &mut CallbackOxide) -> boo
                 lookahead_size += 1;
                 if lookahead_size + d.dict.size >= MIN_MATCH_LEN.into() {
                     let ins_pos = lookahead_pos + lookahead_size - 3;
-                    let hash = ((u32::from(dictb.dict[ins_pos & LZ_DICT_SIZE_MASK]) <<
-                        (LZ_HASH_SHIFT * 2)) ^
-                        ((u32::from(dictb.dict[(ins_pos + 1) & LZ_DICT_SIZE_MASK]) <<
-                            LZ_HASH_SHIFT) ^
-                            u32::from(c))) &
-                        (LZ_HASH_SIZE as u32 - 1);
+                    let hash = ((u32::from(dictb.dict[ins_pos & LZ_DICT_SIZE_MASK])
+                        << (LZ_HASH_SHIFT * 2))
+                        ^ ((u32::from(dictb.dict[(ins_pos + 1) & LZ_DICT_SIZE_MASK])
+                            << LZ_HASH_SHIFT)
+                            ^ u32::from(c)))
+                        & (LZ_HASH_SIZE as u32 - 1);
 
                     dictb.next[ins_pos & LZ_DICT_SIZE_MASK] = dictb.hash[hash as usize];
                     dictb.hash[hash as usize] = ins_pos as u16;
@@ -1877,9 +1877,9 @@ fn compress_normal(d: &mut CompressorOxide, callback: &mut CallbackOxide) -> boo
                 &mut d.lz,
                 d.dict.b.dict[cmp::min(cur_pos, d.dict.b.dict.len() - 1)],
             );
-        } else if d.params.greedy_parsing ||
-            (d.params.flags & TDEFL_RLE_MATCHES != 0) ||
-            cur_match_len >= 128
+        } else if d.params.greedy_parsing
+            || (d.params.flags & TDEFL_RLE_MATCHES != 0)
+            || cur_match_len >= 128
         {
             // If we are using lazy matching, check for matches at the next byte if the current
             // match was shorter than 128 bytes.
@@ -1973,8 +1973,8 @@ fn compress_fast(d: &mut CompressorOxide, callback: &mut CallbackOxide) -> bool 
 
             let first_trigram = d.dict.read_unaligned_u32(cur_pos) & 0xFF_FFFF;
 
-            let hash = (first_trigram ^ (first_trigram >> (24 - (LZ_HASH_BITS - 8)))) &
-                LEVEL1_HASH_SIZE_MASK;
+            let hash = (first_trigram ^ (first_trigram >> (24 - (LZ_HASH_BITS - 8))))
+                & LEVEL1_HASH_SIZE_MASK;
 
             let mut probe_pos = usize::from(d.dict.b.hash[hash as usize]);
             d.dict.b.hash[hash as usize] = lookahead_pos as u16;
@@ -2006,8 +2006,8 @@ fn compress_fast(d: &mut CompressorOxide, callback: &mut CallbackOxide) -> bool 
                         if cur_match_dist == 0 { 0 } else { MAX_MATCH_LEN as u32 }
                     })();
 
-                    if cur_match_len < MIN_MATCH_LEN.into() ||
-                        (cur_match_len == MIN_MATCH_LEN.into() && cur_match_dist >= 8 * 1024)
+                    if cur_match_len < MIN_MATCH_LEN.into()
+                        || (cur_match_len == MIN_MATCH_LEN.into() && cur_match_dist >= 8 * 1024)
                     {
                         let lit = first_trigram as u8;
                         cur_match_len = 1;
@@ -2216,9 +2216,9 @@ fn compress_inner(
 
     let one_probe = d.params.flags & MAX_PROBES_MASK as u32 == 1;
     let greedy = d.params.flags & TDEFL_GREEDY_PARSING_FLAG != 0;
-    let filter_or_rle_or_raw = d.params.flags &
-        (TDEFL_FILTER_MATCHES | TDEFL_FORCE_ALL_RAW_BLOCKS | TDEFL_RLE_MATCHES) !=
-        0;
+    let filter_or_rle_or_raw = d.params.flags
+        & (TDEFL_FILTER_MATCHES | TDEFL_FORCE_ALL_RAW_BLOCKS | TDEFL_RLE_MATCHES)
+        != 0;
 
     let compress_success = if one_probe && greedy && !filter_or_rle_or_raw {
         compress_fast(d, callback)

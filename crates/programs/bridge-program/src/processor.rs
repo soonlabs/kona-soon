@@ -95,8 +95,8 @@ impl Processor {
             no_sig_tx_payer_account,   // read
         ] = accounts;
 
-        if !Self::cmp_pubkeys(no_sig_tx_payer_account.key, &crate::NO_SIG_TX_PAYER) ||
-            !no_sig_tx_payer_account.is_signer
+        if !Self::cmp_pubkeys(no_sig_tx_payer_account.key, &crate::NO_SIG_TX_PAYER)
+            || !no_sig_tx_payer_account.is_signer
         {
             return Err(BridgeError::InvalidNoSigTxPayer.into());
         }
@@ -507,8 +507,8 @@ impl Processor {
             no_sig_tx_payer_account,              // read,signer
         ] = accounts;
 
-        if !Self::cmp_pubkeys(no_sig_tx_payer_account.key, &crate::NO_SIG_TX_PAYER) ||
-            !no_sig_tx_payer_account.is_signer
+        if !Self::cmp_pubkeys(no_sig_tx_payer_account.key, &crate::NO_SIG_TX_PAYER)
+            || !no_sig_tx_payer_account.is_signer
         {
             return Err(BridgeError::InvalidNoSigTxPayer.into());
         }

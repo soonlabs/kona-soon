@@ -251,7 +251,9 @@ impl SpanBatchTransactions {
                 .ok_or(SpanBatchError::Decoding(SpanDecodingError::InvalidTransactionData))?;
             let to = if bit == 0 {
                 if self.tx_tos.len() <= to_idx {
-                    return Err(SpanBatchError::Decoding(SpanDecodingError::InvalidTransactionData));
+                    return Err(SpanBatchError::Decoding(
+                        SpanDecodingError::InvalidTransactionData,
+                    ));
                 }
                 to_idx += 1;
                 Some(self.tx_tos[to_idx - 1])
@@ -311,14 +313,16 @@ impl SpanBatchTransactions {
                     (sig, tx.to(), tx.nonce(), tx.gas_limit(), tx.chain_id())
                 }
                 _ => {
-                    return Err(SpanBatchError::Decoding(SpanDecodingError::InvalidTransactionData));
+                    return Err(SpanBatchError::Decoding(
+                        SpanDecodingError::InvalidTransactionData,
+                    ));
                 }
             };
 
-            if tx_enveloped.is_replay_protected() &&
-                tx_chain_id
-                    .ok_or(SpanBatchError::Decoding(SpanDecodingError::InvalidTransactionData))? !=
-                    chain_id
+            if tx_enveloped.is_replay_protected()
+                && tx_chain_id
+                    .ok_or(SpanBatchError::Decoding(SpanDecodingError::InvalidTransactionData))?
+                    != chain_id
             {
                 return Err(SpanBatchError::Decoding(SpanDecodingError::InvalidTransactionData));
             }

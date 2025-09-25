@@ -50,8 +50,8 @@ fn setup_test_context() -> TestContext {
 
 fn get_config_space(key_len: usize) -> usize {
     let entry_size = bincode::serialized_size(&(Pubkey::default(), true)).unwrap() as usize;
-    bincode::serialized_size(&(ConfigKeys::default(), MyConfig::default())).unwrap() as usize +
-        key_len * entry_size
+    bincode::serialized_size(&(ConfigKeys::default(), MyConfig::default())).unwrap() as usize
+        + key_len * entry_size
 }
 
 fn create_config_account(
