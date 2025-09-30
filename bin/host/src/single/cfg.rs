@@ -1,29 +1,21 @@
 //! This module contains all CLI-specific code for the single chain entrypoint.
 
-use super::{SingleChainHintHandler, SingleChainLocalInputs};
+use super::SingleChainLocalInputs;
 use crate::{
-    DiskKeyValueStore, MemoryKeyValueStore, OfflineHostBackend, OnlineHostBackend,
-    OnlineHostBackendCfg, PreimageServer, SharedKeyValueStore, SplitKeyValueStore,
-    eth::http_provider, server::PreimageServerError,
+    DiskKeyValueStore, MemoryKeyValueStore, OnlineHostBackendCfg, SharedKeyValueStore,
+    SplitKeyValueStore, eth::http_provider, server::PreimageServerError,
 };
 use alloy_primitives::B256;
 use alloy_provider::RootProvider;
 use clap::Parser;
 use kona_cli::cli_styles;
-use kona_preimage::{
-    BidirectionalChannel, Channel, HintReader, HintWriter, OracleReader, OracleServer,
-};
 use kona_proof::HintType;
-use kona_std_fpvm::{FileChannel, FileDescriptor};
 use serde::Serialize;
 use soon_da_provider::da_proxy::DAProxyImpl;
 use soon_l2_chain_provider::chain_provider::L2BlockFetcher;
 use soon_primitives::rollup_config::SoonRollupConfig;
 use std::{path::PathBuf, sync::Arc};
-use tokio::{
-    sync::RwLock,
-    task::{self, JoinHandle},
-};
+use tokio::sync::RwLock;
 
 /// The host binary CLI application arguments.
 #[derive(Default, Parser, Serialize, Clone, Debug)]
@@ -130,83 +122,6 @@ pub enum SingleChainHostError {
 }
 
 impl SingleChainHost {
-    /// Starts the [SingleChainHost] application.
-    pub async fn start(self) -> Result<(), SingleChainHostError> {
-        if self.server {
-            let hint = FileChannel::new(FileDescriptor::HintRead, FileDescriptor::HintWrite);
-            let preimage =
-                FileChannel::new(FileDescriptor::PreimageRead, FileDescriptor::PreimageWrite);
-
-            self.start_server(hint, preimage).await?.await?
-        } else {
-            self.start_native().await
-        }
-    }
-
-    /// Starts the preimage server, communicating with the client over the provided channels.
-    pub async fn start_server<C>(
-        &self,
-        hint: C,
-        preimage: C,
-    ) -> Result<JoinHandle<Result<(), SingleChainHostError>>, SingleChainHostError>
-    where
-        C: Channel + Send + Sync + 'static,
-    {
-        let kv_store = self.create_key_value_store()?;
-
-        let task_handle = if self.is_offline() {
-            task::spawn(async {
-                PreimageServer::new(
-                    OracleServer::new(preimage),
-                    HintReader::new(hint),
-                    Arc::new(OfflineHostBackend::new(kv_store)),
-                )
-                .start()
-                .await
-                .map_err(SingleChainHostError::from)
-            })
-        } else {
-            let providers = self.create_providers().await?;
-            let backend = OnlineHostBackend::new(
-                self.clone(),
-                kv_store.clone(),
-                providers,
-                SingleChainHintHandler,
-            );
-
-            task::spawn(async {
-                PreimageServer::new(
-                    OracleServer::new(preimage),
-                    HintReader::new(hint),
-                    Arc::new(backend),
-                )
-                .start()
-                .await
-                .map_err(SingleChainHostError::from)
-            })
-        };
-
-        Ok(task_handle)
-    }
-
-    /// Starts the host in native mode, running both the client and preimage server in the same
-    /// process.
-    async fn start_native(&self) -> Result<(), SingleChainHostError> {
-        let hint = BidirectionalChannel::new()?;
-        let preimage = BidirectionalChannel::new()?;
-
-        let server_task = self.start_server(hint.host, preimage.host).await?;
-        let client_task = task::spawn(kona_client::single::run(
-            OracleReader::new(preimage.client),
-            HintWriter::new(hint.client),
-        ));
-
-        let (_, client_result) = tokio::try_join!(server_task, client_task)?;
-
-        // Bubble up the exit status of the client program if execution completes.
-        std::process::exit(client_result.is_err() as i32)
-    }
-
     /// Returns `true` if the host is running in offline mode.
     pub const fn is_offline(&self) -> bool {
         self.l1_node_address.is_none()

@@ -2,6 +2,7 @@
 
 use crate::{HintType, errors::OracleProviderError};
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
+use alloy_consensus::transaction::SignerRecoverable;
 use alloy_consensus::{
     Header, Receipt, ReceiptEnvelope,
     TxEip4844Variant::{TxEip4844, TxEip4844WithSidecar},

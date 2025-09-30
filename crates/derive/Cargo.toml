@@ -56,7 +56,6 @@ spin = { workspace = true }
 anyhow = { workspace = true }
 proptest = { workspace = true }
 serde_json = { workspace = true }
-alloy = { workspace = true, features = ["full"] }
 alloy-rpc-client = { workspace = true }
 alloy-node-bindings = { workspace = true }
 alloy-transport-http = { workspace = true }

@@ -18,7 +18,7 @@ members = [
   "crates/utilities/*",
   "crates/executor/*",
 ]
-default-members = ["bin/host", "bin/client"]
+default-members = ["bin/host"]
 
 [workspace.metadata.cargo-udeps.ignore]
 normal = ["rustls-platform-verifier"]
@@ -61,7 +61,6 @@ lto = "fat"
 [workspace.dependencies]
 # Binaries
 kona-host = { path = "bin/host", version = "1.0.1", default-features = false }
-kona-client = { path = "bin/client", version = "1.0.1", default-features = false }
 
 # Protocol
 kona-comp = { path = "crates/protocol/comp", version = "0.3.0", default-features = false }
@@ -99,42 +98,41 @@ spl-noop = { path = "crates/programs/spl-noop-program", features = [
 
 
 # Alloy
-alloy = { version = "0.15.8", default-features = false }
-alloy-rlp = { version = "0.3.11", default-features = false }
-alloy-trie = { version = "0.8.0", default-features = false }
-alloy-chains = { version = "0.2", default-features = false }
-alloy-eips = { version = "0.15.8", default-features = false }
-alloy-serde = { version = "0.15.8", default-features = false }
-alloy-network = { version = "0.15.8", default-features = false }
-alloy-provider = { version = "0.15.8", default-features = false }
-alloy-sol-types = { version = "1.1.0", default-features = false }
-alloy-consensus = { version = "0.15.8", default-features = false }
-alloy-transport = { version = "0.15.8", default-features = false }
-alloy-rpc-types = { version = "0.15.8", default-features = false }
-alloy-rpc-client = { version = "0.15.8", default-features = false }
-alloy-primitives = { version = "1.1.0", default-features = false }
-alloy-node-bindings = { version = "0.15.8", default-features = false }
-alloy-rpc-types-eth = { version = "0.15.8", default-features = false }
-alloy-transport-http = { version = "0.15.8", default-features = false }
-alloy-rpc-types-engine = { version = "0.15.8", default-features = false }
-alloy-rpc-types-beacon = { version = "0.15.8", default-features = false }
-alloy-network-primitives = { version = "0.15.8", default-features = false }
-alloy-hardforks = { version = "0.2.0", default-features = false }
+#alloy = { version = "1.0.9", default-features = false }
+alloy-rlp = { version = "0.3.12", default-features = false }
+alloy-trie = { version = "0.8.1", default-features = false }
+alloy-chains = { version = "0.2.3", default-features = false }
+alloy-eips = { version = "=1.0.9", default-features = false }
+alloy-serde = { version = "=1.0.9", default-features = false }
+alloy-provider = { version = "=1.0.9", default-features = false }
+alloy-sol-types = { version = "1.1.2", default-features = false }
+alloy-consensus = { version = "=1.0.9", default-features = false }
+alloy-transport = { version = "=1.0.9", default-features = false }
+alloy-rpc-types = { version = "=1.0.9", default-features = false }
+alloy-rpc-client = { version = "=1.0.9", default-features = false }
+alloy-primitives = { version = "1.1.2", default-features = false }
+alloy-node-bindings = { version = "=1.0.9", default-features = false }
+alloy-rpc-types-eth = { version = "=1.0.9", default-features = false }
+alloy-transport-http = { version = "=1.0.9", default-features = false }
+alloy-rpc-types-engine = { version = "=1.0.9", default-features = false }
+alloy-rpc-types-beacon = { version = "=1.0.9", default-features = false }
+alloy-network = { version = "=1.0.9", default-features = false }
+alloy-network-primitives = { version = "=1.0.9", default-features = false }
 
 # OP Alloy
-op-alloy-network = { version = "0.15.2", default-features = false }
-op-alloy-provider = { version = "=0.15.4", default-features = false }
-op-alloy-consensus = { version = "=0.15.4", default-features = false }
-op-alloy-rpc-types = { version = "0.15.2", default-features = false }
-op-alloy-rpc-jsonrpsee = { version = "0.15.2", default-features = false }
-op-alloy-rpc-types-engine = { version = "0.15.2", default-features = false }
-alloy-op-hardforks = { version = "0.2.0", default-features = false }
+op-alloy-network = { version = "=0.17.2", default-features = false }
+op-alloy-provider = { version = "=0.17.2", default-features = false }
+op-alloy-consensus = { version = "=0.17.2", default-features = false }
+op-alloy-rpc-types = { version = "=0.17.2", default-features = false }
+op-alloy-rpc-jsonrpsee = { version = "=0.17.2", default-features = false }
+op-alloy-rpc-types-engine = { version = "=0.17.2", default-features = false }
+alloy-op-hardforks = { version = "0.2.6", default-features = false }
 
 # Execution
-revm = { version = "22.0.1", default-features = false }
-op-revm = { version = "3.0.1", default-features = false }
-alloy-evm = { version = "0.6.0", default-features = false, features = ["op"] }
-alloy-op-evm = { version = "0.6.0", default-features = false }
+revm = { version = "24.0.1", default-features = false }
+op-revm = { version = "5.0.1", default-features = false }
+alloy-evm = { version = "0.10.0", default-features = false }
+alloy-op-evm = { version = "0.10.0", default-features = false }
 
 # General
 url = "2.5.4"
@@ -213,7 +211,7 @@ criterion = "0.5.1"
 rkyv = "0.8.10"
 serde_repr = "0.1.20"
 toml = { version = "0.8.20", default-features = false }
-serde = { version = "1.0.219", default-features = false }
+serde = { version = "=1.0.219", default-features = false }
 serde_json = { version = "1.0.140", default-features = false }
 serde_derive = "1.0.204"
 
