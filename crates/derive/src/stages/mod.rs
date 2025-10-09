@@ -26,8 +26,8 @@ pub use frame_queue::{FrameQueue, FrameQueueProvider};
 
 mod channel;
 pub use channel::{
-    ChannelAssembler, ChannelBank, ChannelProvider, ChannelReader, ChannelReaderProvider,
-    NextFrameProvider,
+    BatchReader, ChannelAssembler, ChannelBank, ChannelProvider, ChannelReader,
+    ChannelReaderProvider, NextFrameProvider,
 };
 
 mod batch;

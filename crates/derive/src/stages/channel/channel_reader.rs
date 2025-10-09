@@ -50,11 +50,11 @@ where
     P: ChannelReaderProvider + OriginAdvancer + OriginProvider + SignalReceiver + Debug,
 {
     /// The previous stage of the derivation pipeline.
-    prev: P,
+    pub prev: P,
     /// The batch reader.
-    next_batch: Option<BatchReader>,
+    pub next_batch: Option<BatchReader>,
     /// The rollup configuration.
-    cfg: Arc<SoonRollupConfig>,
+    pub cfg: Arc<SoonRollupConfig>,
 }
 
 impl<P> ChannelReader<P>
@@ -172,13 +172,13 @@ where
 /// Warning: the batch reader can read every batch-type.
 /// The caller of the batch-reader should filter the results.
 #[derive(Debug)]
-pub(crate) struct BatchReader {
+pub struct BatchReader {
     /// The raw data to decode.
-    data: Option<Vec<u8>>,
+    pub data: Option<Vec<u8>>,
     /// The current cursor in the `decompressed` data.
-    cursor: usize,
+    pub cursor: usize,
     /// The maximum RLP bytes per channel.
-    max_rlp_bytes_per_channel: usize,
+    pub max_rlp_bytes_per_channel: usize,
 }
 
 impl BatchReader {

@@ -26,7 +26,7 @@ pub(crate) mod channel_assembler;
 pub use channel_assembler::ChannelAssembler;
 
 pub(crate) mod channel_reader;
-pub use channel_reader::{ChannelReader, ChannelReaderProvider};
+pub use channel_reader::{BatchReader, ChannelReader, ChannelReaderProvider};
 
 /// Provides frames for the [ChannelBank] and [ChannelAssembler] stages.
 #[async_trait]

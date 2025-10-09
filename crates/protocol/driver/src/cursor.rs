@@ -11,18 +11,18 @@ use crate::TipCursor;
 pub struct PipelineCursor {
     /// The block cache capacity before evicting old entries
     /// (to avoid unbounded memory growth)
-    capacity: usize,
+    pub capacity: usize,
     /// The channel timeout used to create the cursor.
-    channel_timeout: u64,
+    pub channel_timeout: u64,
     /// The l1 Origin of the pipeline.
-    origin: BlockInfo,
+    pub origin: BlockInfo,
     /// The L1 origin block numbers for which we have an L2 block in the cache.
     /// Used to keep track of the order of insertion and evict the oldest entry.
-    origins: VecDeque<u64>,
+    pub origins: VecDeque<u64>,
     /// The L1 origin block info for which we have an L2 block in the cache.
-    origin_infos: HashMap<u64, BlockInfo>,
+    pub origin_infos: HashMap<u64, BlockInfo>,
     /// A map from the l1 origin block number to its L2 tip.
-    tips: BTreeMap<u64, TipCursor>,
+    pub tips: BTreeMap<u64, TipCursor>,
 }
 
 impl PipelineCursor {

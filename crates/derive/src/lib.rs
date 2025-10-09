@@ -7,7 +7,7 @@ extern crate alloc;
 #[allow(ambiguous_glob_reexports)]
 pub mod prelude {
     pub use crate::{
-        attributes::*, errors::*, pipeline::*, sources::*, stages::*, traits::*, types::*,
+        attributes::*, batch::*, errors::*, pipeline::*, sources::*, stages::*, traits::*, types::*,
     };
 }
 
