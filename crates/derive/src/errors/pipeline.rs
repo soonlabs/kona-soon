@@ -1,5 +1,5 @@
 //! This module contains derivation errors thrown within the pipeline.
-use crate::{batch::SpanBatchError, errors::BuilderError, stages::MultiplexerError};
+use crate::{batch::SpanBatchError, errors::BuilderError};
 use alloc::string::String;
 use alloy_primitives::B256;
 use soon_primitives::{error::DepositError, system::SystemConfigUpdateError};
@@ -100,9 +100,6 @@ pub enum PipelineError {
     ParseDepositTxErr(String),
     #[error("Parsing l1 block info transaction error: {0}")]
     ParseL1BlockInfoTxErr(String),
-    /// A multiplexer stage error.
-    #[error("Multiplexer error: {0}")]
-    Multiplexer(#[from] MultiplexerError),
 }
 
 impl PipelineError {
