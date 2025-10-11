@@ -19,7 +19,8 @@ members = [
   "crates/l1provider",
   "crates/l2provider",
   "crates/primitives",
-  "crates/programs/*",
+  "crates/programs/bridge-program",
+  "crates/programs/l1-block-info-program",
   "crates/proof/*",
   "crates/protocol/*",
   "crates/utilities/*",
@@ -104,7 +105,7 @@ spl-noop = { path = "crates/programs/spl-noop-program", features = [
 
 
 # Alloy
-#alloy = { version = "1.0.9", default-features = false }
+alloy = { version = "1.0.9", default-features = false }
 alloy-rlp = { version = "0.3.12", default-features = false }
 alloy-trie = { version = "0.8.1", default-features = false }
 alloy-chains = { version = "0.2.3", default-features = false }
