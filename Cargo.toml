@@ -13,10 +13,16 @@ exclude = ["**/target"]
 resolver = "2"
 members = [
   "bin/*",
+  "crates/da-provider",
+  "crates/derive",
+  "crates/executor/*",
+  "crates/l1provider",
+  "crates/l2provider",
+  "crates/primitives",
+  "crates/programs/*",
   "crates/proof/*",
   "crates/protocol/*",
   "crates/utilities/*",
-  "crates/executor/*",
 ]
 default-members = ["bin/host"]
 
