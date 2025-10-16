@@ -242,35 +242,35 @@ itertools = "0.12"
 test-log = "0.2"
 
 # solana
-solana-transaction-status = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
-solana-address-lookup-table-program = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
-solana-bpf-loader-program = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
-solana-compute-budget = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
-solana-compute-budget-program = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
-solana-config-program = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
-solana-loader-v4-program = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
-solana-program = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
-solana-program-runtime = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
-solana-program-test = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
-solana-sdk = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
-solana-stake-program = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
-solana-svm = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
-solana-system-program = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
-solana-vote-program = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
-solana-runtime = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
-solana-client = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
-solana-account-decoder = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
+solana-transaction-status = { git = "https://github.com/soonlabs/agave", branch = "feat/upgrade_for_kailua_v1.1.0" }
+solana-address-lookup-table-program = { git = "https://github.com/soonlabs/agave", branch = "feat/upgrade_for_kailua_v1.1.0" }
+solana-bpf-loader-program = { git = "https://github.com/soonlabs/agave", branch = "feat/upgrade_for_kailua_v1.1.0" }
+solana-compute-budget = { git = "https://github.com/soonlabs/agave", branch = "feat/upgrade_for_kailua_v1.1.0" }
+solana-compute-budget-program = { git = "https://github.com/soonlabs/agave", branch = "feat/upgrade_for_kailua_v1.1.0" }
+solana-config-program = { git = "https://github.com/soonlabs/agave", branch = "feat/upgrade_for_kailua_v1.1.0" }
+solana-loader-v4-program = { git = "https://github.com/soonlabs/agave", branch = "feat/upgrade_for_kailua_v1.1.0" }
+solana-program = { git = "https://github.com/soonlabs/agave", branch = "feat/upgrade_for_kailua_v1.1.0" }
+solana-program-runtime = { git = "https://github.com/soonlabs/agave", branch = "feat/upgrade_for_kailua_v1.1.0" }
+solana-program-test = { git = "https://github.com/soonlabs/agave", branch = "feat/upgrade_for_kailua_v1.1.0" }
+solana-sdk = { git = "https://github.com/soonlabs/agave", branch = "feat/upgrade_for_kailua_v1.1.0" }
+solana-stake-program = { git = "https://github.com/soonlabs/agave", branch = "feat/upgrade_for_kailua_v1.1.0" }
+solana-svm = { git = "https://github.com/soonlabs/agave", branch = "feat/upgrade_for_kailua_v1.1.0" }
+solana-system-program = { git = "https://github.com/soonlabs/agave", branch = "feat/upgrade_for_kailua_v1.1.0" }
+solana-vote-program = { git = "https://github.com/soonlabs/agave", branch = "feat/upgrade_for_kailua_v1.1.0" }
+solana-runtime = { git = "https://github.com/soonlabs/agave", branch = "feat/upgrade_for_kailua_v1.1.0" }
+solana-client = { git = "https://github.com/soonlabs/agave", branch = "feat/upgrade_for_kailua_v1.1.0" }
+solana-account-decoder = { git = "https://github.com/soonlabs/agave", branch = "feat/upgrade_for_kailua_v1.1.0" }
 spl-token = "=6.0.0"
 hex = "0.4.3"
 bs58 = "0.5"
 
 [patch.crates-io]
 # Solana related dependencies
-solana-sdk = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
-solana-program = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
-solana-zk-token-sdk = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
-solana-curve25519 = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
-solana-zk-sdk = { git = "https://github.com/soonlabs/agave", branch = "feat/risc0-zkvm" }
+solana-sdk = { git = "https://github.com/soonlabs/agave", branch = "feat/upgrade_for_kailua_v1.1.0" }
+solana-program = { git = "https://github.com/soonlabs/agave", branch = "feat/upgrade_for_kailua_v1.1.0" }
+solana-zk-token-sdk = { git = "https://github.com/soonlabs/agave", branch = "feat/upgrade_for_kailua_v1.1.0" }
+solana-curve25519 = { git = "https://github.com/soonlabs/agave", branch = "feat/upgrade_for_kailua_v1.1.0" }
+solana-zk-sdk = { git = "https://github.com/soonlabs/agave", branch = "feat/upgrade_for_kailua_v1.1.0" }
 solana_rbpf = { git = "https://github.com/soonlabs/rbpf", branch = "feat/risc0-zkvm" }
 
 # Risc0 related dependencies
