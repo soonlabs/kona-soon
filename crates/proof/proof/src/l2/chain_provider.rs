@@ -250,7 +250,10 @@ impl<T: CommsClient> TrieHinter for OracleL2ChainProvider<T> {
 
     fn hint_account_proof(&self, hashed_key: B256, block_number: u64) -> Result<(), Self::Error> {
         crate::block_on(async move {
-            info!("hint_account_proof hashed_address: {:?}", hashed_key);
+            info!(
+                "hint_account_proof hashed_address: {:?}, block_number: {}",
+                hashed_key, block_number
+            );
             HintType::L2AccountProof
                 .with_data(&[block_number.to_be_bytes().as_ref(), hashed_key.as_ref()])
                 .send(self.oracle.as_ref())

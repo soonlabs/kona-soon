@@ -5,13 +5,13 @@ use alloy::providers::{Identity, Provider, ProviderBuilder, RootProvider};
 use alloy_consensus::{Receipt, Transaction};
 use alloy_eips::{BlockId, BlockNumberOrTag, RpcBlockHash};
 use alloy_primitives::Log;
+use alloy_primitives::{B256, BlockHash};
 use async_trait::async_trait;
 use op_alloy_consensus::OpReceiptEnvelope;
 use op_alloy_network::Optimism;
 use op_alloy_rpc_types::OpTransactionReceipt;
 use reqwest::Url;
 use soon_primitives::blocks::{BlockInfo, L1Header, L1Transaction};
-use alloy_primitives::{B256, BlockHash};
 
 type HttpProvider = RootProvider<Optimism>;
 
@@ -52,9 +52,7 @@ impl L1Client for BaseProviderImpl {
         let res_block = self.inner.get_block_by_number(number).hashes().await?;
         match res_block {
             Some(block) => Ok(block.header.into_consensus().into()),
-            None => Err(AlloyChainProviderError::BlockNotFound(BlockId::Number(
-                number,
-            ))),
+            None => Err(AlloyChainProviderError::BlockNotFound(BlockId::Number(number))),
         }
     }
 

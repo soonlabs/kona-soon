@@ -1,14 +1,14 @@
 use crate::error::AlloyChainProviderError;
 use crate::l1_provider::L1Client;
-use alloy::network::primitives::HeaderResponse;
 use alloy::network::Ethereum;
+use alloy::network::primitives::HeaderResponse;
 use alloy::providers::{Identity, Provider, ProviderBuilder, RootProvider};
 use alloy_consensus::{Receipt, Transaction};
 use alloy_eips::{BlockId, BlockNumberOrTag, RpcBlockHash};
+use alloy_primitives::{B256, BlockHash};
 use async_trait::async_trait;
 use reqwest::Url;
 use soon_primitives::blocks::{BlockInfo, L1Header, L1Transaction};
-use alloy_primitives::{B256, BlockHash};
 
 type HttpProvider = RootProvider<Ethereum>;
 
@@ -49,9 +49,7 @@ impl L1Client for EthProviderImpl {
         let res_block = self.inner.get_block_by_number(number).hashes().await?;
         match res_block {
             Some(block) => Ok(block.header.into_consensus().into()),
-            None => Err(AlloyChainProviderError::BlockNotFound(BlockId::Number(
-                number,
-            ))),
+            None => Err(AlloyChainProviderError::BlockNotFound(BlockId::Number(number))),
         }
     }
 

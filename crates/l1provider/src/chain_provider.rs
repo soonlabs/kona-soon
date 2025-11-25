@@ -1,9 +1,9 @@
 use crate::error::AlloyChainProviderError;
-use crate::l1_provider::{create_l1_provider, L1Client};
-use alloy_primitives::B256;
+use crate::l1_provider::{L1Client, create_l1_provider};
 use alloy::transports::http::reqwest::Url;
 use alloy_consensus::Receipt;
 use alloy_eips::BlockNumberOrTag;
+use alloy_primitives::B256;
 use async_trait::async_trait;
 use chrono::Utc;
 use lru::LruCache;
@@ -11,8 +11,8 @@ use soon_derive::traits::ChainProvider;
 use soon_primitives::blocks::{BlockInfo, L1Header, L1Transaction};
 use std::cmp::min;
 use std::num::NonZeroUsize;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 use tokio::sync::{Mutex, RwLock};
 use tracing::{error, info, warn};
@@ -50,9 +50,8 @@ pub struct L1ChainProvider {
 impl L1ChainProvider {
     /// Creates a new [AlloyChainProvider] with the given alloy provider.
     pub fn new(chain_id: u64, rpc_url: &str) -> Self {
-        let l1_url: Url = rpc_url
-            .parse()
-            .unwrap_or_else(|_| panic!("invalid rpc url for l1:{}", rpc_url));
+        let l1_url: Url =
+            rpc_url.parse().unwrap_or_else(|_| panic!("invalid rpc url for l1:{}", rpc_url));
         let provider = create_l1_provider(chain_id, l1_url.clone());
         Self {
             derive_delay_l1_block_num: 0,
@@ -94,10 +93,8 @@ impl L1ChainProvider {
         std::thread::Builder::new()
             .name("l1-provider-background-task".to_string())
             .spawn(move || {
-                let runtime = tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .unwrap();
+                let runtime =
+                    tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
 
                 let mut last_head_update_timestamp = 0;
                 let mut last_finalize_update_timestamp = 0;
@@ -167,10 +164,7 @@ impl L1ChainProvider {
 
                     let idle_duration = match step_result {
                         Err(err) => {
-                            error!(
-                                "l1-provider-background-task stepped err:{}",
-                                err.to_string()
-                            );
+                            error!("l1-provider-background-task stepped err:{}", err.to_string());
                             BACKGROUND_TASK_STEP_INTERVAL
                         }
                         Ok(in_catchup) => {
@@ -227,19 +221,13 @@ impl L1ChainProvider {
     }
 
     async fn pre_fetch_receipts(&self, number: u64) -> Result<(), AlloyChainProviderError> {
-        let block_info = self
-            .block_info_by_number(BlockNumberOrTag::Number(number))
-            .await?;
+        let block_info = self.block_info_by_number(BlockNumberOrTag::Number(number)).await?;
         self.receipts_by_hash(block_info.hash).await?;
         Ok(())
     }
 
     fn get_concurrency_level(&self) -> u8 {
-        if self.l1_chain_id == 1 || self.l1_chain_id == 11155111 {
-            3
-        } else {
-            6
-        }
+        if self.l1_chain_id == 1 || self.l1_chain_id == 11155111 { 3 } else { 6 }
     }
 }
 
@@ -283,21 +271,12 @@ impl ChainProvider for L1ChainProvider {
         drop(provider_guard);
 
         // only cache the block info if it is finalized
-        let finalized_block_info = self
-            .latest_finalized_block_info
-            .lock()
-            .await
-            .unwrap_or_default();
+        let finalized_block_info =
+            self.latest_finalized_block_info.lock().await.unwrap_or_default();
         if finalized_block_info.number >= header.number {
-            self.block_info_by_number_cache
-                .lock()
-                .await
-                .put(header.number, header.into());
+            self.block_info_by_number_cache.lock().await.put(header.number, header.into());
         }
-        self.header_by_hash_cache
-            .lock()
-            .await
-            .put(header.hash, header);
+        self.header_by_hash_cache.lock().await.put(header.hash, header);
         Ok(header.into())
     }
 
@@ -307,16 +286,8 @@ impl ChainProvider for L1ChainProvider {
             return Ok(receipts.to_vec());
         } else {
             drop(cache_guard);
-            let res_receipts = self
-                .inner
-                .read()
-                .await
-                .get_block_receipts_by_hash(hash)
-                .await?;
-            self.receipts_by_hash_cache
-                .lock()
-                .await
-                .put(hash, res_receipts.clone());
+            let res_receipts = self.inner.read().await.get_block_receipts_by_hash(hash).await?;
+            self.receipts_by_hash_cache.lock().await.put(hash, res_receipts.clone());
             Ok(res_receipts)
         }
     }

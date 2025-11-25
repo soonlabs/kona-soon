@@ -7,10 +7,10 @@ use crate::l1_provider::eth_provider::EthProviderImpl;
 use alloy::transports::http::reqwest::Url;
 use alloy_consensus::Receipt;
 use alloy_eips::BlockNumberOrTag;
+use alloy_primitives::{B256, BlockHash};
 use async_trait::async_trait;
 use soon_primitives::blocks::{BlockInfo, L1Header, L1Transaction};
 use std::fmt::Debug;
-use alloy_primitives::{B256, BlockHash};
 
 #[async_trait]
 pub(crate) trait L1Client: Send + Sync + Debug {
