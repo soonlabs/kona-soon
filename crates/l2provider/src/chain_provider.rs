@@ -1,5 +1,3 @@
-use std::fmt;
-
 use crate::error::L2ChainProviderError;
 use alloy_eips::BlockNumHash;
 use alloy_primitives::{Address, B256, U160, hex::FromHex};
@@ -28,11 +26,15 @@ use soon_primitives::{
     system::SystemConfig,
     ui::UiConfirmedBlockWithEntries,
 };
+use std::fmt;
+use std::time::{Duration, Instant};
+use tracing::info;
 
 #[derive(Clone)]
 pub struct L2BlockFetcher {
     rpc_url: String,
     soon: HttpClient,
+    request_timeout: Duration,
 }
 
 impl fmt::Debug for L2BlockFetcher {
@@ -43,9 +45,17 @@ impl fmt::Debug for L2BlockFetcher {
 
 impl L2BlockFetcher {
     pub fn new_with_url(rpc_url: &str) -> Self {
-        let soon =
-            HttpClientBuilder::default().build(rpc_url).expect("Failed to build HTTP client");
-        L2BlockFetcher { soon, rpc_url: rpc_url.to_string() }
+        let request_timeout = Duration::from_secs(150);
+        let soon = HttpClientBuilder::default()
+            .request_timeout(request_timeout)
+            .build(rpc_url)
+            .expect("Failed to build HTTP client");
+
+        info!(
+            "Created HttpClient with configured timeout: {:?} seconds",
+            request_timeout.as_secs()
+        );
+        L2BlockFetcher { soon, rpc_url: rpc_url.to_string(), request_timeout }
     }
 
     pub async fn get_block_by_number(&self, number: u64) -> Result<L2Block, L2ChainProviderError> {
@@ -154,13 +164,31 @@ impl L2BlockFetcher {
         block_number: u64,
     ) -> Result<AccountWithTrie, L2ChainProviderError> {
         let params = rpc_params![account, block_number];
+
+        info!(
+            "Starting request with configured timeout: {:?} seconds",
+            self.request_timeout.as_secs()
+        );
+        let start_time = Instant::now();
+
         let res: SoonGetAccountProofResp =
             self.soon.request("getSoonAccountProof", params).await.map_err(|e| {
+                let elapsed = start_time.elapsed();
+                info!("Request failed after {:?} seconds. Error: {:?}", elapsed.as_secs(), e);
                 L2ChainProviderError::FetchTriedAccountFailed(format!(
-                    "Error fetching output at block: {:?}",
+                    "Error fetching output at block (elapsed: {:?}s, timeout: {:?}s): {:?}",
+                    elapsed.as_secs(),
+                    self.request_timeout.as_secs(),
                     e
                 ))
             })?;
+
+        let elapsed = start_time.elapsed();
+        info!(
+            "Request completed successfully in {:?} seconds (timeout was {:?} seconds)",
+            elapsed.as_secs(),
+            self.request_timeout.as_secs()
+        );
 
         let shared_data: Option<AccountSharedData> = match res.account {
             Some(ui_account) => Some(ui_account.decode().ok_or(
