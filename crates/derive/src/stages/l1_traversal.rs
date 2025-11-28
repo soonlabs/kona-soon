@@ -82,14 +82,9 @@ impl<F: ChainProvider + Send> OriginAdvancer for L1Traversal<F> {
                 return Err(PipelineError::Eof.temp());
             }
         };
-        let next_l1_origin = match self
-            .data_source
-            .block_info_by_number(BlockNumberOrTag::Number(block.number + 1))
-            .await
-        {
-            Ok(block) => block,
-            Err(e) => return Err(PipelineError::Provider(e.to_string()).temp()),
-        };
+        info!(target: "l1-traversal", "About to advance origin to block {}", block.number + 1);
+        let next_l1_origin =
+        self.data_source.block_info_by_number(BlockNumberOrTag::Number(block.number + 1)).await.map_err(Into::into)?;
 
         // Check block hashes for reorgs.
         if block.hash != next_l1_origin.parent_hash {
