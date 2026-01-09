@@ -199,6 +199,7 @@ where
         // }
 
         Ok(OpPayloadAttributes {
+            min_base_fee: None,
             payload_attributes: PayloadAttributes {
                 timestamp: next_l2_time,
                 prev_randao: B256::default(),
