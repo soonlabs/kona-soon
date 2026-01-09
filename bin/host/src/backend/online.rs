@@ -10,7 +10,7 @@ use kona_preimage::{
 use kona_proof::{Hint, errors::HintParsingError};
 use std::{collections::HashSet, fmt::Debug, hash::Hash, str::FromStr, sync::Arc, time::Duration};
 use tokio::{sync::RwLock, time::sleep};
-use tracing::{debug, error, info, trace};
+use tracing::{debug, error, trace};
 
 /// The [OnlineHostBackendCfg] trait is used to define the type configuration for the
 /// [OnlineHostBackend].
@@ -135,7 +135,7 @@ where
         // Drop the read lock before beginning the retry loop.
         drop(kv_lock);
         if preimage.is_some() {
-            info!(target: "host_backend", "preimage hint without wait, key: {key}");
+            trace!(target: "host_backend", "preimage hint without wait, key: {key}");
             return preimage.ok_or(PreimageOracleError::KeyNotFound);
         }
 
@@ -143,7 +143,7 @@ where
         let mut count = 0;
         while preimage.is_none() {
             if let Some(hint) = self.last_hint.read().await.as_ref() {
-                info!(target: "host_backend", "Looping query preimage {key}, new hint: {:?}", hint.ty);
+                trace!(target: "host_backend", "Looping query preimage {key}, new hint: {:?}", hint.ty);
                 let value =
                     H::fetch_hint(hint.clone(), &self.cfg, &self.providers, self.kv.clone()).await;
 

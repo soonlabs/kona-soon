@@ -6,7 +6,7 @@ use crate::{
     traits::{ChainProvider, OriginAdvancer, OriginProvider, SignalReceiver},
     types::{ActivationSignal, PipelineResult, ResetSignal, Signal},
 };
-use alloc::{boxed::Box, string::ToString, sync::Arc};
+use alloc::{boxed::Box, sync::Arc};
 use alloy_eips::BlockNumberOrTag;
 use alloy_primitives::Address;
 use async_trait::async_trait;

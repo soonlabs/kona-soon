@@ -126,7 +126,7 @@ impl<T: CommsClient + Sync + Send> ChainProvider for OracleL1ChainProvider<T> {
             .collect::<Result<Vec<_>, _>>()
             .map_err(OracleProviderError::Rlp)?;
 
-        let l1_transactions = transactions
+        let l1_transactions: Vec<L1Transaction> = transactions
             .iter()
             .map(|tx| {
                 let (to, data) = match tx {
