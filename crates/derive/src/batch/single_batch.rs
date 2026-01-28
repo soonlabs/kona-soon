@@ -66,7 +66,7 @@ impl SingleBatch {
         if self.parent_hash != l2_safe_head.block_info.hash {
             let h = l2_safe_head.block_info.hash;
             warn!("ignoring batch with mismatching parent hash, current_safe_head: {h}");
-            return BatchValidity::Drop;
+            return BatchValidity::Past;
         }
 
         // Filter out batches that were included too late.

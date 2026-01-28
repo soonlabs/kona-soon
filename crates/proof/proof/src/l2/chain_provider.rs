@@ -3,7 +3,7 @@
 use crate::{HintType, alloc::string::ToString, errors::OracleProviderError};
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use alloy_eips::BlockNumHash;
-use alloy_primitives::{Address, B256, Bytes, U160};
+use alloy_primitives::{hex, Address, B256, Bytes, U160};
 use alloy_rlp::Decodable;
 use async_trait::async_trait;
 use kona_driver::PipelineCursor;
@@ -168,9 +168,15 @@ impl<T: CommsClient + Send + Sync> L2ChainProvider for OracleL2ChainProvider<T> 
                 gas: _,
                 is_system_tx: _,
             } => {
-                let address_value = U160::from_le_slice(&batcher_hash[..20]);
+                let address_value = U160::from_be_slice(&batcher_hash[12..32]);
+                let batcher_address = Address::from(address_value);
+                info!(
+                    "system_config_by_number - batcher_hash (hex): 0x{}, batcher_address: {:?}",
+                    hex::encode(batcher_hash),
+                    batcher_address
+                );
                 Ok(SystemConfig {
-                    batcher_address: Address::from(address_value),
+                    batcher_address,
                     ..Default::default()
                 })
             }
